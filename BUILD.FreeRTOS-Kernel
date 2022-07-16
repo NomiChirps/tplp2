@@ -1,0 +1,138 @@
+# Yeah this is a bunch of cobbled-together nonsense.
+# Hardcoded to use the RP2040 port.
+
+package(default_visibility=["//visibility:private"])
+
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+
+cc_library(
+	name="kernel",
+	srcs=[
+	"croutine.c",
+	"event_groups.c",
+	"list.c",
+	"queue.c",
+	"stream_buffer.c",
+	"tasks.c",
+	"timers.c",
+	],
+	hdrs=[
+	"include/FreeRTOS.h",
+	"include/StackMacros.h",
+	"include/atomic.h",
+	"include/croutine.h",
+	"include/deprecated_definitions.h",
+	"include/event_groups.h",
+	"include/list.h",
+	"include/message_buffer.h",
+	"include/mpu_prototypes.h",
+	"include/mpu_wrappers.h",
+	"include/portable.h",
+	"include/projdefs.h",
+	"include/queue.h",
+	"include/semphr.h",
+	"include/stack_macros.h",
+	"include/stream_buffer.h",
+	"include/task.h",
+	"include/timers.h",
+	],
+	alwayslink=1, # FIXME: why?
+	strip_include_prefix="include/",
+	deps=[
+		":kernel_hdrs",
+		":config",
+		":port_macro",
+		":heap",
+	],
+	visibility = ["//visibility:public"],
+)
+
+cc_library(
+	name="kernel_hdrs",
+	srcs=[],
+	hdrs=[
+	"include/FreeRTOS.h",
+	"include/StackMacros.h",
+	"include/atomic.h",
+	"include/croutine.h",
+	"include/deprecated_definitions.h",
+	"include/event_groups.h",
+	"include/list.h",
+	"include/message_buffer.h",
+	"include/mpu_prototypes.h",
+	"include/mpu_wrappers.h",
+	"include/portable.h",
+	"include/projdefs.h",
+	"include/queue.h",
+	"include/semphr.h",
+	"include/stack_macros.h",
+	"include/stream_buffer.h",
+	"include/task.h",
+	"include/timers.h",
+	],
+	strip_include_prefix="include/",
+deps=[
+
+		":port_macro",
+],
+)
+
+cc_library(
+	name="port_lib",
+	srcs=[
+		"portable/ThirdParty/GCC/RP2040/port.c",
+		"portable/ThirdParty/GCC/RP2040/idle_task_static_memory.c",
+	],
+	deps=[
+		":config",
+		":kernel_hdrs",
+		":port_hdrs",
+		"@rules_pico//pico:pico_stdlib",
+		"@rules_pico//pico:hardware_clocks",
+		"@rules_pico//pico:hardware_exception",
+	],
+	visibility = ["//visibility:public"],
+)
+
+cc_library(
+	name="port_hdrs",
+	hdrs=["portable/ThirdParty/GCC/RP2040/include/rp2040_config.h"],
+	strip_include_prefix="portable/ThirdParty/GCC/RP2040/include",
+)
+
+cc_library(
+	name="port_macro",
+	srcs=[],
+	hdrs=[
+		"portable/ThirdParty/GCC/RP2040/include/portmacro.h",
+	],
+	strip_include_prefix="portable/ThirdParty/GCC/RP2040/include",
+	deps=[
+		"@rules_pico//pico:pico_stdlib",
+	],
+)
+
+string_flag(
+	name="port",
+	values = [
+		"ThirdParty/GCC/RP2040",
+	],
+	build_setting_default = "ThirdParty/GCC/RP2040",
+)
+
+label_flag(
+	name="config",
+	build_setting_default="@//:FreeRTOSConfig",
+)
+
+# FIXME: make the impl selectable with a flag
+cc_library(
+	name="heap",
+	srcs = ["portable/MemMang/heap_1.c"],
+	alwayslink=1,
+	deps=[
+		":kernel_hdrs",
+		":config",
+	],
+	visibility=["//visibility:public"],
+)
