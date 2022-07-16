@@ -9,10 +9,14 @@ pico_binary(
         "hello.cpp",
     ],
     deps = [
-        "@FreeRTOS-Kernel//:kernel",
-        "@FreeRTOS-Kernel//:port_lib",
-        "@FreeRTOS-Kernel//:heap",
+        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS-Kernel//:task",
         "@rules_pico//pico:pico_stdlib",
+
+        # Link to the port implementation
+        #"@FreeRTOS-Kernel//:port",
+        # Choose a heap implementation
+        "@FreeRTOS-Kernel//:heap_1",
     ],
 )
 

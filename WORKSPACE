@@ -15,11 +15,18 @@ rules_pico_dependencies()
 
 rules_pico_toolchains()
 
+FREERTOS_COMMIT = "2345b212acb8326387bef1c010ccce094eeb8149"
+
 http_archive(
     name = "FreeRTOS-Kernel",
     build_file = "//:BUILD.FreeRTOS-Kernel",
-    sha256 = "577b650002e3f48d374c12102474784a7173fbfabf71aa1ce0758893297a49b9",
-    strip_prefix = "FreeRTOS-Kernel-9eca3152bc84c4a2be6ee3a3be34d8a5ae50943f",
+    sha256 = "22e5fb3252b851ae72129625578421e30962673eb21ab177c2e39aee0a047312",
+    strip_prefix = "FreeRTOS-Kernel-" + FREERTOS_COMMIT,
     # TODO: switch back to main FreeRTOS repo after https://github.com/FreeRTOS/FreeRTOS-Kernel/pull/525 is merged
-    url = "https://github.com/NomiChirps/FreeRTOS-Kernel/archive/9eca3152bc84c4a2be6ee3a3be34d8a5ae50943f.zip",
+    url = "https://github.com/NomiChirps/FreeRTOS-Kernel/archive/" + FREERTOS_COMMIT + ".zip",
 )
+#new_local_repository(
+#    name = "FreeRTOS-Kernel",
+#    build_file = "//:BUILD.FreeRTOS-Kernel",
+#    path = "FreeRTOS-Kernel",
+#)
