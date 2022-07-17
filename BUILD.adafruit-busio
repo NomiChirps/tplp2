@@ -1,0 +1,18 @@
+cc_library(
+	name = "lib",
+	srcs = [
+		"Adafruit_BusIO_Register.cpp",
+		"Adafruit_I2CDevice.cpp",
+		"Adafruit_SPIDevice.cpp",
+		"Adafruit_BusIO_Register.h",
+	],
+	hdrs = [
+		"Adafruit_BusIO_Register.h",
+		"Adafruit_I2CDevice.h",
+		"Adafruit_SPIDevice.h",
+	],
+	includes = ["."],
+	deps = [
+		"@arduino-pico//:arduino-compat",
+	],
+)

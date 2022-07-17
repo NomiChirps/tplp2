@@ -1,6 +1,7 @@
 workspace(name = "tplp2")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
 
 http_archive(
     name = "rules_pico",
@@ -30,3 +31,33 @@ http_archive(
 #    build_file = "//:BUILD.FreeRTOS-Kernel",
 #    path = "FreeRTOS-Kernel",
 #)
+
+PICO_ARDUINO_COMPAT_COMMIT = "0c1173cb3ea407b2cc28244b46447214723f96ee"
+http_archive(
+	name = "pico-arduino-compat",
+	build_file = "//:BUILD.pico-arduino-compat",
+	sha256 = "0b8c941fb2e66c12ff2263d1f457f5e5975180d81186da4a991c70258f42788e",
+	strip_prefix = "pico-arduino-compat-" + PICO_ARDUINO_COMPAT_COMMIT,
+	url = "https://github.com/fhdm-dev/pico-arduino-compat/archive/" + PICO_ARDUINO_COMPAT_COMMIT + ".zip",
+	patches = ["//:pico-arduino-compat.patch"],
+	remote_patch_strip = 1,
+)
+
+ARDUINO_PICO_COMMIT = "cf63040c5aa8306cfdb34c66b5a9cb4e75a4fad8"
+http_archive(
+	name = "arduino-pico",
+	build_file = "//:BUILD.arduino-pico",
+	sha256 = "9b82b0a869d5dcd2c84f043173c3e6260f6a151f1a048a0e9e85f3bb79b4b9d2",
+	strip_prefix = "arduino-pico-" + ARDUINO_PICO_COMMIT,
+	url = "https://github.com/earlephilhower/arduino-pico/archive/" + ARDUINO_PICO_COMMIT + ".zip",
+)
+
+ADAFRUIT_BUSIO_COMMIT = "da6809b582f1b64eeafe44d58df8a90a2fa9b47c"
+http_archive(
+	name = "adafruit-busio",
+	build_file = "//:BUILD.adafruit-busio",
+	sha256 = "92e81de991c1891bfa2427c8ec0de26dd369dec17f9408e9f7930e433804104c",
+	strip_prefix = "Adafruit_BusIO-" + ADAFRUIT_BUSIO_COMMIT,
+	url = "https://github.com/adafruit/Adafruit_BusIO/archive/" + ADAFRUIT_BUSIO_COMMIT + ".zip",
+)
+

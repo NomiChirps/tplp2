@@ -1,0 +1,45 @@
+package(default_visibility = ["//visibility:private"])
+
+cc_library(
+    name = "arduino-pico-extra",
+    srcs = [
+        "arduino-compat/arduino-pico-extra/HardwareSerialStdio.cpp",
+        "arduino-compat/arduino-pico-extra/SerialExtern.cpp",
+    ],
+    hdrs = [
+        "arduino-compat/arduino-pico-extra/Arduino.h",
+        "arduino-compat/arduino-pico-extra/HardwareSerialStdio.h",
+        "arduino-compat/arduino-pico-extra/SPI.h",
+        "arduino-compat/arduino-pico-extra/SerialExtern.h",
+        "arduino-compat/arduino-pico-extra/pins_arduino.h",
+    ],
+    includes = [
+        "arduino-compat/arduino-pico-extra",
+    ],
+    visibility = [
+        "@arduino-pico//:__subpackages__",
+    ],
+    deps = [
+        "@rules_pico//pico:pico_stdlib",
+        "@arduino-pico//:stdlib_noniso",
+        "@arduino-pico//:api_headers",
+        "@arduino-pico//:header_nonsense",
+    ],
+)
+
+cc_library(
+    name = "pins_arduino",
+    hdrs = [
+        "arduino-compat/arduino-pico-extra/pins_arduino.h",
+    ],
+    includes = [
+        "arduino-compat/arduino-pico-extra",
+    ],
+    strip_include_prefix = "arduino-compat/arduino-pico-extra",
+    deps = [
+        "@arduino-pico//:header_nonsense",
+    ],
+    visibility = [
+        "@arduino-pico//:__subpackages__",
+    ],
+)
