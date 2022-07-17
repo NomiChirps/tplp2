@@ -1,5 +1,5 @@
 cc_library(
-	name = "lib",
+	name = "adafruit-busio",
 	srcs = [
 		"Adafruit_BusIO_Register.cpp",
 		"Adafruit_I2CDevice.cpp",
@@ -15,4 +15,5 @@ cc_library(
 	deps = [
 		"@arduino-pico//:arduino-compat",
 	],
+	visibility = ["//visibility:public"],
 )

@@ -12,6 +12,7 @@ pico_binary(
         "@FreeRTOS-Kernel//:FreeRTOS",
         "@FreeRTOS-Kernel//:task",
         "@rules_pico//pico:pico_stdlib",
+	"@adafruit-sharp-memory-display//:adafruit-sharp-memory-display",
 
         # Link to the port implementation
         #"@FreeRTOS-Kernel//:port",

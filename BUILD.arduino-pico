@@ -2,8 +2,7 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "arduino-compat",
-    # TODO: should this be local, or?
-    local_defines = [
+    defines = [
         "ARDUINO=200",
         "ARDUINO_ARCH_RP2040",
         "F_CPU=125000000UL",

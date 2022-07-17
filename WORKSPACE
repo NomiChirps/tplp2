@@ -61,3 +61,20 @@ http_archive(
 	url = "https://github.com/adafruit/Adafruit_BusIO/archive/" + ADAFRUIT_BUSIO_COMMIT + ".zip",
 )
 
+ADAFRUIT_GFX_LIBRARY_COMMIT = "223f914d0e092cc24723182a2e3273e61c4b22ea"
+http_archive(
+	name = "adafruit-gfx-library",
+	build_file = "//:BUILD.adafruit-gfx-library",
+	sha256 = "9a16a4291c3e228d4d116bce156d34f97bea3dd4061f71ed8fa33b7607a9ce6f",
+	strip_prefix = "Adafruit-GFX-Library-" + ADAFRUIT_GFX_LIBRARY_COMMIT,
+	url = "https://github.com/adafruit/Adafruit-GFX-Library/archive/" + ADAFRUIT_GFX_LIBRARY_COMMIT + ".zip",
+)
+
+ADAFRUIT_SHARP_MEMORY_DISPLAY_COMMIT = "d0339a5b76762bdb90d356022fc5693c93790513"
+http_archive(
+	name = "adafruit-sharp-memory-display",
+	build_file = "//:BUILD.adafruit-sharp-memory-display",
+	# sha256 = ""
+	strip_prefix = "Adafruit_SHARP_Memory_Display-" + ADAFRUIT_SHARP_MEMORY_DISPLAY_COMMIT,
+	url = "https://github.com/adafruit/Adafruit_SHARP_Memory_Display/archive/" + ADAFRUIT_SHARP_MEMORY_DISPLAY_COMMIT + ".zip",
+)
