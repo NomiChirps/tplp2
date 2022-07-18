@@ -6,7 +6,6 @@ cc_library(
 	hdrs = [
 		"Adafruit_SharpMem.h",
 	],
-	#includes = ["."],
 	deps = [
 		"@arduino-pico//:arduino-compat",
 		"@adafruit-busio//:adafruit-busio",
