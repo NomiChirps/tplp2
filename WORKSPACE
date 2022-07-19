@@ -3,13 +3,12 @@ workspace(name = "tplp2")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
 
-RULES_PICO_COMMIT = "abf9efd5a80cbbaa7fe82fe986864618dfe90741"
+RULES_PICO_COMMIT = "b9a5ee3d0af16156fe2f4c2341906d1ed669fa91"
 http_archive(
     name = "rules_pico",
-    sha256 = "82704ac51c05721346aeba93fca98ada8fb7384d09bd5eee69647a3d7cdb631e",
+    #sha256 = "734d7705a0d1b131ad65e698531529225fa86c193970e4830a84066844afbc71",
     strip_prefix = "rules_pico-" + RULES_PICO_COMMIT,
-    # FIXME: switch back when https://github.com/dfr/rules_pico/pull/1 is merged
-    url = "https://github.com/NomiChirps/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
+    url = "https://github.com/dfr/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
 )
 
 load("@rules_pico//pico:repositories.bzl", "rules_pico_dependencies", "rules_pico_toolchains")
