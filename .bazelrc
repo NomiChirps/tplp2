@@ -8,10 +8,8 @@ build --flag_alias=pico_double_impl=@rules_pico//pico/config:double_impl
 build --flag_alias=pico_float_impl=@rules_pico//pico/config:float_impl
 build --flag_alias=pico_stdio_uart=@rules_pico//pico/config:stdio_uart
 build --flag_alias=pico_stdio_usb=@rules_pico//pico/config:stdio_usb
-#build --flag_alias=freertos_port=@FreeRTOS-Kernel//.........
 
-# The specific board config used by tplp2. 
+# The specific board config used by tplp2
 build --pico_board=adafruit_feather_rp2040
 build --pico_stdio_uart=False
 build --pico_stdio_usb=True
-#build --freertos_port=:ThirdParty/GCC/RP2040
