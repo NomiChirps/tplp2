@@ -1,6 +1,8 @@
 # Building
 Install `bazel`, `gcc-arm-none-eabi`, `arm-none-eabi-newlib`.
 
+On Windows, requires bazel >= 6.0.0-pre.20220630.1 (due to mystery bug, present in 5.2.0) and gcc-arm-none-eabi >= 10.3.1 (due to [bug](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95253)).
+
 ```sh
 # debug build
 bazel build :hello.uf2
