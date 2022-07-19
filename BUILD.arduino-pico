@@ -5,7 +5,7 @@ cc_library(
     defines = [
         "ARDUINO=200",
         "ARDUINO_ARCH_RP2040",
-        "F_CPU=125000000UL",
+        "F_CPU=133000000UL",
         "NO_USB",
     ],
     srcs = [
