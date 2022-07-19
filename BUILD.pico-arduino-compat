@@ -20,10 +20,10 @@ cc_library(
         "@arduino-pico//:__subpackages__",
     ],
     deps = [
-        "@rules_pico//pico:pico_stdlib",
-        "@arduino-pico//:stdlib_noniso",
         "@arduino-pico//:api_headers",
         "@arduino-pico//:header_nonsense",
+        "@arduino-pico//:stdlib_noniso",
+        "@rules_pico//pico:pico_stdlib",
     ],
 )
 
@@ -36,10 +36,10 @@ cc_library(
         "arduino-compat/arduino-pico-extra",
     ],
     strip_include_prefix = "arduino-compat/arduino-pico-extra",
-    deps = [
-        "@arduino-pico//:header_nonsense",
-    ],
     visibility = [
         "@arduino-pico//:__subpackages__",
+    ],
+    deps = [
+        "@arduino-pico//:header_nonsense",
     ],
 )

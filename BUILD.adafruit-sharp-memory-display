@@ -1,15 +1,15 @@
 cc_library(
-	name = "adafruit-sharp-memory-display",
-	srcs = [
-		"Adafruit_SharpMem.cpp",
-	],
-	hdrs = [
-		"Adafruit_SharpMem.h",
-	],
-	deps = [
-		"@arduino-pico//:arduino-compat",
-		"@adafruit-busio//:adafruit-busio",
-		"@adafruit-gfx-library//:adafruit-gfx-library",
-	],
-	visibility = ["//visibility:public"],
+    name = "adafruit-sharp-memory-display",
+    srcs = [
+        "Adafruit_SharpMem.cpp",
+    ],
+    hdrs = [
+        "Adafruit_SharpMem.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@adafruit-busio//:adafruit-busio",
+        "@adafruit-gfx-library//:adafruit-gfx-library",
+        "@arduino-pico//:arduino-compat",
+    ],
 )

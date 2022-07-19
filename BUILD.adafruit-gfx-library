@@ -68,10 +68,10 @@ cc_library(
         "Fonts/FreeSerifBoldItalic12pt7b.h",
         #"examples/GFXcanvas/GFXcanvasSerialDemo.h",
     ],
-    deps = [
-        "@arduino-pico//:arduino-compat",
-        "@adafruit-busio//:adafruit-busio",
-    ],
     includes = ["."],
     visibility = ["//visibility:public"],
+    deps = [
+        "@adafruit-busio//:adafruit-busio",
+        "@arduino-pico//:arduino-compat",
+    ],
 )

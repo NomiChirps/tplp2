@@ -1,230 +1,247 @@
 # Yeah this is a bunch of cobbled-together nonsense.
 # Hardcoded to use the RP2040 port.
 
-package(default_visibility=["//visibility:private"])
-
-load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+package(default_visibility = ["//visibility:private"])
 
 cc_library(
-	# For port implementations, to avoid dependency cycles.
-	name = "all_hdrs",
-	hdrs = glob(["include/*.h"]),
-	strip_include_prefix="include/",
-	deps = [":portmacro",],
-)
-cc_library(
-	name = "FreeRTOS",
-	hdrs = ["include/FreeRTOS.h"],
-	strip_include_prefix="include/",
-	deps = [
-		":FreeRTOSConfig",
-		":projdefs",
-		":portable",
-	],
-	visibility=["//visibility:public"],
-)
-cc_library(
-	name = "event_groups",
-	srcs = ["event_groups.c"],
-	hdrs = ["include/event_groups.h"],
-	strip_include_prefix="include/",
-	deps = [
-		":FreeRTOS",
-		":task",
-		":timers",
-	],
-)
-cc_library(
-	name = "list",
-	srcs = ["list.c"],
-	hdrs = ["include/list.h"],
-	strip_include_prefix="include/",
-	deps = [
-		":FreeRTOS",
-	],
-)
-cc_library(
-	name = "stream_buffer",
-	srcs = ["stream_buffer.c"],
-	hdrs = ["include/stream_buffer.h"],
-	strip_include_prefix="include/",
-	deps = [
-		":FreeRTOS",
-		":task",
-	],
-)
-cc_library(
-	name = "depcycle1",
-	srcs = [
-		"queue.c",
-		"tasks.c",
-		"timers.c",
-		"croutine.c",
-	],
-	hdrs = [
-		"include/queue.h",
-		"include/task.h",
-		"include/timers.h",
-		"include/croutine.h",
-	],
-	strip_include_prefix="include/",
-	deps = [
-		":FreeRTOS",
-		":stack_macros",
-		":list",
-		":port",
-	],
-)
-cc_library(
-	name = "croutine",
-	hdrs = ["include/croutine.h"],
-	strip_include_prefix="include/",
-	deps = [":depcycle1"],
-)
-cc_library(
-	name = "queue",
-	hdrs = ["include/queue.h"],
-	strip_include_prefix="include/",
-	deps = [":depcycle1"],
-)
-cc_library(
-	name = "task",
-	hdrs = ["include/task.h"],
-	strip_include_prefix="include/",
-	deps = [":depcycle1"],
-	visibility=["//visibility:public"],
-)
-cc_library(
-	name = "timers",
-	hdrs = ["include/timers.h"],
-	strip_include_prefix="include/",
-	deps = [":depcycle1"],
-)
-cc_library(
-	name = "atomic",
-	hdrs = ["include/atomic.h"],
-	strip_include_prefix="include/",
-)
-cc_library(
-	name = "deprecated_definitions",
-	hdrs = ["include/deprecated_definitions.h"],
-	strip_include_prefix="include/",
-	deps = [
-		":portmacro",
-	],
-)
-cc_library(
-	name = "message_buffer",
-	hdrs = ["include/message_buffer.h"],
-	strip_include_prefix="include/",
-	deps = [
-		":stream_buffer",
-	],
-)
-cc_library(
-	name = "mpu_prototypes",
-	hdrs = ["include/mpu_prototypes.h"],
-	strip_include_prefix="include/",
-)
-cc_library(
-	name = "mpu_wrappers",
-	hdrs = ["include/mpu_wrappers.h"],
-	strip_include_prefix="include/",
-)
-cc_library(
-	name = "portable",
-	hdrs = ["include/portable.h"],
-	strip_include_prefix="include/",
-	deps = [
-		":deprecated_definitions",
-		":portmacro",
-		":mpu_wrappers",
-	],
-)
-cc_library(
-	name = "projdefs",
-	hdrs = ["include/projdefs.h"],
-	strip_include_prefix="include/",
-)
-cc_library(
-	name = "semphr",
-	hdrs = ["include/semphr.h"],
-	strip_include_prefix="include/",
-	deps = [
-		":queue",
-	],
-)
-cc_library(
-	name = "stack_macros",
-	hdrs = [
-		"include/stack_macros.h",
-		"include/StackMacros.h",
-	],
-	strip_include_prefix="include/",
+    # For port implementations, to avoid dependency cycles.
+    name = "all_hdrs",
+    hdrs = glob(["include/*.h"]),
+    strip_include_prefix = "include/",
+    deps = [":portmacro"],
 )
 
 cc_library(
-	name="port",
-	# In principle this could redirect to a different port.
-	# But it won't because I'm lazy.
-	deps = [":RP2040"],
-	visibility=["//visibility:public"],
-)
-cc_library(
-	name="portmacro",
-	# In principle this could redirect to a different port.
-	# But it won't because I'm lazy.
-	deps=[":RP2040_portmacro"],
+    name = "FreeRTOS",
+    hdrs = ["include/FreeRTOS.h"],
+    strip_include_prefix = "include/",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":FreeRTOSConfig",
+        ":portable",
+        ":projdefs",
+    ],
 )
 
 cc_library(
-	name="RP2040",
-	srcs=[
-		"portable/ThirdParty/GCC/RP2040/port.c",
-		"portable/ThirdParty/GCC/RP2040/idle_task_static_memory.c",
-		# uhhhhhhh yeah that's a hack
-		# there's a GNARLY dependency cycle otherwise
-		"event_groups.c",
-	],
-	hdrs=[
-		"portable/ThirdParty/GCC/RP2040/include/rp2040_config.h",
-	],
-	strip_include_prefix="portable/ThirdParty/GCC/RP2040/include",
-	deps=[
-		":all_hdrs",
-		":FreeRTOSConfig",
-		"@rules_pico//pico:pico_stdlib",
-		"@rules_pico//pico:pico_sync",
-		"@rules_pico//pico:hardware_clocks",
-		"@rules_pico//pico:hardware_exception",
-		"@rules_pico//pico:hardware_irq",
-		#"@rules_pico//pico:multicore", # optional
-	],
-)
-cc_library(
-	name="RP2040_portmacro",
-	hdrs=[
-		"portable/ThirdParty/GCC/RP2040/include/portmacro.h",
-	],
-	strip_include_prefix="portable/ThirdParty/GCC/RP2040/include",
-	deps=[
-		"@rules_pico//pico:pico_stdlib",
-	],
+    name = "event_groups",
+    srcs = ["event_groups.c"],
+    hdrs = ["include/event_groups.h"],
+    strip_include_prefix = "include/",
+    deps = [
+        ":FreeRTOS",
+        ":task",
+        ":timers",
+    ],
 )
 
+cc_library(
+    name = "list",
+    srcs = ["list.c"],
+    hdrs = ["include/list.h"],
+    strip_include_prefix = "include/",
+    deps = [
+        ":FreeRTOS",
+    ],
+)
+
+cc_library(
+    name = "stream_buffer",
+    srcs = ["stream_buffer.c"],
+    hdrs = ["include/stream_buffer.h"],
+    strip_include_prefix = "include/",
+    deps = [
+        ":FreeRTOS",
+        ":task",
+    ],
+)
+
+cc_library(
+    name = "depcycle1",
+    srcs = [
+        "croutine.c",
+        "queue.c",
+        "tasks.c",
+        "timers.c",
+    ],
+    hdrs = [
+        "include/croutine.h",
+        "include/queue.h",
+        "include/task.h",
+        "include/timers.h",
+    ],
+    strip_include_prefix = "include/",
+    deps = [
+        ":FreeRTOS",
+        ":list",
+        ":port",
+        ":stack_macros",
+    ],
+)
+
+cc_library(
+    name = "croutine",
+    hdrs = ["include/croutine.h"],
+    strip_include_prefix = "include/",
+    deps = [":depcycle1"],
+)
+
+cc_library(
+    name = "queue",
+    hdrs = ["include/queue.h"],
+    strip_include_prefix = "include/",
+    deps = [":depcycle1"],
+)
+
+cc_library(
+    name = "task",
+    hdrs = ["include/task.h"],
+    strip_include_prefix = "include/",
+    visibility = ["//visibility:public"],
+    deps = [":depcycle1"],
+)
+
+cc_library(
+    name = "timers",
+    hdrs = ["include/timers.h"],
+    strip_include_prefix = "include/",
+    deps = [":depcycle1"],
+)
+
+cc_library(
+    name = "atomic",
+    hdrs = ["include/atomic.h"],
+    strip_include_prefix = "include/",
+)
+
+cc_library(
+    name = "deprecated_definitions",
+    hdrs = ["include/deprecated_definitions.h"],
+    strip_include_prefix = "include/",
+    deps = [
+        ":portmacro",
+    ],
+)
+
+cc_library(
+    name = "message_buffer",
+    hdrs = ["include/message_buffer.h"],
+    strip_include_prefix = "include/",
+    deps = [
+        ":stream_buffer",
+    ],
+)
+
+cc_library(
+    name = "mpu_prototypes",
+    hdrs = ["include/mpu_prototypes.h"],
+    strip_include_prefix = "include/",
+)
+
+cc_library(
+    name = "mpu_wrappers",
+    hdrs = ["include/mpu_wrappers.h"],
+    strip_include_prefix = "include/",
+)
+
+cc_library(
+    name = "portable",
+    hdrs = ["include/portable.h"],
+    strip_include_prefix = "include/",
+    deps = [
+        ":deprecated_definitions",
+        ":mpu_wrappers",
+        ":portmacro",
+    ],
+)
+
+cc_library(
+    name = "projdefs",
+    hdrs = ["include/projdefs.h"],
+    strip_include_prefix = "include/",
+)
+
+cc_library(
+    name = "semphr",
+    hdrs = ["include/semphr.h"],
+    strip_include_prefix = "include/",
+    deps = [
+        ":queue",
+    ],
+)
+
+cc_library(
+    name = "stack_macros",
+    hdrs = [
+        "include/StackMacros.h",
+        "include/stack_macros.h",
+    ],
+    strip_include_prefix = "include/",
+)
+
+cc_library(
+    name = "port",
+    visibility = ["//visibility:public"],
+    # In principle this could redirect to a different port.
+    # But it won't because I'm lazy.
+    deps = [":RP2040"],
+)
+
+cc_library(
+    name = "portmacro",
+    # In principle this could redirect to a different port.
+    # But it won't because I'm lazy.
+    deps = [":RP2040_portmacro"],
+)
+
+cc_library(
+    name = "RP2040",
+    srcs = [
+        "portable/ThirdParty/GCC/RP2040/port.c",
+        "portable/ThirdParty/GCC/RP2040/idle_task_static_memory.c",
+        # uhhhhhhh yeah that's a hack
+        # there's a GNARLY dependency cycle otherwise
+        "event_groups.c",
+    ],
+    hdrs = [
+        "portable/ThirdParty/GCC/RP2040/include/rp2040_config.h",
+    ],
+    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
+    deps = [
+        ":all_hdrs",
+        ":FreeRTOSConfig",
+        "@rules_pico//pico:pico_stdlib",
+        "@rules_pico//pico:pico_sync",
+        "@rules_pico//pico:hardware_clocks",
+        "@rules_pico//pico:hardware_exception",
+        "@rules_pico//pico:hardware_irq",
+        #"@rules_pico//pico:multicore", # optional
+    ],
+)
+
+cc_library(
+    name = "RP2040_portmacro",
+    hdrs = [
+        "portable/ThirdParty/GCC/RP2040/include/portmacro.h",
+    ],
+    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
+    deps = [
+        "@rules_pico//pico:pico_stdlib",
+    ],
+)
 
 label_flag(
-	name="FreeRTOSConfig",
-	build_setting_default="@//:FreeRTOSConfig",
+    name = "FreeRTOSConfig",
+    build_setting_default = "@//:FreeRTOSConfig",
 )
 
 cc_library(
-	name="heap_1",
-	srcs = ["portable/MemMang/heap_1.c"],
-	alwayslink=1,
-	deps=[
-		":FreeRTOS",
-		":task",
-	],
-	visibility=["//visibility:public"],
+    name = "heap_1",
+    srcs = ["portable/MemMang/heap_1.c"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":FreeRTOS",
+        ":task",
+    ],
+    alwayslink = 1,
 )

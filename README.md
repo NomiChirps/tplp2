@@ -41,6 +41,7 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
+- [ ] Make sure we're not using floating point math anywhere (including dependencies)
 - [x] Get FreeRTOS running
 - [x] Bazel-ify the build
 
