@@ -3,11 +3,13 @@ workspace(name = "tplp2")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
 
+RULES_PICO_COMMIT = "abf9efd5a80cbbaa7fe82fe986864618dfe90741"
 http_archive(
     name = "rules_pico",
-    sha256 = "1092d6ba20fe95b4ddda33ee924c371c02353e12895faa09682cf01a2064d745",
-    strip_prefix = "rules_pico-7f1789f71e3d757d163883038f8f9019969372c3",
-    url = "https://github.com/dfr/rules_pico/archive/7f1789f71e3d757d163883038f8f9019969372c3.zip",
+    sha256 = "82704ac51c05721346aeba93fca98ada8fb7384d09bd5eee69647a3d7cdb631e",
+    strip_prefix = "rules_pico-" + RULES_PICO_COMMIT,
+    # FIXME: switch back when https://github.com/dfr/rules_pico/pull/1 is merged
+    url = "https://github.com/NomiChirps/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
 )
 
 load("@rules_pico//pico:repositories.bzl", "rules_pico_dependencies", "rules_pico_toolchains")
@@ -16,21 +18,14 @@ rules_pico_dependencies()
 
 rules_pico_toolchains()
 
-FREERTOS_COMMIT = "2345b212acb8326387bef1c010ccce094eeb8149"
-
+FREERTOS_COMMIT = "859dbaf504176796eecc4b4f4eab5a2a9a7fce1c"
 http_archive(
     name = "FreeRTOS-Kernel",
     build_file = "//:BUILD.FreeRTOS-Kernel",
-    sha256 = "22e5fb3252b851ae72129625578421e30962673eb21ab177c2e39aee0a047312",
+    sha256 = "4cfe58b57d976a776c1a32584b4817cd6c674767710cb6b2d30df5c57f4ecc80",
     strip_prefix = "FreeRTOS-Kernel-" + FREERTOS_COMMIT,
-    # TODO: switch back to main FreeRTOS repo after https://github.com/FreeRTOS/FreeRTOS-Kernel/pull/525 is merged
-    url = "https://github.com/NomiChirps/FreeRTOS-Kernel/archive/" + FREERTOS_COMMIT + ".zip",
+    url = "https://github.com/FreeRTOS/FreeRTOS-Kernel/archive/" + FREERTOS_COMMIT + ".zip",
 )
-#new_local_repository(
-#    name = "FreeRTOS-Kernel",
-#    build_file = "//:BUILD.FreeRTOS-Kernel",
-#    path = "FreeRTOS-Kernel",
-#)
 
 PICO_ARDUINO_COMPAT_COMMIT = "0c1173cb3ea407b2cc28244b46447214723f96ee"
 http_archive(
@@ -74,7 +69,7 @@ ADAFRUIT_SHARP_MEMORY_DISPLAY_COMMIT = "d0339a5b76762bdb90d356022fc5693c93790513
 http_archive(
 	name = "adafruit-sharp-memory-display",
 	build_file = "//:BUILD.adafruit-sharp-memory-display",
-	# sha256 = ""
+	sha256 = "0f0efbc20cff9870d91f07ad8e18d258690c593270857bccb254195da881d2e2",
 	strip_prefix = "Adafruit_SHARP_Memory_Display-" + ADAFRUIT_SHARP_MEMORY_DISPLAY_COMMIT,
 	url = "https://github.com/adafruit/Adafruit_SHARP_Memory_Display/archive/" + ADAFRUIT_SHARP_MEMORY_DISPLAY_COMMIT + ".zip",
 )
