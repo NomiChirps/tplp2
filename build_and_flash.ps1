@@ -7,11 +7,7 @@ function ThrowOnNativeFailure {
     }
 }
 
-bazel build //... --keep_going
-
-bazel build --nobuild :refresh_compile_commands
+bazel build //tplp:firmware.uf2
 ThrowOnNativeFailure
-
-$env:BUILD_WORKSPACE_DIRECTORY = $PSScriptRoot
-python bazel-bin/refresh_compile_commands.py
+Copy-Item bazel-bin/tplp/firmware.uf2 D:/
 ThrowOnNativeFailure

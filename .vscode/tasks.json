@@ -2,10 +2,20 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "bazel build",
+            "command": "bazel",
+            "args": ["build", "//tplp:firmware"],
+            "type": "shell",
+        },
+        {
+            "label": "!! Build and flash !!",
+            "command": "./build_and_flash.ps1",
+            "type": "shell",
+        },
+        {
             "label": "Refresh compile_commands.json",
             "command": "./refresh_compile_commands.ps1",
             "type": "shell",
-            // TODO: problem scanner https://code.visualstudio.com/docs/editor/tasks
-        }
+        },
     ]
 }
