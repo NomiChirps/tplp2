@@ -4,12 +4,27 @@
         {
             "label": "bazel build",
             "command": "bazel",
-            "args": ["build", "//tplp:firmware"],
+            "args": [
+                "build",
+                "//tplp:firmware"
+            ],
             "type": "shell",
+        },
+        {
+            "label": "!! Reset into bootloader !!",
+            "command": "./reset_to_bootloader.ps1",
+            "args": [
+                "-ComPort",
+                "COM7",
+            ],
         },
         {
             "label": "!! Build and flash !!",
             "command": "./build_and_flash.ps1",
+            "args": [
+                "-UploadPath",
+                "D:\\"
+            ],
             "type": "shell",
         },
         {

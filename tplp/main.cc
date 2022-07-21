@@ -3,18 +3,24 @@
 
 #include "Adafruit_SharpMem.h"
 #include "FreeRTOS.h"
+#include "hardware/gpio.h"
+#include "pico/bootrom.h"
 #include "pico/stdlib.h"
+#include "hardware/pio.h"
 #include "task.h"
+#include "queue.h"
 #include "tplp/util.h"
+#include "tplp/ws2812.h"
 
 using std::chrono_literals::operator""ms;
 
 namespace tplp {
 
 struct Pins {
-  static const int LCD_CS = 6;
-  static const int SPI_SCLK = 18;
-  static const int SPI_MOSI = 19;
+  static const uint LCD_CS = 6;
+  static const uint SPI_SCLK = 18;
+  static const uint SPI_MOSI = 19;
+  static const uint NEOPIXEL = 16;
 };
 
 // TODO: make sure this doesn't use any hard delays (scheduler)
@@ -42,13 +48,24 @@ void led_task(void *) {
   gpio_set_dir(LED_PIN, GPIO_OUT);
   while (true) {
     gpio_put(LED_PIN, 1);
-    vTaskDelay(as_ticks(100ms));
+    vTaskDelay(as_ticks(200ms));
     gpio_put(LED_PIN, 0);
-    vTaskDelay(as_ticks(100ms));
+    vTaskDelay(as_ticks(200ms));
   }
 }
 
+void neopixel_task(void *) {
+  //ws2812_program_init(PIO pio, uint sm, uint offset, uint pin, float freq, bool rgbw)
+}
+
+void button_task(void *) {
+  //xQueueReceive(button_queue, void *const pvBuffer, TickType_t xTicksToWait);
+}
+
 int main() {
+  stdio_init_all();
+  printf("Hello!\n");
+
   xTaskCreate(&tplp::lcd_task, "lcd", 1024, nullptr, 1, nullptr);
   xTaskCreate(&tplp::led_task, "led", 1024, nullptr, 1, nullptr);
   vTaskStartScheduler();

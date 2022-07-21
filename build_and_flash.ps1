@@ -1,3 +1,5 @@
+param ($UploadPath)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
@@ -7,7 +9,7 @@ function ThrowOnNativeFailure {
     }
 }
 
-bazel build //tplp:firmware.uf2
+bazel build -c opt //tplp:firmware.uf2
 ThrowOnNativeFailure
-Copy-Item bazel-bin/tplp/firmware.uf2 D:/
+Copy-Item bazel-bin/tplp/firmware.uf2 $UploadPath
 ThrowOnNativeFailure

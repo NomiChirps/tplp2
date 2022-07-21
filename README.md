@@ -17,7 +17,6 @@ ls -lh bazel-bin/hello.uf2
 Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Copy the .uf2 file to the USB mass storage device that appears.
 
 # TODO
-- [ ] Use reset_usb_boot() in pico/bootrom.h to enter bootloader from front panel buttons (and avoid touching the board with dirty human fingers)
 - [ ] Vendor all 3rd party libraries
 - [ ] Tune FreeRTOS
   - [ ] audit FreeRTOSConfig.h
@@ -32,7 +31,7 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
   - [ ] Front panel buttons
   - [ ] Stepper drivers (use pico_stepper)
   - [ ] Laser module
-  - [ ] Load cell reader (use hx711-arduino-library)
+  - [ ] Load cell reader https://github.com/endail/hx711-pico-c
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
   - [ ] MicroSD card reader (use [SD](https://github.com/arduino-libraries/SD/tree/a64c2bd907460dd01cef07fff003550cfcae0119))
@@ -44,6 +43,7 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
 - [ ] Make sure we're not using floating point math anywhere (including dependencies)
+- [x] Reset to the bootloader without touching the board: magic 1200 baud connection
 - [x] Get FreeRTOS running
 - [x] Bazel-ify the build
 
@@ -60,7 +60,7 @@ See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts
 | GPIO06 | LCD CS |
 | GPIO07 | available |
 | GPIO08 | available |
-| GPIO09 | available |
+| GPIO09 | (tmp) Red button = jump to bootloader  |
 | GPIO10 | available |
 | GPIO11 | available |
 | GPIO12 | available |
@@ -77,10 +77,10 @@ See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts
 | GPIO23 | *Reserved by platform* |
 | GPIO24 | available |
 | GPIO25 | available |
-| GPIO26 | available |
-| GPIO27 | available |
-| GPIO28 | available |
-| GPIO29 | available |
+| GPIO26 | available (ADC0) |
+| GPIO27 | available (ADC1) |
+| GPIO28 | available (ADC2) |
+| GPIO29 | available (ADC3) |
 
 GPIO2 and GPIO3 are brought out via the [STEMMA QT](https://learn.adafruit.com/introducing-adafruit-stemma-qt) connector.
 
@@ -89,7 +89,7 @@ time, and only on separate peripherals, 0 and 1." This means we can use e.g. SCK
 but not SCK0 and SCL0 (if we want hardware acceleration).
 
 ## Front panel ribbon cable layout
-- Pin 1 (red) - LCD Enable
+- Pin 1 (red) - LCD Enable (should be left open)
 - Pin 2 - LCD SPI CS (active high)
 - Pin 3 - LCD SPI MOSI
 - Pin 4 - LCD SPI SCLK
@@ -117,6 +117,7 @@ We might be able to save 2 pins by combining the button signals.
 - White - A+
 
 # Reference Materials
+- [Raspberry Pi Pico SDK (HTML docs)](https://raspberrypi.github.io/pico-sdk-doxygen/)
 - [What is the proper way to debounce a GPIO input?](https://raspberrypi.stackexchange.com/questions/118349/what-is-the-proper-way-to-debounce-a-gpio-input)
 - [Hardware Design with the RP2040](https://www.mouser.com/pdfDocs/hardware-design-with-rp2040.pdf)
 - [Getting started with Raspberry Pi Pico](https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf)

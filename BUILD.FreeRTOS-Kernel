@@ -90,6 +90,7 @@ cc_library(
     name = "queue",
     hdrs = ["include/queue.h"],
     strip_include_prefix = "include/",
+    visibility = ["//visibility:public"],
     deps = [":depcycle1"],
 )
 
