@@ -12,15 +12,11 @@ pico_binary(
         "@FreeRTOS-Kernel//:queue",
         "@rules_pico//pico:pico_stdlib",
         "@rules_pico//pico:hardware_gpio",
-        "@adafruit-sharp-memory-display//:adafruit-sharp-memory-display",
 
         # Choose a heap implementation
         "@FreeRTOS-Kernel//:heap_1",
         ":util",
         ":ws2812",
-    ],
-    defines = [
-        "PICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0",
     ],
 )
 

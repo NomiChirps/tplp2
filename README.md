@@ -51,15 +51,17 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
 ## RP2040 pins
 See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts
 
+**Caution!** Numeric labels on the board do NOT necessarily match the GPIO number!
+
 | Pin | Assignment |
 | --- | ---------- |
 | GPIO02/SDA1 | available (future I2C data) |
 | GPIO03/SCL1 | available (future I2C clock) |
 | GPIO04 | *Reserved by platform* |
 | GPIO05 | *Reserved by platform* |
-| GPIO06 | LCD CS |
+| GPIO06 | available |
 | GPIO07 | available |
-| GPIO08 | available |
+| GPIO08 | LCD CS |
 | GPIO09 | (tmp) Red button = jump to bootloader  |
 | GPIO10 | available |
 | GPIO11 | available |

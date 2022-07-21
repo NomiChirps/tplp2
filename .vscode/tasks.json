@@ -11,12 +11,24 @@
             "type": "shell",
         },
         {
+            "label": "bazel build -c opt",
+            "command": "bazel",
+            "args": [
+                "build",
+                "-c",
+                "opt",
+                "//tplp:firmware"
+            ],
+            "type": "shell",
+        },
+        {
             "label": "!! Reset into bootloader !!",
             "command": "./reset_to_bootloader.ps1",
             "args": [
                 "-ComPort",
                 "COM7",
             ],
+            "type": "shell",
         },
         {
             "label": "!! Build and flash !!",

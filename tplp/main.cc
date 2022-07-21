@@ -1,23 +1,35 @@
 #include <chrono>
 #include <cstdio>
 
-#include "Adafruit_SharpMem.h"
+// TODO: figure out how to add FreeRTOS/ prefix to these headers
 #include "FreeRTOS.h"
 #include "hardware/gpio.h"
+#include "hardware/pio.h"
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
-#include "hardware/pio.h"
-#include "task.h"
 #include "queue.h"
+#include "task.h"
 #include "tplp/util.h"
 #include "tplp/ws2812.h"
 
 using std::chrono_literals::operator""ms;
 
+extern "C" {
+
+// FreeRTOS assertion failure handler
+void vAssertCalled(const char *const file, unsigned long line) {
+  taskENTER_CRITICAL();
+  printf("Assertion failed at: %s:%lu\n", file, line);
+  for (;;) {
+  }
+}
+
+}
+
 namespace tplp {
 
 struct Pins {
-  static const uint LCD_CS = 6;
+  static const uint LCD_CS = 8;
   static const uint SPI_SCLK = 18;
   static const uint SPI_MOSI = 19;
   static const uint NEOPIXEL = 16;
@@ -26,7 +38,7 @@ struct Pins {
 // TODO: make sure this doesn't use any hard delays (scheduler)
 // TODO: see if this is using hw spi support; if not, make it.
 Adafruit_SharpMem display(Pins::SPI_SCLK, Pins::SPI_MOSI, Pins::LCD_CS, 144,
-                          168);
+                          168, /*freq=*/ 400'000);
 
 void lcd_task(void *) {
   display.begin();
@@ -34,9 +46,11 @@ void lcd_task(void *) {
 
   while (true) {
     display.fillScreen(0);
+    printf("Refresh.\n");
     display.refresh();
     vTaskDelay(as_ticks(1000ms));
     display.fillScreen(1);
+    printf("Refresh.\n");
     display.refresh();
     vTaskDelay(as_ticks(1000ms));
   }
@@ -55,11 +69,12 @@ void led_task(void *) {
 }
 
 void neopixel_task(void *) {
-  //ws2812_program_init(PIO pio, uint sm, uint offset, uint pin, float freq, bool rgbw)
+  // ws2812_program_init(PIO pio, uint sm, uint offset, uint pin, float freq,
+  // bool rgbw)
 }
 
 void button_task(void *) {
-  //xQueueReceive(button_queue, void *const pvBuffer, TickType_t xTicksToWait);
+  // xQueueReceive(button_queue, void *const pvBuffer, TickType_t xTicksToWait);
 }
 
 int main() {

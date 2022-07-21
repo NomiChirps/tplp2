@@ -63,7 +63,11 @@
 #define configTIMER_TASK_STACK_DEPTH configMINIMAL_STACK_SIZE
 
 // Define to trap errors during development.
-#define configASSERT(x)
+extern void vAssertCalled(const char* const file, unsigned long line);
+#define configASSERT(x)                \
+  if ((x) == 0) {                      \
+    vAssertCalled(__FILE__, __LINE__); \
+  }
 
 // Optional functions - most linkers will remove unused functions anyway.
 #define INCLUDE_vTaskPrioritySet 1

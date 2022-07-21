@@ -17,7 +17,7 @@ try {
     $port.Open()
 }
 catch [System.IO.IOException] {
-    if ($PSItem.ToString() -like "*A device attached to the system is not functioning.*") {
+    if ($PSItem.ToString() -like "*A device which does not exist was specified*") {
         # That's OK; the device reset and disconnected before Open() finished
     }
     else {
