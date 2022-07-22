@@ -6,14 +6,13 @@
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/spi.h"
-#include "lib/SharpLCD/SharpLCD.h"
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
 #include "queue.h"
+#include "src/lib/SharpLCD/SharpLCD.h"
+#include "src/tplp/util.h"
+#include "src/tplp/ws2812.h"
 #include "task.h"
-#include "tplp/util.h"
-#include "tplp/ws2812.h"
-
 
 using std::chrono_literals::operator""ms;
 

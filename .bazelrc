@@ -2,18 +2,16 @@
 build --incompatible_enable_cc_toolchain_resolution
 build --platforms=@rules_pico//platforms:pico
 
-# Aliases for configuration settings
-build --flag_alias=pico_board=@rules_pico//pico/config:board
-build --flag_alias=pico_double_impl=@rules_pico//pico/config:double_impl
-build --flag_alias=pico_float_impl=@rules_pico//pico/config:float_impl
-build --flag_alias=pico_stdio_uart=@rules_pico//pico/config:stdio_uart
-build --flag_alias=pico_stdio_usb=@rules_pico//pico/config:stdio_usb
-
-# The specific board config used by tplp2
-build --pico_board=adafruit_feather_rp2040
+# Thanks Adafruit I love you <3
+build --@rules_pico//pico/config:board=adafruit_feather_rp2040
 # TODO: we might want to disable stdio_usb later; it uses an interrupt every 1ms
-build --pico_stdio_uart=False
-build --pico_stdio_usb=True
+build --@rules_pico//pico/config:stdio_uart=False
+build --@rules_pico//pico/config:stdio_usb=True
+# We don't need no steenking floating point
+build --@rules_pico//pico/config:float_impl=@pico-sdk//:pico_float_none
+build --@rules_pico//pico/config:double_impl=@pico-sdk//:pico_double_none
+
+build --@FreeRTOS-Kernel//:FreeRTOSConfig=//src:FreeRTOSConfig
 
 ## Configuration of various libraries
 # Prevent that weird "Reset" device showing up over usb

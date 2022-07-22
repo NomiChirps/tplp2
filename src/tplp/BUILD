@@ -9,7 +9,7 @@ pico_binary(
     deps = [
         ":util",
         ":ws2812",
-        "//lib/SharpLCD",
+        "//src/lib/SharpLCD",
         "@FreeRTOS-Kernel//:FreeRTOS",
         "@FreeRTOS-Kernel//:heap_3",  # heap implementation wrapping malloc/free
         "@FreeRTOS-Kernel//:queue",

@@ -20,7 +20,7 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
 - [ ] create a lint.sh or something. to cover cc and bzl files
 - [ ] figure out how to track TODO/FIXME/XXX in IDE
 - [ ] use DMA for the Sharp LCD driver, just for funsies
-- [ ] organize source code under src/
+- [x] organize source code under src/
 - [ ] refer to FreeRTOS headers with a prefix, if possible
 - [ ] Vendor all 3rd party libraries
 - [ ] Tune FreeRTOS
