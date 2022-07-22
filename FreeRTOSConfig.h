@@ -7,9 +7,8 @@
 #define xPortPendSVHandler isr_pendsv
 #define xPortSysTickHandler isr_systick
 
-// FIXME: no idea what this should be
-// it's the heap for freertos control structures, i guess
-#define configTOTAL_HEAP_SIZE (128 * 1024)
+// This is ignored because we're using heap_3, which just wraps malloc/free.
+#define configTOTAL_HEAP_SIZE 0
 
 #define configUSE_PREEMPTION 1
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
@@ -48,9 +47,13 @@
 #define configUSE_DAEMON_TASK_STARTUP_HOOK 0
 
 // Run time and task stats gathering related definitions.
-#define configGENERATE_RUN_TIME_STATS 0
-#define configUSE_TRACE_FACILITY 0
-#define configUSE_STATS_FORMATTING_FUNCTIONS 0
+#define configGENERATE_RUN_TIME_STATS 1
+#define configUSE_TRACE_FACILITY 1
+#define configUSE_STATS_FORMATTING_FUNCTIONS 1
+extern void FreeRTOS_ConfigureTimeForRunTimeStats();
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS FreeRTOS_ConfigureTimeForRunTimeStats
+extern unsigned long FreeRTOS_GetRunTimeCounterValue();
+#define portGET_RUN_TIME_COUNTER_VALUE FreeRTOS_GetRunTimeCounterValue
 
 // Co-routine related definitions.
 #define configUSE_CO_ROUTINES 0

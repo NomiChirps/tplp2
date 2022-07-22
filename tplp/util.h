@@ -1,5 +1,5 @@
-#ifndef TPLP_UTIL_H
-#define TPLP_UTIL_H
+#ifndef TPLP_UTIL_H_
+#define TPLP_UTIL_H_
 
 #include <chrono>
 
@@ -16,4 +16,4 @@ TickType_t as_ticks(Duration arg) {
 
 }  // namespace tplp
 
-#endif  // TPLP_UTIL_H
+#endif  // TPLP_UTIL_H_

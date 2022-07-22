@@ -17,17 +17,22 @@ ls -lh bazel-bin/hello.uf2
 Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Copy the .uf2 file to the USB mass storage device that appears.
 
 # TODO
+- [ ] create a lint.sh or something. to cover cc and bzl files
+- [ ] figure out how to track TODO/FIXME/XXX in IDE
+- [ ] use DMA for the Sharp LCD driver, just for funsies
+- [ ] organize source code under src/
+- [ ] refer to FreeRTOS headers with a prefix, if possible
 - [ ] Vendor all 3rd party libraries
 - [ ] Tune FreeRTOS
   - [ ] audit FreeRTOSConfig.h
-  - [ ] audit Arduino compat libraries for blocking delays?
-  - [ ] use scope to verify reliability in the presence of Arduino libs
-  - [ ] write configASSERT handler (use the NeoPixel LED?)
+  - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays? 
+  - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
+  - [x] write configASSERT handler (use the NeoPixel LED?)
 - [ ] Create a front panel UI
   - [ ] Use [LVGL](https://lvgl.io)
 - [ ] Get peripheral hardware running
-  - [x] LCD display
-  - [ ] Make sure LCD display is getting VCOM cleared on the appropriate schedule
+  - [ ] Shiny new front panel display with touchscreen
+  - [x] Sharp LCD display
   - [ ] Front panel buttons
   - [ ] Stepper drivers (use pico_stepper)
   - [ ] Laser module
@@ -37,7 +42,7 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
   - [ ] MicroSD card reader (use [SD](https://github.com/arduino-libraries/SD/tree/a64c2bd907460dd01cef07fff003550cfcae0119))
 - [ ] Finish the electronics hardware
   - [ ] Power everything from the 12v bus
-  - [ ] Add bus capacitors
+  - [x] Add bus capacitors
   - [ ] Install jumpers on the stepper drivers (to configure internal 5v power supply)
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test

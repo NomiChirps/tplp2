@@ -246,3 +246,14 @@ cc_library(
     ],
     alwayslink = 1,
 )
+
+cc_library(
+    name = "heap_3",
+    srcs = ["portable/MemMang/heap_3.c"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":FreeRTOS",
+        ":task",
+    ],
+    alwayslink = 1,
+)

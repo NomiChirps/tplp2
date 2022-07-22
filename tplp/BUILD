@@ -1,4 +1,4 @@
-load("@rules_pico//pico:defs.bzl", "pico_add_uf2_output", "pico_binary", "pico_add_map_output", "pico_pio_header")
+load("@rules_pico//pico:defs.bzl", "pico_add_map_output", "pico_add_uf2_output", "pico_binary", "pico_pio_header")
 
 pico_binary(
     name = "firmware",
@@ -7,16 +7,16 @@ pico_binary(
         "ws2812.pio.h",
     ],
     deps = [
-        "@FreeRTOS-Kernel//:FreeRTOS",
-        "@FreeRTOS-Kernel//:task",
-        "@FreeRTOS-Kernel//:queue",
-        "@rules_pico//pico:pico_stdlib",
-        "@rules_pico//pico:hardware_gpio",
-
-        # Choose a heap implementation
-        "@FreeRTOS-Kernel//:heap_1",
         ":util",
         ":ws2812",
+        "//lib/SharpLCD",
+        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS-Kernel//:heap_3",  # heap implementation wrapping malloc/free
+        "@FreeRTOS-Kernel//:queue",
+        "@FreeRTOS-Kernel//:task",
+        "@rules_pico//pico:hardware_gpio",
+        "@rules_pico//pico:hardware_spi",
+        "@rules_pico//pico:pico_stdlib",
     ],
 )
 
@@ -56,7 +56,7 @@ cc_library(
         "ws2812.h",
     ],
     deps = [
-        "@rules_pico//pico:hardware_pio",
         "@rules_pico//pico:hardware_clocks",
+        "@rules_pico//pico:hardware_pio",
     ],
 )
