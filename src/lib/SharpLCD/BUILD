@@ -10,5 +10,6 @@ cc_library(
     deps = [
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_spi",
+        "@rules_pico//pico:hardware_dma",
     ],
 )

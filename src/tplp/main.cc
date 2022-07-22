@@ -1,7 +1,6 @@
 #include <chrono>
 #include <cstdio>
 
-// TODO: figure out how to add FreeRTOS/ prefix to these headers
 #include "FreeRTOS.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
@@ -52,13 +51,19 @@ void lcd_task(void *) {
   white.Clear(0);
   black.Clear(1);
 
+  TaskHandle_t task = xTaskGetCurrentTaskHandle();
+  std::function<void()> ready_isr = [task]() {
+    BaseType_t higher_priority_task_woken;
+    vTaskNotifyGiveFromISR(task, &higher_priority_task_woken);
+    portYIELD_FROM_ISR(higher_priority_task_woken);
+  };
+  display.SetReadyISR(ready_isr);
+
   while (true) {
-    // printf("Drawing white\n");
     display.DrawFrameBufferBlocking(white);
-    // vTaskDelay(as_ticks(2000ms));
-    // printf("Drawing black\n");
+    ulTaskNotifyTake(false, portMAX_DELAY);
     display.DrawFrameBufferBlocking(black);
-    // vTaskDelay(as_ticks(2000ms));
+    ulTaskNotifyTake(false, portMAX_DELAY);
   }
 }
 

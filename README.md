@@ -17,11 +17,11 @@ ls -lh bazel-bin/hello.uf2
 Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Copy the .uf2 file to the USB mass storage device that appears.
 
 # TODO
+- [ ] (still got a bug) use DMA for the Sharp LCD driver, just for funsies
 - [ ] create a lint.sh or something. to cover cc and bzl files
 - [ ] figure out how to track TODO/FIXME/XXX in IDE
-- [ ] use DMA for the Sharp LCD driver, just for funsies
 - [x] organize source code under src/
-- [ ] refer to FreeRTOS headers with a prefix, if possible
+- [x] (it's not possible, i decided) refer to FreeRTOS headers with a prefix, if possible
 - [ ] Vendor all 3rd party libraries
 - [ ] Tune FreeRTOS
   - [ ] audit FreeRTOSConfig.h
@@ -124,6 +124,8 @@ We might be able to save 2 pins by combining the button signals.
 - White - A+
 
 # Reference Materials
+- [RP2040 Datasheet](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf) (the good stuff)
+- [Raspberry Pi Pico Datasheet](https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf)
 - [Raspberry Pi Pico SDK (HTML docs)](https://raspberrypi.github.io/pico-sdk-doxygen/)
 - [What is the proper way to debounce a GPIO input?](https://raspberrypi.stackexchange.com/questions/118349/what-is-the-proper-way-to-debounce-a-gpio-input)
 - [Hardware Design with the RP2040](https://www.mouser.com/pdfDocs/hardware-design-with-rp2040.pdf)

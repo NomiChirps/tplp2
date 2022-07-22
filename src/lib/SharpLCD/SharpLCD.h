@@ -2,6 +2,7 @@
 #define LIB_SHARPLCD_H_
 
 #include <cstdint>
+#include <functional>
 
 #include "hardware/spi.h"
 
@@ -56,7 +57,13 @@ class SharpLCD {
   // framebuffer.
   void Clear();
 
+  // Initiates DMA transfer of the given framebuffer.
+  // NOTE: Busy-waits if a previous transfer was already in progress.
   void DrawFrameBufferBlocking(const FrameBuffer &fb);
+
+  // Sets a function to be called after each frame has finished its DMA
+  // transfer. This function is called in an interrupt handler context!
+  void SetReadyISR(std::function<void()> fn) { ready_isr_ = fn; };
 
   static FrameBuffer AllocateNewFrameBuffer();
 
@@ -68,11 +75,16 @@ class SharpLCD {
   // Helper function to write out a buffer onto the LCD's SPI channel.
   void WriteBufferBlocking(const uint8_t *buffer, unsigned len);
 
+  static void TransferDone_ISR();
+  static void InitISRStuff();
+
  private:
   spi_inst_t *const spi_;
   const int sclk_;
   const int mosi_;
   const int cs_;
+  int dma_;
+  std::function<void()> ready_isr_;
 };
 
 #endif  // LIB_SHARPLCD_H_
