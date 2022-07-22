@@ -1,4 +1,4 @@
-#include "src/lib/SharpLCD/SharpLCD.h"
+#include "tplp/SharpLCD/SharpLCD.h"
 
 #include <cstdio>
 #include <utility>

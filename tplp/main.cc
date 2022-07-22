@@ -8,15 +8,14 @@
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
 #include "queue.h"
-#include "src/lib/SharpLCD/SharpLCD.h"
-#include "src/tplp/util.h"
-#include "src/tplp/ws2812.h"
+#include "tplp/SharpLCD/SharpLCD.h"
+#include "tplp/util.h"
+#include "tplp/ws2812.h"
 #include "task.h"
 
 using std::chrono_literals::operator""ms;
 
 extern "C" {
-
 // FreeRTOS assertion failure handler
 void vAssertCalled(const char *const file, unsigned long line) {
   printf("Assertion failed at: %s:%lu\n", file, line);
@@ -31,7 +30,7 @@ void FreeRTOS_ConfigureTimeForRunTimeStats() {}
 unsigned long FreeRTOS_GetRunTimeCounterValue() {
   return to_us_since_boot(get_absolute_time());
 }
-}
+}  // extern "C"
 
 namespace tplp {
 

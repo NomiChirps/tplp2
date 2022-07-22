@@ -11,7 +11,7 @@ build --@rules_pico//pico/config:stdio_usb=True
 build --@rules_pico//pico/config:float_impl=@pico-sdk//:pico_float_none
 build --@rules_pico//pico/config:double_impl=@pico-sdk//:pico_double_none
 
-build --@FreeRTOS-Kernel//:FreeRTOSConfig=//src:FreeRTOSConfig
+build --@FreeRTOS-Kernel//:FreeRTOSConfig=//tplp:FreeRTOSConfig
 
 ## Configuration of various libraries
 # Prevent that weird "Reset" device showing up over usb

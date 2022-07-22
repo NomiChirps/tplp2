@@ -1,5 +1,11 @@
 load("@rules_pico//pico:defs.bzl", "pico_add_map_output", "pico_add_uf2_output", "pico_binary", "pico_pio_header")
 
+cc_library(
+    name = "FreeRTOSConfig",
+    hdrs = ["FreeRTOSConfig.h"],
+    strip_include_prefix = "/tplp",
+)
+
 pico_binary(
     name = "firmware",
     srcs = [
@@ -9,7 +15,7 @@ pico_binary(
     deps = [
         ":util",
         ":ws2812",
-        "//src/lib/SharpLCD",
+        "//tplp/SharpLCD",
         "@FreeRTOS-Kernel//:FreeRTOS",
         "@FreeRTOS-Kernel//:heap_3",  # heap implementation wrapping malloc/free
         "@FreeRTOS-Kernel//:queue",

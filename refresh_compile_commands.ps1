@@ -7,7 +7,7 @@ function ThrowOnNativeFailure {
     }
 }
 
-bazel build //... --keep_going
+bazel build :refresh_compile_commands //tplp/... --keep_going
 
 bazel build --nobuild :refresh_compile_commands
 ThrowOnNativeFailure

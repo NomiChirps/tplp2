@@ -233,7 +233,7 @@ cc_library(
 
 label_flag(
     name = "FreeRTOSConfig",
-    build_setting_default = "@//src:FreeRTOSConfig",
+    build_setting_default = "@//:FreeRTOSConfig.h",
 )
 
 cc_library(
