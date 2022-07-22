@@ -2,11 +2,11 @@ workspace(name = "tplp2")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-RULES_PICO_COMMIT = "6b73c6f9323554c41a1dd54062bce17f2fee9208"
+RULES_PICO_COMMIT = "7fd88ad27e932108cc081772705e2a84052c9938"
 
 http_archive(
     name = "rules_pico",
-    sha256 = "6fc4a6e7b9061ec59e87abd0b84c4bcf9e855c3e6e9ae2708cedbb7eb8fab8a0",
+    sha256 = "e75099037acc6f0e03f793fd9fe08eaef1ea2443874843b7bcfe591881c88b78",
     strip_prefix = "rules_pico-" + RULES_PICO_COMMIT,
     # TODO: switch back to dfr's repo when PRs are in
     url = "https://github.com/NomiChirps/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
