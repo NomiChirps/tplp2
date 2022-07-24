@@ -6,7 +6,7 @@
             "command": "bazel",
             "args": [
                 "build",
-                "//src/tplp:firmware"
+                "//tplp:firmware"
             ],
             "type": "shell",
         },
@@ -17,7 +17,7 @@
                 "build",
                 "-c",
                 "opt",
-                "//src/tplp:firmware"
+                "//tplp:firmware"
             ],
             "type": "shell",
         },

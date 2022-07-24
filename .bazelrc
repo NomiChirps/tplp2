@@ -1,3 +1,5 @@
+build --verbose_failures
+
 # Enable new-style C++ toolchain resolution and set the target platform
 build --incompatible_enable_cc_toolchain_resolution
 build --platforms=@rules_pico//platforms:pico
@@ -14,11 +16,9 @@ build --@rules_pico//pico/config:double_impl=@pico-sdk//:pico_double_none
 build --@FreeRTOS-Kernel//:FreeRTOSConfig=//tplp:FreeRTOSConfig
 
 ## Configuration of various libraries
-# Prevent that weird "Reset" device showing up over usb
+# Prevent that weird "Reset" device showing up over USB
 build --copt="-DPICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0"
 # Wait for someone to monitor serial output
-build --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=20000"
+build --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
 build --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
-
-# Useful
-build --verbose_failures
+# May be useful: PICO_ENTER_USB_BOOT_ON_EXIT

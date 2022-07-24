@@ -1,29 +1,35 @@
 # Building
 Install `bazel`, `gcc-arm-none-eabi`, `arm-none-eabi-newlib`.
 
+Developed with `gcc-arm-11.2-2022.02`.
+
 On Windows, requires bazel >= 6.0.0-pre.20220630.1 (due to mystery bug, present in 5.2.0) and gcc-arm-none-eabi >= 10.3.1 (due to [bug](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95253)).
 
 ```sh
 # debug build
-bazel build :hello.uf2
+bazel build //tplp:firmware
 # optimized build
-bazel build :hello.uf2 -c opt
+bazel build //tplp:firmware -c opt
 
 # firmware blob is in bazel-bin
-ls -lh bazel-bin/hello.uf2
+ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
 # Flashing
 Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Copy the .uf2 file to the USB mass storage device that appears.
 
 # TODO
-- [ ] (still got a bug) use DMA for the Sharp LCD driver, just for funsies
+- [ ] get a debugger working...?
+  - [ ] out of curiosity and for practice, find out exactly what's happening during the 200-300us interval between SpiManager transmissions.
+- [ ] use the genrule() trick to finally encapsulate FreeRTOS headers?
+- [x] use DMA for the Sharp LCD driver, just for funsies
 - [ ] create a lint.sh or something. to cover cc and bzl files
-- [ ] figure out how to track TODO/FIXME/XXX in IDE
-- [x] organize source code under src/
+- [x] figure out how to track TODO/FIXME/XXX in IDE
+- [x] organize source code under src/ (I changed my mind later)
 - [x] (it's not possible, i decided) refer to FreeRTOS headers with a prefix, if possible
 - [ ] Vendor all 3rd party libraries
 - [ ] Tune FreeRTOS
+  - [ ] enable SMP/multicore
   - [ ] audit FreeRTOSConfig.h
   - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays? 
   - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
@@ -41,13 +47,14 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
   - [ ] Mirror optointerrupter
   - [ ] MicroSD card reader (use [SD](https://github.com/arduino-libraries/SD/tree/a64c2bd907460dd01cef07fff003550cfcae0119))
 - [ ] Finish the electronics hardware
+  - [ ] install inverter on the Sharp LCD CS pin so it behaves like EVERY OTHER SPI DEVICE IN THE WORLD
   - [ ] Power everything from the 12v bus
-  - [x] Add bus capacitors
+  - [ ] Add bus capacitors
   - [ ] Install jumpers on the stepper drivers (to configure internal 5v power supply)
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
-- [ ] Make sure we're not using floating point math anywhere (including dependencies)
+- [x] Make sure we're not using floating point math anywhere (including dependencies): discovered via std::unordered_map that we panic if any floating point math is used
 - [x] Reset to the bootloader without touching the board: magic 1200 baud connection
 - [x] Get FreeRTOS running
 - [x] Bazel-ify the build
@@ -58,36 +65,36 @@ See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts
 
 **Caution!** Numeric labels on the board do NOT necessarily match the GPIO number!
 
-| Pin | Assignment |
-| --- | ---------- |
-| GPIO02/SDA1 | available (future I2C data) |
-| GPIO03/SCL1 | available (future I2C clock) |
-| GPIO04 | *Reserved by platform* |
-| GPIO05 | *Reserved by platform* |
-| GPIO06 | available |
-| GPIO07 | available |
-| GPIO08 | LCD CS |
-| GPIO09 | (tmp) Red button = jump to bootloader  |
-| GPIO10 | available |
-| GPIO11 | available |
-| GPIO12 | available |
-| GPIO13 | available |
-| GPIO14 | *Reserved by platform* |
-| GPIO15 | *Reserved by platform* |
-| GPIO16 | *Hardwired to Neopixel* |
-| GPIO17 | *Reserved by playform* |
-| GPIO18/SCK0 | LCK SCLK (and other peripherals later) |
-| GPIO19/TX0 | LCD MOSI (and other peripherals later) |
-| GPIO20 | available |
-| GPIO21 | *Reserved by platform* |
-| GPIO22 | *Reserved by platform* |
-| GPIO23 | *Reserved by platform* |
-| GPIO24 | available |
-| GPIO25 | available |
-| GPIO26 | available (ADC0) |
-| GPIO27 | available (ADC1) |
-| GPIO28 | available (ADC2) |
-| GPIO29 | available (ADC3) |
+| Pin | Label | Assignment |
+| --- | ----- |---------- |
+| GPIO02 | SDA | SDA1: I2C data |
+| GPIO03 | SCL | SCL1: I2C clock |
+| GPIO04 | - | *Reserved by platform* |
+| GPIO05 | - | *Reserved by platform* |
+| GPIO06 | D4 | **available** |
+| GPIO07 | D5 | **available** |
+| GPIO08 | D6 | LCD CS |
+| GPIO09 | D9 | (tmp) Red button |
+| GPIO10 | D10 | **available** |
+| GPIO11 | D11 | **available** |
+| GPIO12 | D12 | **available** |
+| GPIO13 | D13 | **available** |
+| GPIO14 | - | *Reserved by platform* |
+| GPIO15 | - | *Reserved by platform* |
+| GPIO16 | - | *Hardwired to Neopixel* |
+| GPIO17 | - | *Reserved by playform* |
+| GPIO18 | SCK | SCK0: LCK SCLK (and other peripherals later) |
+| GPIO19 | MOSI | TX0: LCD MOSI (and other peripherals later) |
+| GPIO20 | MISO | **available** |
+| GPIO21 | - | *Reserved by platform* |
+| GPIO22 | - | *Reserved by platform* |
+| GPIO23 | - | *Reserved by platform* |
+| GPIO24 | D24 | **available** |
+| GPIO25 | D25 | **available** |
+| GPIO26 | A0 | **available** |
+| GPIO27 | A1 | **available** |
+| GPIO28 | A2 | **available** |
+| GPIO29 | A3 | **available** |
 
 GPIO2 and GPIO3 are brought out via the [STEMMA QT](https://learn.adafruit.com/introducing-adafruit-stemma-qt) connector.
 
@@ -125,12 +132,12 @@ We might be able to save 2 pins by combining the button signals.
 
 # Reference Materials
 - [RP2040 Datasheet](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf) (the good stuff)
+- [Raspberry Pi Pico SDK PDF docs](https://datasheets.raspberrypi.com/pico/raspberry-pi-pico-c-sdk.pdf) (more info than the HTML version)
+- [Raspberry Pi Pico SDK HTML docs](https://raspberrypi.github.io/pico-sdk-doxygen/) (bare API reference)
 - [Raspberry Pi Pico Datasheet](https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf)
-- [Raspberry Pi Pico SDK (HTML docs)](https://raspberrypi.github.io/pico-sdk-doxygen/)
+- [Getting started with Raspberry Pi Pico](https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf)
 - [What is the proper way to debounce a GPIO input?](https://raspberrypi.stackexchange.com/questions/118349/what-is-the-proper-way-to-debounce-a-gpio-input)
 - [Hardware Design with the RP2040](https://www.mouser.com/pdfDocs/hardware-design-with-rp2040.pdf)
-- [Getting started with Raspberry Pi Pico](https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf)
-- [Raspberry Pi Pico C/C++ SDK](https://datasheets.raspberrypi.com/pico/raspberry-pi-pico-c-sdk.pdf)
 - [FreeRTOS Kernel Quick Start Guide](https://www.freertos.org/FreeRTOS-quick-start-guide.html)
 - [FreeRTOS RP2040 SMP demos](https://www.freertos.org/smp-demos-for-the-raspberry-pi-pico-board.html)
 - [Use Arduino Libraries with the Rasperry Pi Pico C/C++ SDK](https://www.hackster.io/fhdm-dev/use-arduino-libraries-with-the-rasperry-pi-pico-c-c-sdk-eff55c)

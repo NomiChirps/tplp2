@@ -20,6 +20,9 @@ catch [System.IO.IOException] {
     if ($PSItem.ToString() -like "*A device which does not exist was specified*") {
         # That's OK; the device reset and disconnected before Open() finished
     }
+    elseif ($PSItem.ToString() -like "*A device attached to the system is not functioning*") {
+        # Sometimes this is the error, too.
+    }
     else {
         throw $PSItem
     }

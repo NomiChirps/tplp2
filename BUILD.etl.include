@@ -1,0 +1,8 @@
+cc_library(
+    name = "flat_map",
+    srcs = glob(["etl/**/*.h"]),
+    hdrs = [
+        "etl/flat_map.h",
+    ],
+    visibility = ["//visibility:public"],
+)

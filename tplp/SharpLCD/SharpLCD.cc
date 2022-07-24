@@ -4,10 +4,9 @@
 #include <utility>
 #include <vector>
 
-#include "hardware/dma.h"
-#include "hardware/gpio.h"
-#include "hardware/irq.h"
+#include "tplp/assert.h"
 
+namespace tplp {
 namespace {
 
 static constexpr unsigned kLcdWidth = 144;
@@ -38,39 +37,7 @@ inline uint8_t BitReverse8(uint8_t b) {
   // return __builtin_arm_rbit(byte) >> (8 * sizeof(unsigned int) - 8);
 }
 
-static std::pair<int, SharpLCD *> DMA_INSTANCE[4];
-static int DMA_INSTANCE_COUNT = 0;
-
-void RegisterInstance(int dma, SharpLCD *instance) {
-  DMA_INSTANCE[DMA_INSTANCE_COUNT++] = std::make_pair(dma, instance);
-}
-
 }  // namespace
-
-void SharpLCD::InitISRStuff() {
-  static bool is_init = false;
-  if (!is_init) {
-    irq_add_shared_handler(DMA_IRQ_0, &SharpLCD::TransferDone_ISR,
-                           PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
-    irq_set_enabled(DMA_IRQ_0, true);
-    is_init = true;
-  }
-}
-
-void SharpLCD::TransferDone_ISR() {
-  // TODO(chirps): This is a rather large ISR...
-  // what we really need here is a RTOS task managing the SPI bus.
-  for (int i = 0; i < DMA_INSTANCE_COUNT; ++i) {
-    if (dma_channel_get_irq0_status(DMA_INSTANCE[i].first)) {
-      // FIXME(chirps): This happens too early; the SPI FIFO is still full.
-      gpio_put(DMA_INSTANCE[i].second->cs_, 0);
-      dma_channel_acknowledge_irq0(DMA_INSTANCE[i].first);
-      if (DMA_INSTANCE[i].second->ready_isr_) {
-        DMA_INSTANCE[i].second->ready_isr_();
-      }
-    }
-  }
-}
 
 SharpLCD::FrameBuffer::FrameBuffer(uint8_t *fb) : buffer_(fb) {
   Clear();
@@ -133,15 +100,11 @@ SharpLCD::FrameBuffer::BitBlit(const uint8_t *bitmap,
   uint8_t destByte;
   uint8_t srcBits;
 
-  // TODO(chirps): throw exceptions...? no good assert mechanism otherwise
-
-  // ASSERT(bitmap != NULL, "%s: passed in a NULL bitmap", __FUNCTION__);
-  // ASSERT(width > 0, "%s: passed in an invalid width", __FUNCTION__);
-  // ASSERT(height > 0, "%s: passed in an invalid height", __FUNCTION__);
-  // ASSERT(posx + width <= LCD_WIDTH,
-  //        "%s: bitmap will exceed the screen width", __FUNCTION__);
-  // ASSERT(posy + height <= LCD_HEIGHT,
-  //        "%s: bitmap will exceed the screen height", __FUNCTION__);
+  tplp_assert(bitmap);
+  tplp_assert(width > 0);
+  tplp_assert(height > 0);
+  tplp_assert(posx + width <= kLcdWidth);
+  tplp_assert(posy + height <= kLcdHeight);
 
 #define SHIFT_INTO_SRC_BITS_FROM_SINGLE_SRC_BYTE(M)                            \
   do {                                                                         \
@@ -248,49 +211,19 @@ unsigned SharpLCD::FrameBuffer::RowColToIndex(unsigned row, unsigned col) {
          kLcdFramebufferSizeofScanLineMetadata + col;
 }
 
-SharpLCD::SharpLCD(spi_inst_t *spi, int sclk, int mosi, int cs)
-    : spi_(spi), sclk_(sclk), mosi_(mosi), cs_(cs) {}
-
-void SharpLCD::Begin() {
-  // TODO(chirps): this is gonna be sharing an SPI bus with other devices,
-  // soooooo... this won't fly.
-  unsigned int actual_freq = spi_init(spi_, 2'000'000);
-  printf("SPI initialized with frequency = %u\n", actual_freq);
-  gpio_set_function(sclk_, GPIO_FUNC_SPI);
-  gpio_set_function(mosi_, GPIO_FUNC_SPI);
-  gpio_init(cs_);
-  gpio_set_dir(cs_, GPIO_OUT);
-  gpio_put(cs_, 0);
-
-  // init dma
-  dma_ = dma_claim_unused_channel(true);
-  dma_channel_config c = dma_channel_get_default_config(dma_);
-  channel_config_set_dreq(&c, spi_get_dreq(spi_, /*is_tx=*/true));
-  channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
-  channel_config_set_read_increment(&c, true);
-  channel_config_set_write_increment(&c, false);
-  channel_config_set_irq_quiet(&c, false);
-  dma_channel_set_config(dma_, &c, /*trigger=*/false);
-  dma_channel_configure(dma_, &c, /*write_addr=*/&spi_get_hw(spi_)->dr,
-                        /*read_addr=*/nullptr,
-                        /*transfer_count=*/0,
-                        /*trigger=*/false);
-
-  InitISRStuff();
-  RegisterInstance(dma_, this);
-  dma_channel_set_irq0_enabled(dma_, true);
+SharpLCD::SharpLCD(SpiManager *spi) : spi_(spi) {
+  tplp_assert(spi_->GetActualFrequency() < 2'000'000);
 }
+
+void SharpLCD::Begin(gpio_pin_t cs) { spi_device_ = spi_->AddDevice(cs); }
 
 SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
   return FrameBuffer(new uint8_t[kSizeofFramebufferForAlloc]);
 }
 
 void SharpLCD::WriteBufferBlocking(const uint8_t *buffer, unsigned len) {
-  dma_channel_wait_for_finish_blocking(dma_);
-  // Also wait for the SPI TX FIFO to drain.
-  while (spi_is_busy(spi_)) tight_loop_contents();
-  gpio_put(cs_, 1);
-  dma_channel_transfer_from_buffer_now(dma_, buffer, len);
+  tplp_assert(spi_device_);
+  spi_device_->TransmitBlocking(buffer, len);
 }
 
 void SharpLCD::Clear() {
@@ -317,3 +250,5 @@ void SharpLCD::ToggleVCOM(void) {
   buf[0] = mode;
   WriteBufferBlocking(buf, sizeof(buf));
 }
+
+}  // namespace tplp

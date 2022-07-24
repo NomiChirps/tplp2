@@ -2,13 +2,13 @@ workspace(name = "tplp2")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-RULES_PICO_COMMIT = "7fd88ad27e932108cc081772705e2a84052c9938"
+RULES_PICO_COMMIT = "main"
 
 http_archive(
     name = "rules_pico",
-    sha256 = "e75099037acc6f0e03f793fd9fe08eaef1ea2443874843b7bcfe591881c88b78",
+    sha256 = "4df2a0e2a99425fda34503c687bc723d92fa1c906601354ead94fc5ca19e402d",
     strip_prefix = "rules_pico-" + RULES_PICO_COMMIT,
-    # TODO: switch back to dfr's repo when PRs are in
+    # TODO: switch back to dfr's repo later
     url = "https://github.com/NomiChirps/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
 )
 
@@ -28,6 +28,16 @@ http_archive(
     url = "https://github.com/FreeRTOS/FreeRTOS-Kernel/archive/" + FREERTOS_COMMIT + ".zip",
 )
 
+ETL_COMMIT = "20.31.2"
+
+http_archive(
+    name = "etl",
+    build_file = "//:BUILD.etl.include",
+    sha256 = "8e290aabf5f3bf69a94ddce174d96b4fb21a3bde372fb64f80cf29e6f4e32c85",
+    strip_prefix = "etl-" + ETL_COMMIT + "/include",
+    url = "https://github.com/ETLCPP/etl/archive/" + ETL_COMMIT + ".zip",
+)
+
 # Hedron's Compile Commands Extractor for Bazel
 # https://github.com/hedronvision/bazel-compile-commands-extractor
 HEDRON_COMPILE_COMMANDS_COMMIT = "05610f52a2ea3cda6ac27133b96f71c36358adf9"
@@ -40,5 +50,15 @@ http_archive(
 )
 
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
+
+FMTLIB_COMMIT = "9.0.0"
+
+http_archive(
+    name = "fmtlib",
+    build_file = "//:BUILD.fmtlib",
+    sha256 = "01867bffc0b30ac71d5f05854e62e451367fa1aceddef40cae965338a7e00a74",
+    strip_prefix = "fmt-" + FMTLIB_COMMIT,
+    url = "https://github.com/fmtlib/fmt/archive/" + FMTLIB_COMMIT + ".zip",
+)
 
 hedron_compile_commands_setup()

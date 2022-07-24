@@ -1,10 +1,9 @@
-#ifndef LIB_SHARPLCD_H_
-#define LIB_SHARPLCD_H_
+#ifndef TPLP_SHARPLCD_H_
+#define TPLP_SHARPLCD_H_
 
-#include <cstdint>
-#include <functional>
+#include "tplp/SpiManager.h"
 
-#include "hardware/spi.h"
+namespace tplp {
 
 // Driver for the monochrome LCD display (model LS013B4DN04) from Sharp.
 class SharpLCD {
@@ -47,44 +46,37 @@ class SharpLCD {
   SharpLCD(SharpLCD &&) = default;
   SharpLCD &operator=(const SharpLCD &) = delete;
 
-  // Free of side effects.
-  SharpLCD(spi_inst_t *spi, int sclk, int mosi, int cs);
+  explicit SharpLCD(SpiManager *spi);
 
   // Configure the SPI hardware.
-  void Begin();
+  //
+  // `cs`: Chip select pin. `SpiManager` will expect this to be active LOW, but
+  // the Sharp LCD chip expects active HIGH. Make sure you've got an inverter in
+  // the circuit.
+  void Begin(gpio_pin_t cs);
 
   // Clear the LCD's display to all-white. More efficient than writing a
   // framebuffer.
   void Clear();
 
-  // Initiates DMA transfer of the given framebuffer.
-  // NOTE: Busy-waits if a previous transfer was already in progress.
+  // Pushes the given framebuffer out to the display over SPI.
   void DrawFrameBufferBlocking(const FrameBuffer &fb);
-
-  // Sets a function to be called after each frame has finished its DMA
-  // transfer. This function is called in an interrupt handler context!
-  void SetReadyISR(std::function<void()> fn) { ready_isr_ = fn; };
 
   static FrameBuffer AllocateNewFrameBuffer();
 
   // Toggle the VCOM mode of the LCD; it is recommended to trigger this
   // periodically. Check the datasheet.
+  // FIXME: should start a low priority task to do this
   void ToggleVCOM();
 
  private:
-  // Helper function to write out a buffer onto the LCD's SPI channel.
   void WriteBufferBlocking(const uint8_t *buffer, unsigned len);
 
-  static void TransferDone_ISR();
-  static void InitISRStuff();
-
  private:
-  spi_inst_t *const spi_;
-  const int sclk_;
-  const int mosi_;
-  const int cs_;
-  int dma_;
-  std::function<void()> ready_isr_;
+  SpiManager *const spi_;
+  SpiDevice *spi_device_;
 };
 
-#endif  // LIB_SHARPLCD_H_
+}  // namespace tplp
+
+#endif  // TPLP_SHARPLCD_H_

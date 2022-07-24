@@ -8,8 +8,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "@rules_pico//pico:hardware_gpio",
-        "@rules_pico//pico:hardware_spi",
-        "@rules_pico//pico:hardware_dma",
+        "//tplp:SpiManager",
+        "//tplp:assert",
     ],
 )

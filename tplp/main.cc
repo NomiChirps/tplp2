@@ -1,5 +1,6 @@
 #include <chrono>
 #include <cstdio>
+#include <memory>
 
 #include "FreeRTOS.h"
 #include "hardware/gpio.h"
@@ -8,61 +9,52 @@
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
 #include "queue.h"
+#include "task.h"
 #include "tplp/SharpLCD/SharpLCD.h"
+#include "tplp/SpiManager.h"
+#include "tplp/config.h"
+#include "tplp/types.h"
 #include "tplp/util.h"
 #include "tplp/ws2812.h"
-#include "task.h"
 
 using std::chrono_literals::operator""ms;
 
 extern "C" {
 // FreeRTOS assertion failure handler
-void vAssertCalled(const char *const file, unsigned long line) {
-  printf("Assertion failed at: %s:%lu\n", file, line);
-  // Leave interrupts enabled so we can still get back to the bootloader via
-  // the USB serial magic thing.
-  for (;;) {
-  }
+void FreeRTOS_AssertionFailed(const char *const file, unsigned long line) {
+  panic("Assertion failed at: %s:%lu\n", file, line);
 }
 
-void FreeRTOS_ConfigureTimeForRunTimeStats() {}
+void FreeRTOS_ConfigureTimeForRunTimeStats() {
+  // nothing to do; pico bootloader already starts the relevant timers.
+}
 
 unsigned long FreeRTOS_GetRunTimeCounterValue() {
   return to_us_since_boot(get_absolute_time());
 }
+
+void vApplicationStackOverflowHook(TaskHandle_t task, char *name) {
+  panic("Stack overflow in task: %s\n", name);
+}
+
 }  // extern "C"
 
 namespace tplp {
 
-struct Pins {
-  static const uint LCD_CS = 8;
-  static const uint SPI_SCLK = 18;
-  static const uint SPI_MOSI = 19;
-  static const uint NEOPIXEL = 16;
-};
+SpiManager *global_spi0_manager;
 
 void lcd_task(void *) {
-  SharpLCD display(spi0, Pins::SPI_SCLK, Pins::SPI_MOSI, Pins::LCD_CS);
-  display.Begin();
+  SharpLCD display(global_spi0_manager);
+  display.Begin(Pins::LCD_CS);
   display.Clear();
   SharpLCD::FrameBuffer white = display.AllocateNewFrameBuffer();
   SharpLCD::FrameBuffer black = display.AllocateNewFrameBuffer();
   white.Clear(0);
   black.Clear(1);
 
-  TaskHandle_t task = xTaskGetCurrentTaskHandle();
-  std::function<void()> ready_isr = [task]() {
-    BaseType_t higher_priority_task_woken;
-    vTaskNotifyGiveFromISR(task, &higher_priority_task_woken);
-    portYIELD_FROM_ISR(higher_priority_task_woken);
-  };
-  display.SetReadyISR(ready_isr);
-
   while (true) {
     display.DrawFrameBufferBlocking(white);
-    ulTaskNotifyTake(false, portMAX_DELAY);
     display.DrawFrameBufferBlocking(black);
-    ulTaskNotifyTake(false, portMAX_DELAY);
   }
 }
 
@@ -103,9 +95,13 @@ int main() {
   stdio_init_all();
   printf("Hello!\n");
 
+  global_spi0_manager =
+      SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
+                       Pins::SPI_SCLK, Pins::SPI_MOSI, /*miso=*/0);
+
   xTaskCreate(&tplp::lcd_task, "lcd", 1024, nullptr, 1, nullptr);
-  xTaskCreate(&tplp::led_task, "led", 1024, nullptr, 2, nullptr);
-  xTaskCreate(&tplp::stats_task, "stats", 1024, nullptr, 2, nullptr);
+  xTaskCreate(&tplp::led_task, "led", 1024, nullptr, 1, nullptr);
+  xTaskCreate(&tplp::stats_task, "stats", 1024, nullptr, 1, nullptr);
   vTaskStartScheduler();
   return 0;
 }

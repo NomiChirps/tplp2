@@ -2,7 +2,7 @@
 #define FREERTOS_CONFIG_H
 
 // Use Pico SDK ISR handlers
-// TODO(chirps): learn what this is for and why
+// TODO: learn what this is for and why
 #define vPortSVCHandler isr_svcall
 #define xPortPendSVHandler isr_pendsv
 #define xPortSysTickHandler isr_systick
@@ -22,13 +22,13 @@
 #define configIDLE_SHOULD_YIELD 1
 #define configUSE_TASK_NOTIFICATIONS 1
 #define configTASK_NOTIFICATION_ARRAY_ENTRIES 3
-#define configUSE_MUTEXES 0
+#define configUSE_MUTEXES 1
 #define configUSE_RECURSIVE_MUTEXES 0
 #define configUSE_COUNTING_SEMAPHORES 0
 #define configQUEUE_REGISTRY_SIZE 10
 #define configUSE_QUEUE_SETS 0
 #define configUSE_TIME_SLICING 0
-// NOTE(chirps): I think this means cstdlib functions are safe(r) in ISRs?
+// I think this means cstdlib functions are safe(r) in ISRs?
 #define configUSE_NEWLIB_REENTRANT 1
 #define configENABLE_BACKWARD_COMPATIBILITY 0
 #define configNUM_THREAD_LOCAL_STORAGE_POINTERS 5
@@ -43,16 +43,19 @@
 // Hook function related definitions.
 #define configUSE_IDLE_HOOK 0
 #define configUSE_TICK_HOOK 0
-#define configCHECK_FOR_STACK_OVERFLOW 0
+// TODO(for release): disable stack overflow checking; it has overhead
+#define configCHECK_FOR_STACK_OVERFLOW 1
 #define configUSE_MALLOC_FAILED_HOOK 0
 #define configUSE_DAEMON_TASK_STARTUP_HOOK 0
 
 // Run time and task stats gathering related definitions.
+// TODO(for release): disable runtime stats
 #define configGENERATE_RUN_TIME_STATS 1
 #define configUSE_TRACE_FACILITY 1
 #define configUSE_STATS_FORMATTING_FUNCTIONS 1
 extern void FreeRTOS_ConfigureTimeForRunTimeStats();
-#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS FreeRTOS_ConfigureTimeForRunTimeStats
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS \
+  FreeRTOS_ConfigureTimeForRunTimeStats
 extern unsigned long FreeRTOS_GetRunTimeCounterValue();
 #define portGET_RUN_TIME_COUNTER_VALUE FreeRTOS_GetRunTimeCounterValue
 
@@ -62,15 +65,18 @@ extern unsigned long FreeRTOS_GetRunTimeCounterValue();
 
 // Software timer related definitions.
 #define configUSE_TIMERS 1
+// TODO: what should the timer task's priority be? high or low?
 #define configTIMER_TASK_PRIORITY 3
 #define configTIMER_QUEUE_LENGTH 10
 #define configTIMER_TASK_STACK_DEPTH configMINIMAL_STACK_SIZE
 
 // Define to trap errors during development.
-extern void vAssertCalled(const char* const file, unsigned long line);
-#define configASSERT(x)                \
-  if ((x) == 0) {                      \
-    vAssertCalled(__FILE__, __LINE__); \
+// TODO(for release): disable configASSERT
+extern void FreeRTOS_AssertionFailed(const char* const file,
+                                     unsigned long line);
+#define configASSERT(x)                           \
+  if ((x) == 0) {                                 \
+    FreeRTOS_AssertionFailed(__FILE__, __LINE__); \
   }
 
 // Optional functions - most linkers will remove unused functions anyway.
