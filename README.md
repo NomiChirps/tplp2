@@ -21,7 +21,7 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
 # TODO
 - [ ] get a debugger working...?
   - [ ] out of curiosity and for practice, find out exactly what's happening during the 200-300us interval between SpiManager transmissions.
-- [ ] use the genrule() trick to finally encapsulate FreeRTOS headers?
+- [x] use the genrule() trick to finally encapsulate FreeRTOS headers?
 - [x] use DMA for the Sharp LCD driver, just for funsies
 - [ ] create a lint.sh or something. to cover cc and bzl files
 - [x] figure out how to track TODO/FIXME/XXX in IDE

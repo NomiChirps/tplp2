@@ -3,12 +3,13 @@
 
 #include <memory>
 
-#include "FreeRTOS.h"
+#include "FreeRTOS/FreeRTOS.h"
+#include "FreeRTOS/semphr.h"
+#include "FreeRTOS/task.h"
 #include "hardware/spi.h"
-#include "semphr.h"
-#include "task.h"
 #include "tplp/thread_local.h"
 #include "tplp/types.h"
+
 
 namespace tplp {
 

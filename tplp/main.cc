@@ -2,20 +2,21 @@
 #include <cstdio>
 #include <memory>
 
-#include "FreeRTOS.h"
+#include "FreeRTOS/FreeRTOS.h"
+#include "FreeRTOS/queue.h"
+#include "FreeRTOS/task.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/spi.h"
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"
-#include "queue.h"
-#include "task.h"
 #include "tplp/SharpLCD/SharpLCD.h"
 #include "tplp/SpiManager.h"
 #include "tplp/config.h"
 #include "tplp/types.h"
 #include "tplp/util.h"
 #include "tplp/ws2812.h"
+
 
 using std::chrono_literals::operator""ms;
 

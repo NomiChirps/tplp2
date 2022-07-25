@@ -1,6 +1,6 @@
-#include "FreeRTOS.h"
+#include "FreeRTOS/FreeRTOS.h"
+#include "FreeRTOS/task.h"
 #include "etl/flat_map.h"
-#include "task.h"
 #include "tplp/config.h"
 
 namespace tplp {

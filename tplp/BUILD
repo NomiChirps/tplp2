@@ -20,9 +20,6 @@ pico_binary(
         ":ws2812",
         "//tplp/SharpLCD",
         "@FreeRTOS-Kernel//:FreeRTOS",
-        "@FreeRTOS-Kernel//:heap_3",  # heap implementation wrapping malloc/free
-        "@FreeRTOS-Kernel//:queue",
-        "@FreeRTOS-Kernel//:task",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_spi",
         "@rules_pico//pico:pico_stdlib",
@@ -78,7 +75,7 @@ cc_library(
     hdrs = ["thread_local.h"],
     deps = [
         ":config",
-        "@FreeRTOS-Kernel//:task",
+        "@FreeRTOS-Kernel//:FreeRTOS",
         "@etl//:flat_map",
     ],
 )
@@ -94,10 +91,7 @@ cc_library(
         ":thread_local",
         ":types",
         ":util",
-        "@FreeRTOS-Kernel//:message_buffer",
-        "@FreeRTOS-Kernel//:queue",
-        "@FreeRTOS-Kernel//:semphr",
-        "@FreeRTOS-Kernel//:task",
+        "@FreeRTOS-Kernel//:FreeRTOS",
         "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_spi",
