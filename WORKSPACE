@@ -51,6 +51,8 @@ http_archive(
 
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 
+hedron_compile_commands_setup()
+
 FMTLIB_COMMIT = "9.0.0"
 
 http_archive(
@@ -61,4 +63,12 @@ http_archive(
     url = "https://github.com/fmtlib/fmt/archive/" + FMTLIB_COMMIT + ".zip",
 )
 
-hedron_compile_commands_setup()
+LVGL_VERSION = "8.3.1"
+
+http_archive(
+    name = "lvgl",
+    build_file = "//:BUILD.lvgl",
+    sha256 = "5600ac2f6a724788b46aea4ba3776e444cf3c2a11272c5b202c78c19d0000bd5",
+    strip_prefix = "lvgl-" + LVGL_VERSION,
+    url = "https://github.com/lvgl/lvgl/archive/v" + LVGL_VERSION + ".zip",
+)

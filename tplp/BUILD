@@ -6,11 +6,16 @@ cc_library(
     strip_include_prefix = "/tplp",
 )
 
+cc_library(
+    name = "lv_conf",
+    hdrs = ["lv_conf.h"],
+    strip_include_prefix = "/tplp",
+)
+
 pico_binary(
     name = "firmware",
     srcs = [
         "main.cc",
-        "ws2812.pio.h",
     ],
     deps = [
         ":SpiManager",
