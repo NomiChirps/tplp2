@@ -3,6 +3,7 @@ build --verbose_failures
 # Enable new-style C++ toolchain resolution and set the target platform
 build --incompatible_enable_cc_toolchain_resolution
 build --platforms=@rules_pico//platforms:pico
+run --platforms=
 
 # Thanks Adafruit I love you <3
 build --@rules_pico//pico/config:board=adafruit_feather_rp2040

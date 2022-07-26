@@ -9,9 +9,5 @@ function ThrowOnNativeFailure {
 
 bazel build :refresh_compile_commands //tplp/... --keep_going
 
-bazel build --nobuild :refresh_compile_commands
-ThrowOnNativeFailure
-
-$env:BUILD_WORKSPACE_DIRECTORY = $PSScriptRoot
-python bazel-bin/refresh_compile_commands.py
+bazel run :refresh_compile_commands
 ThrowOnNativeFailure
