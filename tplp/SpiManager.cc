@@ -13,8 +13,7 @@
 #include "hardware/gpio.h"
 #include "tplp/assert.h"
 #include "tplp/logging.h"
-#include "tplp/util.h"
-
+#include "tplp/time.h"
 
 using std::chrono_literals::operator""ms;
 
@@ -176,12 +175,14 @@ SpiManager::SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
 
 void SpiManager::TaskFn(void*) {
   TransferRequestMessage request;
+  DebugLog("SpiManager task started.");
   for (;;) {
     // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
     while (!xStreamBufferReceive(TransferRequestMessage::queue, &request,
                                  sizeof(TransferRequestMessage),
                                  as_ticks(1'000ms))) {
       // just keep waiting for a request
+      DebugLog("SpiManager task idle.");
     }
     if (!request.transmit) panic("rx not implemented");
     gpio_put(request.device->cs_, 0);
@@ -213,7 +214,9 @@ SpiDevice* SpiManager::AddDevice(gpio_pin_t cs) {
 }
 
 SpiDevice::SpiDevice(SpiManager* spi, gpio_pin_t cs)
-    : spi_(spi), cs_(cs), transmit_blocking_mutex_(xSemaphoreCreateBinary()) {}
+    : spi_(spi),
+      cs_(cs),
+      transmit_blocking_mutex_([]() { return xSemaphoreCreateBinary(); }) {}
 
 bool SpiDevice::Transmit(const uint8_t* buf, uint32_t len,
                          TickType_t ticks_to_wait,
@@ -229,7 +232,9 @@ bool SpiDevice::Transmit(const uint8_t* buf, uint32_t len,
 }
 
 void SpiDevice::TransmitBlocking(const uint8_t* buf, uint32_t len) {
-  SemaphoreHandle_t sem = transmit_blocking_mutex_.get();
+  tplp_assert(xTaskGetSchedulerState() == taskSCHEDULER_RUNNING);
+  tplp_assert(xTaskGetCurrentTaskHandle());
+  SemaphoreHandle_t sem = transmit_blocking_mutex_.get_or_init();
   Transmit(buf, len, portMAX_DELAY,
            [sem]() { xSemaphoreGive(static_cast<SemaphoreHandle_t>(sem)); });
   xSemaphoreTake(sem, portMAX_DELAY);

@@ -10,6 +10,16 @@ cc_library(
     name = "lv_conf",
     hdrs = ["lv_conf.h"],
     strip_include_prefix = "/tplp",
+    deps = [":lv_tick_custom"],
+)
+
+cc_library(
+    name = "lv_tick_custom",
+    srcs = ["lv_tick_custom.c"],
+    hdrs = ["lv_tick_custom.h"],
+    deps = [
+        "@rules_pico//pico:pico_time",
+    ],
 )
 
 pico_binary(
@@ -19,23 +29,21 @@ pico_binary(
     ],
     deps = [
         ":SpiManager",
-        ":config",
+        ":time",
+        ":tplp_config",
         ":types",
-        ":util",
         ":ws2812",
         "//tplp/SharpLCD",
+        "//tplp/graphics",
         "@FreeRTOS-Kernel//:FreeRTOS",
-        "@rules_pico//pico:hardware_gpio",
-        "@rules_pico//pico:hardware_spi",
         "@rules_pico//pico:pico_stdlib",
     ],
 )
 
-# TODO: "util.h" is an embarrassment
 cc_library(
-    name = "util",
+    name = "time",
     hdrs = [
-        "util.h",
+        "time.h",
     ],
     deps = [
         ":FreeRTOSConfig",
@@ -54,15 +62,19 @@ cc_library(
 cc_library(
     name = "logging",
     hdrs = ["logging.h"],
+    visibility = [":__subpackages__"],
     deps = [
         "@fmtlib//:format",
+        "@rules_pico//pico:pico_stdlib",
     ],
 )
 
 cc_library(
-    name = "config",
-    hdrs = ["config.h"],
+    name = "tplp_config",
+    hdrs = ["tplp_config.h"],
+    visibility = [":__subpackages__"],
     deps = [
+        ":FreeRTOSConfig",
         ":types",
     ],
 )
@@ -79,7 +91,7 @@ cc_library(
     name = "thread_local",
     hdrs = ["thread_local.h"],
     deps = [
-        ":config",
+        ":tplp_config",
         "@FreeRTOS-Kernel//:FreeRTOS",
         "@etl//:flat_map",
     ],
@@ -94,8 +106,8 @@ cc_library(
         ":assert",
         ":logging",
         ":thread_local",
+        ":time",
         ":types",
-        ":util",
         "@FreeRTOS-Kernel//:FreeRTOS",
         "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",

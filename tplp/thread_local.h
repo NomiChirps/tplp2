@@ -1,17 +1,17 @@
+#ifndef TPLP_THREAD_LOCAL_H_
+#define TPLP_THREAD_LOCAL_H_
+
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "etl/flat_map.h"
-#include "tplp/config.h"
+#include "tplp/logging.h"
+#include "tplp/tplp_config.h"
 
 namespace tplp {
 
 // This is a nice C++ wrapper for the FreeRTOS thread-local storage
 // implementation. It uses a single FreeRTOS thread-local storage pointer
 // (`RtosTlsIndex`) from the array available to each task.
-//
-// Creating or deleting a `ThreadLocal` requires heap allocation and is
-// relatively slow. Accessing the contents costs two indirections and a binary
-// search on top of the FreeRTOS implementation.
 template <typename T, int RtosTlsIndex = 0>
 class ThreadLocal {
   static_assert(RtosTlsIndex < configNUM_THREAD_LOCAL_STORAGE_POINTERS,
@@ -28,6 +28,9 @@ class ThreadLocal {
   // This should all be SMP-safe because the same task/thread will not be
   // scheduled on both cores simultaneously.
   static container_t* Fetch() {
+    if (!xTaskGetCurrentTaskHandle()) {
+      panic("ThreadLocal::Fetch() called outside a task context");
+    }
     return static_cast<container_t*>(
         pvTaskGetThreadLocalStoragePointer(nullptr, RtosTlsIndex));
   }
@@ -36,18 +39,18 @@ class ThreadLocal {
     if (!p) {
       p = new container_t;
       vTaskSetThreadLocalStoragePointer(nullptr, RtosTlsIndex, p);
+      DebugLog("ThreadLocal storage initialized for task '{}' = {}",
+               pcTaskGetName(nullptr), static_cast<void*>(p));
     }
     return p;
   }
 
  public:
-  explicit ThreadLocal(const T& initial_value) {
-    container_t* p = InitAndFetch();
-    p->insert({this, new T(initial_value)});
-  }
-  explicit ThreadLocal(T&& initial_value) {
-    container_t* p = InitAndFetch();
-    p->insert({this, new T(std::move(initial_value))});
+  using initializer_t = std::function<T()>;
+
+  explicit ThreadLocal(const initializer_t& initializer)
+      : initializer_(initializer) {
+    InitAndFetch();
   }
   ~ThreadLocal() {
     container_t* p = Fetch();
@@ -56,9 +59,22 @@ class ThreadLocal {
     p->erase(it);
   }
 
-  T& get() { return *Fetch()->at(this); }
+  ThreadLocal(const ThreadLocal&) = delete;
+  ThreadLocal& operator=(const ThreadLocal&) = delete;
 
-  const T& get() const { return *Fetch()->at(this); }
+  T& get_or_init() {
+    container_t* p = InitAndFetch();
+    auto it = p->find(this);
+    if (it == p->end()) {
+      return *p->insert({this, new T(initializer_())}).first->second;
+    }
+    return *it->second;
+  }
+
+ private:
+  const std::function<T()> initializer_;
 };
 
 }  // namespace tplp
+
+#endif  // TPLP_THREAD_LOCAL_H_

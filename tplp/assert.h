@@ -3,9 +3,14 @@
 
 #include "pico/runtime.h"
 
-#define tplp_assert(x)                                                    \
-  do {                                                                    \
-    if (!(x)) panic("[" __FILE__ ":%d] Assertion failed: " #x, __LINE__); \
+// TODO: move body to .c file
+#define tplp_assert(x)                                                  \
+  do {                                                                  \
+    if (!(x)) {                                                         \
+      printf("[%s:%d] Assertion failed: %s\n", __FILE__, __LINE__, #x); \
+      stdio_flush();                                                    \
+      panic("Assertion failed");                                        \
+    }                                                                   \
   } while (0)
 
 #endif  // TPLP_ASSERT_H_

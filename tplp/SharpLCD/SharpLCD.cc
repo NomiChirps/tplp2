@@ -1,32 +1,17 @@
 #include "tplp/SharpLCD/SharpLCD.h"
 
+#include <chrono>
 #include <cstdio>
 #include <utility>
 #include <vector>
 
 #include "tplp/assert.h"
+#include "tplp/logging.h"
+#include "tplp/time.h"
+#include "tplp/tplp_config.h"
 
 namespace tplp {
 namespace {
-
-static constexpr unsigned kLcdWidth = 144;
-static constexpr unsigned kLcdHeight = 168;
-static constexpr unsigned kLcdEndOfDummySize = 2;
-static constexpr unsigned kLcdFramebufferSizeofScanLineMetadata =
-    (1 + /* mode byte in SPI update command */
-     1 /* addr byte in SPI update command */);
-static constexpr unsigned kLcdFramebufferSizeofScanLine =
-    (kLcdFramebufferSizeofScanLineMetadata + (kLcdWidth / 8));
-
-static constexpr unsigned kSizeofFramebuffer =
-    (kLcdHeight * kLcdFramebufferSizeofScanLine);
-static constexpr unsigned kSizeofFramebufferForAlloc =
-    kSizeofFramebuffer + kLcdEndOfDummySize;
-
-static constexpr uint8_t kM0Flag = 0x80;
-static constexpr uint8_t kM1Flag = 0x40;
-static constexpr uint8_t kM2Flag = 0x20;
-static constexpr uint8_t kDummy8 = 0x00;
 
 inline uint8_t BitReverse8(uint8_t b) {
   // http://graphics.stanford.edu/~seander/bithacks.html#ReverseByteWith32Bits
@@ -206,19 +191,43 @@ SharpLCD::FrameBuffer::BitBlit(const uint8_t *bitmap,
   }
 }
 
-unsigned SharpLCD::FrameBuffer::RowColToIndex(unsigned row, unsigned col) {
-  return (row * kLcdFramebufferSizeofScanLine) +
-         kLcdFramebufferSizeofScanLineMetadata + col;
+void SharpLCD::FrameBuffer::ByteBlit(const uint8_t *pixels, int16_t width,
+                                     int16_t height, int16_t posx,
+                                     int16_t posy) {
+  DebugLog("ByteBlit({}, {}, {}, {}, {})", static_cast<const void *>(pixels),
+           width, height, posx, posy);
+  height = std::min<int16_t>(kLcdHeight - posy - 1, height);
+  width = std::min<int16_t>(kLcdWidth - posx - 1, width);
+  tplp_assert(pixels);
+  tplp_assert(posx % 8 == 0);
+  tplp_assert(width % 8 == 0);
+  tplp_assert(posx >= 0);
+  tplp_assert(posy >= 0);
+  tplp_assert(posx + width < kLcdWidth);
+  tplp_assert(posy + height < kLcdHeight);
+  for (int16_t row = posy; row < posy + height; ++row) {
+    for (int16_t col8 = posx / 8; col8 < (posx + width) / 8; ++col8) {
+      uint8_t pack = 0;
+      for (int i = 0; i < 8; ++i) {
+        auto pixel_index = width * (row - posy) + (8 * col8 - posx) + i;
+        tplp_assert(pixel_index >= 0 && pixel_index < width * height);
+        uint8_t pixel = pixels[pixel_index];
+        pack <<= 1;
+        pack |= pixel ? 1 : 0;
+      }
+      SetRowByte(row, col8, pack);
+    }
+  }
 }
 
 SharpLCD::SharpLCD(SpiManager *spi) : spi_(spi) {
-  tplp_assert(spi_->GetActualFrequency() < 2'000'000);
+  tplp_assert(spi_->GetActualFrequency() <= 2'000'000);
 }
 
 void SharpLCD::Begin(gpio_pin_t cs) { spi_device_ = spi_->AddDevice(cs); }
 
 SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
-  return FrameBuffer(new uint8_t[kSizeofFramebufferForAlloc]);
+  return FrameBuffer(new uint8_t[FrameBuffer::kSizeofFramebufferForAlloc]);
 }
 
 void SharpLCD::WriteBufferBlocking(const uint8_t *buffer, unsigned len) {
@@ -232,8 +241,14 @@ void SharpLCD::Clear() {
   WriteBufferBlocking(buf, sizeof(buf));
 }
 
+bool SharpLCD::DrawFrameBuffer(const FrameBuffer &fb,
+                               const SpiDevice::transmit_callback_t &callback) {
+  return spi_device_->Transmit(
+      fb.buffer_, FrameBuffer::kSizeofFramebufferForAlloc, 0, callback);
+}
+
 void SharpLCD::DrawFrameBufferBlocking(const FrameBuffer &fb) {
-  WriteBufferBlocking(fb.buffer_, kSizeofFramebufferForAlloc);
+  WriteBufferBlocking(fb.buffer_, FrameBuffer::kSizeofFramebufferForAlloc);
 }
 
 void SharpLCD::ToggleVCOM(void) {
@@ -248,6 +263,7 @@ void SharpLCD::ToggleVCOM(void) {
   frameInversion = !frameInversion;
 
   buf[0] = mode;
+  DebugLog("Sending ToggleVCOM");
   WriteBufferBlocking(buf, sizeof(buf));
 }
 

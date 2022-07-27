@@ -1,6 +1,7 @@
-#ifndef TPLP_CONFIG_H_
-#define TPLP_CONFIG_H_
+#ifndef TPLP_TPLP_CONFIG_H_
+#define TPLP_TPLP_CONFIG_H_
 
+#include "tplp/FreeRTOSConfig.h"
 #include "tplp/types.h"
 
 namespace tplp {
@@ -22,9 +23,14 @@ struct TaskPriorities {
   // Just so we don't change it in one place and not update the other.
   static_assert(configMAX_PRIORITIES == 5);
 
-  static constexpr int kSpiManager0 = 2;
+  // Bigger numbers are higher priority.
+
+  static constexpr int kSpiManager0 = 4;
+  static constexpr int kLvglTimerHandler = 1;
+  static constexpr int kLvglDisplayDriver = 1;
+  static constexpr int kSharpLcdToggleVcom = 1;
 };
 
 }  // namespace tplp
 
-#endif  // TPLP_CONFIG_H_
+#endif  // TPLP_TPLP_CONFIG_H_

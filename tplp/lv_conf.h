@@ -9,7 +9,7 @@
  *====================*/
 
 /*Color depth: 1 (1 byte per pixel), 8 (RGB332), 16 (RGB565), 32 (ARGB8888)*/
-#define LV_COLOR_DEPTH 16
+#define LV_COLOR_DEPTH 1  // 1 for SharpLCD
 
 /*Swap the 2 bytes of RGB565 color. Useful if the display has an 8-bit interface (e.g. SPI)*/
 #define LV_COLOR_16_SWAP 0
@@ -31,7 +31,7 @@
  *=========================*/
 
 /*1: use custom malloc/free, 0: use the built-in `lv_mem_alloc()` and `lv_mem_free()`*/
-#define LV_MEM_CUSTOM 0
+#define LV_MEM_CUSTOM 1
 #if LV_MEM_CUSTOM == 0
     /*Size of the memory available for `lv_mem_alloc()` in bytes (>= 2kB)*/
     #define LV_MEM_SIZE (48U * 1024U)          /*[bytes]*/
@@ -70,10 +70,10 @@
 
 /*Use a custom tick source that tells the elapsed time in milliseconds.
  *It removes the need to manually update the tick with `lv_tick_inc()`)*/
-#define LV_TICK_CUSTOM 0
+#define LV_TICK_CUSTOM 1
 #if LV_TICK_CUSTOM
-    #define LV_TICK_CUSTOM_INCLUDE "Arduino.h"         /*Header for the system time function*/
-    #define LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())    /*Expression evaluating to current system time in ms*/
+    #define LV_TICK_CUSTOM_INCLUDE "tplp/lv_tick_custom.h"         /*Header for the system time function*/
+    #define LV_TICK_CUSTOM_SYS_TIME_EXPR (lv_tick_custom_impl())    /*Expression evaluating to current system time in ms*/
 #endif   /*LV_TICK_CUSTOM*/
 
 /*Default Dot Per Inch. Used to initialize default sizes such as widgets sized, style paddings.
@@ -204,7 +204,8 @@
  *-----------*/
 
 /*Enable the log module*/
-#define LV_USE_LOG 0
+// TODO: disable logging for release
+#define LV_USE_LOG 1
 #if LV_USE_LOG
 
     /*How important log should be added:
@@ -218,7 +219,7 @@
 
     /*1: Print the log with 'printf';
     *0: User need to register a callback with `lv_log_register_print_cb()`*/
-    #define LV_LOG_PRINTF 0
+    #define LV_LOG_PRINTF 1
 
     /*Enable/disable LV_LOG_TRACE in modules that produces a huge number of logs*/
     #define LV_LOG_TRACE_MEM        1
@@ -227,7 +228,7 @@
     #define LV_LOG_TRACE_DISP_REFR  1
     #define LV_LOG_TRACE_EVENT      1
     #define LV_LOG_TRACE_OBJ_CREATE 1
-    #define LV_LOG_TRACE_LAYOUT     1
+    #define LV_LOG_TRACE_LAYOUT     0
     #define LV_LOG_TRACE_ANIM       1
 
 #endif  /*LV_USE_LOG*/
@@ -240,13 +241,16 @@
  *If LV_USE_LOG is enabled an error message will be printed on failure*/
 #define LV_USE_ASSERT_NULL          1   /*Check if the parameter is NULL. (Very fast, recommended)*/
 #define LV_USE_ASSERT_MALLOC        1   /*Checks is the memory is successfully allocated or no. (Very fast, recommended)*/
-#define LV_USE_ASSERT_STYLE         0   /*Check if the styles are properly initialized. (Very fast, recommended)*/
-#define LV_USE_ASSERT_MEM_INTEGRITY 0   /*Check the integrity of `lv_mem` after critical operations. (Slow)*/
-#define LV_USE_ASSERT_OBJ           0   /*Check the object's type and existence (e.g. not deleted). (Slow)*/
+#define LV_USE_ASSERT_STYLE         1   /*Check if the styles are properly initialized. (Very fast, recommended)*/
+// FIXME: disable slow asserts
+#define LV_USE_ASSERT_MEM_INTEGRITY 1   /*Check the integrity of `lv_mem` after critical operations. (Slow)*/
+#define LV_USE_ASSERT_OBJ           1   /*Check the object's type and existence (e.g. not deleted). (Slow)*/
 
 /*Add a custom handler when assert happens e.g. to restart the MCU*/
 #define LV_ASSERT_HANDLER_INCLUDE <stdint.h>
-#define LV_ASSERT_HANDLER while(1);   /*Halt by default*/
+// TODO: move this to a library and add a proper dependency?
+extern void lvgl_assertion_failed();
+#define LV_ASSERT_HANDLER lvgl_assertion_failed();
 
 /*-------------
  * Others
@@ -292,6 +296,7 @@
  *====================*/
 
 /*For big endian systems set to 1*/
+// RP2040 is little-endian.
 #define LV_BIG_ENDIAN_SYSTEM 0
 
 /*Define a custom attribute to `lv_tick_inc` function*/
@@ -546,8 +551,10 @@
  * Themes
  *----------*/
 
+// TODO: disable unused themes
+
 /*A simple, impressive and very complete theme*/
-#define LV_USE_THEME_DEFAULT 1
+#define LV_USE_THEME_DEFAULT 0
 #if LV_USE_THEME_DEFAULT
 
     /*0: Light mode; 1: Dark mode*/
@@ -561,7 +568,7 @@
 #endif /*LV_USE_THEME_DEFAULT*/
 
 /*A very simple theme that is a good starting point for a custom theme*/
-#define LV_USE_THEME_BASIC 1
+#define LV_USE_THEME_BASIC 0
 
 /*A theme designed for monochrome displays*/
 #define LV_USE_THEME_MONO 1
@@ -697,7 +704,7 @@
     #endif // LV_IME_PINYIN_USE_K9_MODE
 #endif
 
-// No, thank you.
+// Do not use any demos or examples.
 #define LV_BUILD_EXAMPLES 0
 #define LV_USE_DEMO_WIDGETS 0
 #define LV_USE_DEMO_KEYPAD_AND_ENCODER 0
@@ -705,6 +712,4 @@
 #define LV_USE_DEMO_STRESS 0
 #define LV_USE_DEMO_MUSIC 0
 
-/*--END OF LV_CONF_H--*/
-
-#endif /*LV_CONF_H*/
+#endif  // LV_CONF_H

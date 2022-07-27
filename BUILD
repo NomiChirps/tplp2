@@ -8,6 +8,6 @@ refresh_compile_commands(
         # clang/clangd uses the file extension to guess. In the case of C++
         # header files named "foo.h", it guesses C, and doesn't include the
         # C++ system headers.
-        "//tplp/...": "--cxxopt=-xc++",
+        "//tplp/...": "--cxxopt=-xc++ --cxxopt=-std=c++17",
     },
 )

@@ -12,3 +12,16 @@ cc_library(
         "//tplp:assert",
     ],
 )
+
+cc_library(
+    name = "lvgl_driver",
+    srcs = ["lvgl_driver.cc"],
+    hdrs = ["lvgl_driver.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":SharpLCD",
+        "@lvgl",
+        "//tplp/graphics:lvgl_mutex",
+        "//tplp:logging",
+    ],
+)

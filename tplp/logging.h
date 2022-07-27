@@ -6,6 +6,7 @@
 #include <string>
 
 #include "fmt/format.h"
+#include "pico/stdio.h"
 
 namespace tplp {
 
@@ -15,8 +16,10 @@ struct DebugLog {
                     const std::experimental::source_location& loc =
                         std::experimental::source_location::current()) {
     // TODO: add timestamp
+    // TODO: add current task name
     fmt::print("I {1}:{2}] {0}\n", fmt::format(std::forward<Params>(params)...),
                loc.file_name(), loc.line());
+    stdio_flush();
   }
 };
 

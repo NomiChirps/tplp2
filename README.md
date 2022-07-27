@@ -19,8 +19,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Copy the .uf2 file to the USB mass storage device that appears.
 
 # TODO
-- [ ] get a debugger working...?
-  - [ ] out of curiosity and for practice, find out exactly what's happening during the 200-300us interval between SpiManager transmissions.
+- [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
+- [ ] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
 - [x] use the genrule() trick to finally encapsulate FreeRTOS headers?
 - [x] use DMA for the Sharp LCD driver, just for funsies
 - [ ] create a lint.sh or something. to cover cc and bzl files
@@ -35,7 +35,7 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
   - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
   - [x] write configASSERT handler (use the NeoPixel LED?)
 - [ ] Create a front panel UI
-  - [ ] Use [LVGL](https://lvgl.io)
+  - [x] Use [LVGL](https://lvgl.io)
 - [ ] Get peripheral hardware running
   - [ ] Shiny new front panel display with touchscreen
   - [x] Sharp LCD display
@@ -47,7 +47,7 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
   - [ ] Mirror optointerrupter
   - [ ] MicroSD card reader (use [SD](https://github.com/arduino-libraries/SD/tree/a64c2bd907460dd01cef07fff003550cfcae0119))
 - [ ] Finish the electronics hardware
-  - [ ] install inverter on the Sharp LCD CS pin so it behaves like EVERY OTHER SPI DEVICE IN THE WORLD
+  - [x] install inverter on the Sharp LCD CS pin so it behaves like EVERY OTHER SPI DEVICE IN THE WORLD
   - [ ] Power everything from the 12v bus
   - [ ] Add bus capacitors
   - [ ] Install jumpers on the stepper drivers (to configure internal 5v power supply)
@@ -141,3 +141,4 @@ We might be able to save 2 pins by combining the button signals.
 - [FreeRTOS Kernel Quick Start Guide](https://www.freertos.org/FreeRTOS-quick-start-guide.html)
 - [FreeRTOS RP2040 SMP demos](https://www.freertos.org/smp-demos-for-the-raspberry-pi-pico-board.html)
 - [Use Arduino Libraries with the Rasperry Pi Pico C/C++ SDK](https://www.hackster.io/fhdm-dev/use-arduino-libraries-with-the-rasperry-pi-pico-c-c-sdk-eff55c)
+- [How to define and measure clock jitter](https://www.sitime.com/api/gated/AN10007-Jitter-and-measurement.pdf)

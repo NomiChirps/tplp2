@@ -3,20 +3,16 @@
 #include <memory>
 
 #include "FreeRTOS/FreeRTOS.h"
-#include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
-#include "hardware/gpio.h"
-#include "hardware/pio.h"
-#include "hardware/spi.h"
-#include "pico/bootrom.h"
 #include "pico/stdlib.h"
 #include "tplp/SharpLCD/SharpLCD.h"
 #include "tplp/SpiManager.h"
-#include "tplp/config.h"
+#include "tplp/graphics/graphics.h"
+#include "tplp/logging.h"
+#include "tplp/time.h"
+#include "tplp/tplp_config.h"
 #include "tplp/types.h"
-#include "tplp/util.h"
 #include "tplp/ws2812.h"
-
 
 using std::chrono_literals::operator""ms;
 
@@ -38,28 +34,14 @@ void vApplicationStackOverflowHook(TaskHandle_t task, char *name) {
   panic("Stack overflow in task: %s\n", name);
 }
 
+void lvgl_assertion_failed() { panic("lvgl assertion failed"); }
+
 }  // extern "C"
 
 namespace tplp {
 
-SpiManager *global_spi0_manager;
-
-void lcd_task(void *) {
-  SharpLCD display(global_spi0_manager);
-  display.Begin(Pins::LCD_CS);
-  display.Clear();
-  SharpLCD::FrameBuffer white = display.AllocateNewFrameBuffer();
-  SharpLCD::FrameBuffer black = display.AllocateNewFrameBuffer();
-  white.Clear(0);
-  black.Clear(1);
-
-  while (true) {
-    display.DrawFrameBufferBlocking(white);
-    display.DrawFrameBufferBlocking(black);
-  }
-}
-
 void led_task(void *) {
+  DebugLog("led_task started.");
   const int LED_PIN = PICO_DEFAULT_LED_PIN;
   gpio_init(LED_PIN);
   gpio_set_dir(LED_PIN, GPIO_OUT);
@@ -72,15 +54,13 @@ void led_task(void *) {
 }
 
 void neopixel_task(void *) {
+  // TODO: play with neopixel
   // ws2812_program_init(PIO pio, uint sm, uint offset, uint pin, float freq,
   // bool rgbw)
 }
 
-void button_task(void *) {
-  // xQueueReceive(button_queue, void *const pvBuffer, TickType_t xTicksToWait);
-}
-
 void stats_task(void *) {
+  DebugLog("stats_task started.");
   static char buf[1024];
   for (;;) {
     vTaskDelay(as_ticks(10'000ms));
@@ -92,19 +72,39 @@ void stats_task(void *) {
   }
 }
 
+// TODO: move back to SharpLCD.cc ?
+void ToggleVcomTask(void *param) {
+  DebugLog("ToggleVcomTask started.");
+  for (;;) {
+    static_cast<SharpLCD *>(param)->ToggleVCOM();
+    vTaskDelay(as_ticks(std::chrono::minutes(60)));
+  }
+}
+
 int main() {
   stdio_init_all();
   printf("Hello!\n");
 
-  global_spi0_manager =
+  SpiManager *spi0_manager =
       SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
                        Pins::SPI_SCLK, Pins::SPI_MOSI, /*miso=*/0);
 
-  xTaskCreate(&tplp::lcd_task, "lcd", 1024, nullptr, 1, nullptr);
+  SharpLCD *display = new SharpLCD(spi0_manager);
+  display->Begin(Pins::LCD_CS);
+  DebugLog("SharpLCD->Begin OK");
+  InitLvgl(display);
+  DebugLog("InitLvgl OK");
+
   xTaskCreate(&tplp::led_task, "led", 1024, nullptr, 1, nullptr);
   xTaskCreate(&tplp::stats_task, "stats", 1024, nullptr, 1, nullptr);
+  xTaskCreate(&tplp::RunLvglDemo, "LVGL Demo", 1024, nullptr, 1, nullptr);
+  xTaskCreate(&tplp::ToggleVcomTask, "ToggleVCOM", 1024, display,
+              TaskPriorities::kSharpLcdToggleVcom, nullptr);
+  DebugLog("Setup complete. Starting scheduler.");
   vTaskStartScheduler();
-  return 0;
+  // does not return unless we kill the scheduler
+  for (;;)
+    ;
 }
 
 }  // namespace tplp
