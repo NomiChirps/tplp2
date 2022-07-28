@@ -27,15 +27,9 @@ class ThreadLocal {
 
   // This should all be SMP-safe because the same task/thread will not be
   // scheduled on both cores simultaneously.
-  static container_t* Fetch() {
-    if (!xTaskGetCurrentTaskHandle()) {
-      panic("ThreadLocal::Fetch() called outside a task context");
-    }
-    return static_cast<container_t*>(
-        pvTaskGetThreadLocalStoragePointer(nullptr, RtosTlsIndex));
-  }
   static container_t* InitAndFetch() {
-    container_t* p = Fetch();
+    container_t* p = static_cast<container_t*>(
+        pvTaskGetThreadLocalStoragePointer(nullptr, RtosTlsIndex));
     if (!p) {
       p = new container_t;
       vTaskSetThreadLocalStoragePointer(nullptr, RtosTlsIndex, p);
@@ -49,11 +43,13 @@ class ThreadLocal {
   using initializer_t = std::function<T()>;
 
   explicit ThreadLocal(const initializer_t& initializer)
-      : initializer_(initializer) {
-    InitAndFetch();
-  }
+      : initializer_(initializer) {}
+
   ~ThreadLocal() {
-    container_t* p = Fetch();
+    if (!xTaskGetCurrentTaskHandle()) {
+      panic("ThreadLocal::~ThreadLocal() called outside a task context");
+    }
+    container_t* p = InitAndFetch();
     auto it = p->find(this);
     delete it->second;
     p->erase(it);
@@ -63,6 +59,9 @@ class ThreadLocal {
   ThreadLocal& operator=(const ThreadLocal&) = delete;
 
   T& get_or_init() {
+    if (!xTaskGetCurrentTaskHandle()) {
+      panic("ThreadLocal::get_or_init() called outside a task context");
+    }
     container_t* p = InitAndFetch();
     auto it = p->find(this);
     if (it == p->end()) {

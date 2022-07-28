@@ -19,6 +19,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Copy the .uf2 file to the USB mass storage device that appears.
 
 # TODO
+- [ ] generate & examine .map file for the firmware blob
+- [ ] use bloaty to find things to trim off the firmware size
 - [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
 - [ ] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
 - [x] use the genrule() trick to finally encapsulate FreeRTOS headers?

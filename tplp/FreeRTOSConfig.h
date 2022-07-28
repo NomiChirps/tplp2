@@ -17,7 +17,7 @@
 #define configTICK_RATE_HZ 100
 #define configMAX_PRIORITIES 5
 #define configMINIMAL_STACK_SIZE 128
-#define configMAX_TASK_NAME_LEN 16
+#define configMAX_TASK_NAME_LEN 32
 #define configUSE_16_BIT_TICKS 0
 #define configIDLE_SHOULD_YIELD 1
 #define configUSE_TASK_NOTIFICATIONS 1
@@ -28,12 +28,18 @@
 #define configQUEUE_REGISTRY_SIZE 10
 #define configUSE_QUEUE_SETS 0
 #define configUSE_TIME_SLICING 0
-// I think this means cstdlib functions are safe(r) in ISRs?
-#define configUSE_NEWLIB_REENTRANT 1
+// We don't use newlib (I think?)
+#define configUSE_NEWLIB_REENTRANT 0
 #define configENABLE_BACKWARD_COMPATIBILITY 0
 #define configNUM_THREAD_LOCAL_STORAGE_POINTERS 5
 #define configSTACK_DEPTH_TYPE uint16_t
 #define configMESSAGE_BUFFER_LENGTH_TYPE size_t
+
+// SMP config
+#define configNUM_CORES 2
+// TODO: run multiple priorities
+#define configRUN_MULTIPLE_PRIORITIES 1
+#define configUSE_CORE_AFFINITY 0
 
 // Memory allocation related definitions.
 #define configSUPPORT_STATIC_ALLOCATION 0
@@ -97,6 +103,8 @@ extern void FreeRTOS_AssertionFailed(const char* const file,
 #define INCLUDE_xTaskAbortDelay 0
 #define INCLUDE_xTaskGetHandle 0
 #define INCLUDE_xTaskResumeFromISR 1
+
+#include "FreeRTOS/rp2040_config.h"
 
 // A header file that defines trace macro can be included here.
 

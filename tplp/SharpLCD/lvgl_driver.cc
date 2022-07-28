@@ -45,13 +45,10 @@ void flush_cb_impl(lv_disp_drv_t* driver, const lv_area_t* area,
 
 void set_px_cb_impl(lv_disp_drv_t* disp_drv, uint8_t* buf, lv_coord_t buf_w,
                     lv_coord_t x, lv_coord_t y, lv_color_t color, lv_opa_t) {
-  // TODO: rotate?
   buf += y * buf_w / 8 + x / 8;
   if (lv_color_brightness(color) > 128) {
-    //(*buf) |= (1 << (x % 8));
     (*buf) |= (0x80 >> (x % 8));
   } else {
-    //(*buf) &= ~(1 << (x % 8));
     (*buf) &= ~(0x80 >> (x % 8));
   }
 }
@@ -102,8 +99,8 @@ lv_disp_drv_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
       .display_ready = xSemaphoreCreateBinary(),
   };
   TaskHandle_t refresh_task;
-  // TODO: determine required stack size
-  xTaskCreate(&DisplayRefreshTask, "lvgl_disp_drv", 1024, task_param,
+  xTaskCreate(&DisplayRefreshTask, "lvgl_disp_drv",
+              TplpConfig::kDefaultTaskStackSize, task_param,
               TaskPriorities::kLvglDisplayDriver, &refresh_task);
 
   lv_disp_drv_t* driver = new lv_disp_drv_t;

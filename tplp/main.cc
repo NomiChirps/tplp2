@@ -7,6 +7,7 @@
 #include "pico/stdlib.h"
 #include "tplp/SharpLCD/SharpLCD.h"
 #include "tplp/SpiManager.h"
+#include "tplp/assert.h"
 #include "tplp/graphics/graphics.h"
 #include "tplp/logging.h"
 #include "tplp/time.h"
@@ -27,7 +28,9 @@ void FreeRTOS_ConfigureTimeForRunTimeStats() {
 }
 
 unsigned long FreeRTOS_GetRunTimeCounterValue() {
-  return to_us_since_boot(get_absolute_time());
+  // Divide by 16 just to get smaller numbers so they fit better visually in the
+  // summary table.
+  return to_us_since_boot(get_absolute_time()) >> 4;
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t task, char *name) {
@@ -68,7 +71,6 @@ void stats_task(void *) {
     vTaskGetRunTimeStats(buf);
     puts(buf);
     printf("--------------------\n");
-    stdio_flush();
   }
 }
 
@@ -88,23 +90,27 @@ int main() {
   SpiManager *spi0_manager =
       SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
                        Pins::SPI_SCLK, Pins::SPI_MOSI, /*miso=*/0);
+  DebugLog("SpiManager::Init() OK");
 
   SharpLCD *display = new SharpLCD(spi0_manager);
   display->Begin(Pins::LCD_CS);
-  DebugLog("SharpLCD->Begin OK");
+  DebugLog("SharpLCD->Begin() OK");
   InitLvgl(display);
-  DebugLog("InitLvgl OK");
+  DebugLog("InitLvgl() OK");
 
-  xTaskCreate(&tplp::led_task, "led", 1024, nullptr, 1, nullptr);
-  xTaskCreate(&tplp::stats_task, "stats", 1024, nullptr, 1, nullptr);
-  xTaskCreate(&tplp::RunLvglDemo, "LVGL Demo", 1024, nullptr, 1, nullptr);
-  xTaskCreate(&tplp::ToggleVcomTask, "ToggleVCOM", 1024, display,
+  xTaskCreate(&tplp::led_task, "blinky", TplpConfig::kDefaultTaskStackSize,
+              nullptr, 1, nullptr);
+  xTaskCreate(&tplp::stats_task, "print_stats", TplpConfig::kDefaultTaskStackSize,
+              nullptr, 1, nullptr);
+  xTaskCreate(&tplp::RunLvglDemo, "LVGL Demo",
+              TplpConfig::kDefaultTaskStackSize, nullptr, 1, nullptr);
+  xTaskCreate(&tplp::ToggleVcomTask, "ToggleVCOM",
+              TplpConfig::kDefaultTaskStackSize, display,
               TaskPriorities::kSharpLcdToggleVcom, nullptr);
   DebugLog("Setup complete. Starting scheduler.");
+  // does not return unless we kill the scheduler, or it fails to start
   vTaskStartScheduler();
-  // does not return unless we kill the scheduler
-  for (;;)
-    ;
+  panic("scheduler died");
 }
 
 }  // namespace tplp

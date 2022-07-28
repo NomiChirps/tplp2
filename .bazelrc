@@ -18,9 +18,21 @@ build --@FreeRTOS-Kernel//:FreeRTOSConfig=//tplp:FreeRTOSConfig
 build --@lvgl//:lv_conf=//tplp:lv_conf
 
 ## Configuration of various libraries
+# TODO: can we put these defines in a header somewhere?
 # Prevent that weird "Reset" device showing up over USB
 build --copt="-DPICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0"
 # Wait for someone to monitor serial output
 build --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
 build --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
-# May be useful: PICO_ENTER_USB_BOOT_ON_EXIT
+# On by default but let's be sure.
+build --copt="-DPICO_STDOUT_MUTEX=1"
+# See https://github.com/raspberrypi/pico-sdk/issues/873
+# 0x800 is the default value, but specify it explicitly.
+build --copt="-DPICO_CORE1_STACK_SIZE=0x800"
+
+# We don't use pico-sdk sleep functions, and would like to
+# disable the default alarm pool they use. Unfortunately
+# @rules_pico explicitly enables it. Why?
+#build --copt="-DPICO_TIME_DEFAULT_ALARM_POOL_DISABLED=1"
+
+# May also be useful: PICO_ENTER_USB_BOOT_ON_EXIT

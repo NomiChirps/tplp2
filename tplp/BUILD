@@ -4,6 +4,7 @@ cc_library(
     name = "FreeRTOSConfig",
     hdrs = ["FreeRTOSConfig.h"],
     strip_include_prefix = "/tplp",
+    deps = ["@FreeRTOS-Kernel//:rp2040_config"],
 )
 
 cc_library(
@@ -62,6 +63,7 @@ cc_library(
 cc_library(
     name = "logging",
     hdrs = ["logging.h"],
+    srcs = ["logging.cc"],
     visibility = [":__subpackages__"],
     deps = [
         "@fmtlib//:format",

@@ -49,8 +49,8 @@ void InitLvgl(SharpLCD* display) {
 
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.
   static_assert(LV_TICK_CUSTOM);
-  // TODO: determine necessary stack depth
-  xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler", 1024, nullptr,
+  xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler",
+              TplpConfig::kDefaultTaskStackSize, nullptr,
               TaskPriorities::kLvglTimerHandler, nullptr);
 }
 

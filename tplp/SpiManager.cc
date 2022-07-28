@@ -20,9 +20,6 @@ using std::chrono_literals::operator""ms;
 namespace tplp {
 namespace {
 
-// TODO: measure what this should be
-constexpr int kTaskStackDepth = 1024;
-
 // We're gonna use DMA_IRQ_0 for SPI0 and DMA_IRQ_1 for SPI1,
 // but this correspondence is not actually required.
 dma_irq_index_t FromSpiIndex(int i) {
@@ -161,8 +158,9 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   // task_name remains allocated forever
   std::string* task_name =
       new std::string(fmt::format("SpiManager{}", spi_get_index(spi)));
-  xTaskCreate(&SpiManager::TaskFn, task_name->c_str(), kTaskStackDepth, nullptr,
-              task_priority, &that->task_);
+  xTaskCreate(&SpiManager::TaskFn, task_name->c_str(),
+              TplpConfig::kDefaultTaskStackSize, nullptr, task_priority,
+              &that->task_);
   return that;
 }
 

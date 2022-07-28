@@ -203,8 +203,8 @@ void SharpLCD::FrameBuffer::ByteBlit(const uint8_t *pixels, int16_t width,
   tplp_assert(width % 8 == 0);
   tplp_assert(posx >= 0);
   tplp_assert(posy >= 0);
-  tplp_assert(posx + width < kLcdWidth);
-  tplp_assert(posy + height < kLcdHeight);
+  tplp_assert(posx + width < (int)kLcdWidth);
+  tplp_assert(posy + height < (int)kLcdHeight);
   for (int16_t row = posy; row < posy + height; ++row) {
     for (int16_t col8 = posx / 8; col8 < (posx + width) / 8; ++col8) {
       uint8_t pack = 0;

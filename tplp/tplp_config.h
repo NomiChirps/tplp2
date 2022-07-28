@@ -31,6 +31,11 @@ struct TaskPriorities {
   static constexpr int kSharpLcdToggleVcom = 1;
 };
 
+struct TplpConfig {
+  // TODO: figure out what this should be per task
+  static constexpr int kDefaultTaskStackSize = 4096;
+};
+
 }  // namespace tplp
 
 #endif  // TPLP_TPLP_CONFIG_H_
