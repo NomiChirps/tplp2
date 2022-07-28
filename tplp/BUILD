@@ -30,6 +30,7 @@ pico_binary(
     ],
     deps = [
         ":SpiManager",
+        ":hook_impl",
         ":time",
         ":tplp_config",
         ":types",
@@ -39,6 +40,16 @@ pico_binary(
         "@FreeRTOS-Kernel//:FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
+)
+
+cc_library(
+    name = "hook_impl",
+    srcs = ["hook_impl.cc"],
+    deps = [
+        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@rules_pico//pico:pico_time",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -62,8 +73,8 @@ cc_library(
 
 cc_library(
     name = "logging",
-    hdrs = ["logging.h"],
     srcs = ["logging.cc"],
+    hdrs = ["logging.h"],
     visibility = [":__subpackages__"],
     deps = [
         "@fmtlib//:format",
