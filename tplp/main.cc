@@ -43,10 +43,8 @@ void stats_task(void *) {
   static char buf[1024];
   for (;;) {
     vTaskDelay(as_ticks(10'000ms));
-    printf("-- FreeRTOS Stats --\n");
     vTaskGetRunTimeStats(buf);
-    puts(buf);
-    printf("--------------------\n");
+    DebugLog("\n-- FreeRTOS Stats --\n{}--------------------", buf);
   }
 }
 
@@ -61,7 +59,7 @@ void ToggleVcomTask(void *param) {
 
 int main() {
   stdio_init_all();
-  printf("Hello!\n");
+  DebugLog("Hello!");
 
   SpiManager *spi0_manager =
       SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
@@ -76,8 +74,8 @@ int main() {
 
   xTaskCreate(&tplp::led_task, "blinky", TplpConfig::kDefaultTaskStackSize,
               nullptr, 1, nullptr);
-  xTaskCreate(&tplp::stats_task, "print_stats", TplpConfig::kDefaultTaskStackSize,
-              nullptr, 1, nullptr);
+  xTaskCreate(&tplp::stats_task, "print_stats",
+              TplpConfig::kDefaultTaskStackSize, nullptr, 1, nullptr);
   xTaskCreate(&tplp::RunLvglDemo, "LVGL Demo",
               TplpConfig::kDefaultTaskStackSize, nullptr, 1, nullptr);
   xTaskCreate(&tplp::ToggleVcomTask, "ToggleVCOM",

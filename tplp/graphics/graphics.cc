@@ -28,6 +28,11 @@ void LvglTimerHandlerTask(void*) {
   }
 }
 
+void lvgl_print_cb_impl(const char* msg) {
+  // TODO: improve formatting
+  DebugLog("[LVGL] {}", msg);
+}
+
 }  // namespace
 
 void InitLvgl(SharpLCD* display) {
@@ -42,6 +47,9 @@ void InitLvgl(SharpLCD* display) {
   // 5. Call lv_timer_handler() every few milliseconds to handle LVGL related
   //    tasks.
   lv_init();
+  // All stdio needs to go through our own implementation for thread safety.
+  lv_log_register_print_cb(&lvgl_print_cb_impl);
+
   InitAndRegisterDisplayDriver(display);
 
   lv_theme_mono_init(nullptr, 0, lv_font_default());
