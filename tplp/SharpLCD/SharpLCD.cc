@@ -191,35 +191,6 @@ SharpLCD::FrameBuffer::BitBlit(const uint8_t *bitmap,
   }
 }
 
-void SharpLCD::FrameBuffer::ByteBlit(const uint8_t *pixels, int16_t width,
-                                     int16_t height, int16_t posx,
-                                     int16_t posy) {
-  DebugLog("ByteBlit({}, {}, {}, {}, {})", static_cast<const void *>(pixels),
-           width, height, posx, posy);
-  height = std::min<int16_t>(kLcdHeight - posy - 1, height);
-  width = std::min<int16_t>(kLcdWidth - posx - 1, width);
-  tplp_assert(pixels);
-  tplp_assert(posx % 8 == 0);
-  tplp_assert(width % 8 == 0);
-  tplp_assert(posx >= 0);
-  tplp_assert(posy >= 0);
-  tplp_assert(posx + width < (int)kLcdWidth);
-  tplp_assert(posy + height < (int)kLcdHeight);
-  for (int16_t row = posy; row < posy + height; ++row) {
-    for (int16_t col8 = posx / 8; col8 < (posx + width) / 8; ++col8) {
-      uint8_t pack = 0;
-      for (int i = 0; i < 8; ++i) {
-        auto pixel_index = width * (row - posy) + (8 * col8 - posx) + i;
-        tplp_assert(pixel_index >= 0 && pixel_index < width * height);
-        uint8_t pixel = pixels[pixel_index];
-        pack <<= 1;
-        pack |= pixel ? 1 : 0;
-      }
-      SetRowByte(row, col8, pack);
-    }
-  }
-}
-
 SharpLCD::SharpLCD(SpiManager *spi) : spi_(spi) {
   tplp_assert(spi_->GetActualFrequency() <= 2'000'000);
 }

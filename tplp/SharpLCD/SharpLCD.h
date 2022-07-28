@@ -32,12 +32,6 @@ class SharpLCD {
     void BitBlit(const uint8_t *bitmap, unsigned int width, unsigned int height,
                  unsigned int posx, unsigned int posy);
 
-    // Like BitBlit, but `pixels` is an 8-bit boolean value for each of the
-    // `width*height` input pixels. NOTE: `posx` and `width` must be a multiple
-    // of 8! int16_t cleverly chosen to be compatible with lvgl.
-    void ByteBlit(const uint8_t *pixels, int16_t width, int16_t height,
-                  int16_t posx, int16_t posy);
-
     template <typename Int>
     uint8_t GetRowByte(Int row, Int byteIndex) const {
       return buffer_[RowColToIndex(row, byteIndex)];
