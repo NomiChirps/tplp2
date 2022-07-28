@@ -6,7 +6,7 @@
 #include <string>
 
 #include "FreeRTOS/FreeRTOS.h"
-#include "FreeRTOS/message_buffer.h"
+#include "FreeRTOS/queue.h"
 #include "FreeRTOS/semphr.h"
 #include "fmt/format.h"
 #include "hardware/dma.h"
@@ -43,7 +43,7 @@ uint ToIrqNum(dma_irq_index_t i) {
 }
 
 struct TransferRequestMessage {
-  static StreamBufferHandle_t queue;
+  static QueueHandle_t queue;
   static constexpr int kTxQueueDepth = 3;
 
   bool transmit;  // if false, receive
@@ -57,9 +57,8 @@ void InitGlobalsIfNecessary() {
   static bool is_init = false;
   if (is_init) return;
 
-  TransferRequestMessage::queue = xStreamBufferCreate(
-      TransferRequestMessage::kTxQueueDepth * sizeof(TransferRequestMessage),
-      sizeof(TransferRequestMessage));
+  TransferRequestMessage::queue = xQueueCreate(
+      TransferRequestMessage::kTxQueueDepth, sizeof(TransferRequestMessage));
 }
 
 // Notification index 0 is reserved by the FreeRTOS message buffer
@@ -99,7 +98,7 @@ class TransferDone {
   }
 };
 
-StreamBufferHandle_t TransferRequestMessage::queue = nullptr;
+QueueHandle_t TransferRequestMessage::queue = nullptr;
 int TransferDone::num_devices = 0;
 TransferDone::DeviceInfo TransferDone::devices[] = {};
 template void TransferDone::ISR<0>();
@@ -176,9 +175,8 @@ void SpiManager::TaskFn(void*) {
   DebugLog("SpiManager task started.");
   for (;;) {
     // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
-    while (!xStreamBufferReceive(TransferRequestMessage::queue, &request,
-                                 sizeof(TransferRequestMessage),
-                                 as_ticks(1'000ms))) {
+    while (!xQueueReceive(TransferRequestMessage::queue, &request,
+                          as_ticks(1'000ms))) {
       // just keep waiting for a request
       DebugLog("SpiManager task idle.");
     }
@@ -225,8 +223,7 @@ bool SpiDevice::Transmit(const uint8_t* buf, uint32_t len,
                                 .len = len,
                                 .callback = callback};
   // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
-  return xStreamBufferSend(TransferRequestMessage::queue, &req,
-                           sizeof(TransferRequestMessage), ticks_to_wait);
+  return xQueueSend(TransferRequestMessage::queue, &req, ticks_to_wait);
 }
 
 void SpiDevice::TransmitBlocking(const uint8_t* buf, uint32_t len) {
