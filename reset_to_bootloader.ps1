@@ -28,3 +28,4 @@ catch [System.IO.IOException] {
     }
 }
 $port.Dispose()
+Write-Host "Done."
