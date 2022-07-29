@@ -35,7 +35,7 @@ void lvgl_print_cb_impl(const char* msg) {
 
 }  // namespace
 
-void InitLvgl(SharpLCD* display) {
+void InitLvgl(SharpLCD* raw_display) {
   LvglLock::InitOnce();
   LvglLock lock;
   // LVGL documentation says:
@@ -50,9 +50,8 @@ void InitLvgl(SharpLCD* display) {
   // All stdio needs to go through our own implementation for thread safety.
   lv_log_register_print_cb(&lvgl_print_cb_impl);
 
-  InitAndRegisterDisplayDriver(display);
-
-  lv_theme_mono_init(nullptr, 0, lv_font_default());
+  lv_disp_t* display = InitAndRegisterDisplayDriver(raw_display);
+  lv_disp_set_theme(display, lv_theme_mono_init(display, 0, lv_font_default()));
   // TODO: register input device drivers
 
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.

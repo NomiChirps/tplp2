@@ -79,7 +79,7 @@ void DisplayRefreshTask(void* param) {
 
 }  // namespace
 
-lv_disp_drv_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
+lv_disp_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
   // Doesn't actually need to be screen-sized, but we get better "vsync" if it
   // is, since we don't need to coalesce multiple flush_cb calls to update the
   // entire framebuffer. It also ends up being way more efficient.
@@ -119,9 +119,7 @@ lv_disp_drv_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
       .display_ready = task_param->display_ready,
       .refresh_task = refresh_task,
   };
-  lv_disp_drv_register(driver);
-
-  return driver;
+  return lv_disp_drv_register(driver);
 }
 
 }  // namespace tplp
