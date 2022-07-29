@@ -214,7 +214,7 @@ void SharpLCD::WriteBufferBlocking(const uint8_t* buffer, unsigned len) {
   int ret = spi_device_->TransmitBlocking(buffer, len, as_ticks(1'000ms),
                                           as_ticks(1'000ms));
   if (ret) {
-    DebugLog("WriteBufferBlocking() timed out. ret=%s", ret);
+    DebugLog("WriteBufferBlocking() timed out. ret=%d", ret);
   }
 }
 
