@@ -82,7 +82,7 @@ class SharpLCD {
   // `cs`: Chip select pin. `SpiManager` will expect this to be active LOW, but
   // the Sharp LCD chip expects active HIGH. Make sure you've got an inverter in
   // the circuit.
-  void Begin(gpio_pin_t cs);
+  void Begin(gpio_pin_t cs, int toggle_vcom_task_priority);
 
   // Clear the LCD's display to all-white. More efficient than writing a
   // framebuffer.
@@ -118,6 +118,7 @@ class SharpLCD {
 
  private:
   void WriteBufferBlocking(const uint8_t *buffer, unsigned len);
+  static void ToggleVcomTask(void *);
 
  private:
   SpiManager *const spi_;

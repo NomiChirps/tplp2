@@ -23,6 +23,7 @@ class ThreadLocal {
  private:
   // TODO: can probably speed this up AND make it simpler by just using a sorted
   // vector of key-value pairs...
+  // TODO: should make these statically allocated, at least (kMaxTasks?)
   using container_t = etl::flat_map<ThreadLocal<T>*, T*, kMaxThreadLocals>;
 
   // This should all be SMP-safe because the same task/thread will not be
@@ -33,7 +34,7 @@ class ThreadLocal {
     if (!p) {
       p = new container_t;
       vTaskSetThreadLocalStoragePointer(nullptr, RtosTlsIndex, p);
-      DebugLog("ThreadLocal storage initialized for task '{}' = {}",
+      DebugLog("ThreadLocal storage initialized for task '%s' = %p",
                pcTaskGetName(nullptr), static_cast<void*>(p));
     }
     return p;

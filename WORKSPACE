@@ -2,11 +2,11 @@ workspace(name = "tplp2")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-RULES_PICO_COMMIT = "main"
+RULES_PICO_COMMIT = "c1f498afbfe6403b447ede11420dc08233bc2147"
 
 http_archive(
     name = "rules_pico",
-    sha256 = "4df2a0e2a99425fda34503c687bc723d92fa1c906601354ead94fc5ca19e402d",
+    sha256 = "0bbbf8198219c1795dfa3e276abb198043036abbb6b8b7b32e2aba3052b42511",
     strip_prefix = "rules_pico-" + RULES_PICO_COMMIT,
     # TODO: switch back to dfr's repo later
     url = "https://github.com/NomiChirps/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
@@ -53,16 +53,6 @@ http_archive(
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 
 hedron_compile_commands_setup()
-
-FMTLIB_COMMIT = "9.0.0"
-
-http_archive(
-    name = "fmtlib",
-    build_file = "//:BUILD.fmtlib",
-    sha256 = "01867bffc0b30ac71d5f05854e62e451367fa1aceddef40cae965338a7e00a74",
-    strip_prefix = "fmt-" + FMTLIB_COMMIT,
-    url = "https://github.com/fmtlib/fmt/archive/" + FMTLIB_COMMIT + ".zip",
-)
 
 LVGL_VERSION = "8.3.1"
 

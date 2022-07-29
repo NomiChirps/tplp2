@@ -6,20 +6,20 @@
 namespace tplp {
 namespace {
 
-SemaphoreHandle_t global_lvgl_mutex = 0;
+static SemaphoreHandle_t global_lvgl_mutex_ = 0;
 
 }  // namespace
 
 void LvglLock::InitOnce() {
-  if (!global_lvgl_mutex) {
-    global_lvgl_mutex = xSemaphoreCreateRecursiveMutex();
+  if (!global_lvgl_mutex_) {
+    global_lvgl_mutex_ = xSemaphoreCreateRecursiveMutex();
   }
 }
 
 LvglLock::LvglLock() {
-  xSemaphoreTakeRecursive(global_lvgl_mutex, portMAX_DELAY);
+  xSemaphoreTakeRecursive(global_lvgl_mutex_, portMAX_DELAY);
 }
 
-LvglLock::~LvglLock() { xSemaphoreGiveRecursive(global_lvgl_mutex); }
+LvglLock::~LvglLock() { xSemaphoreGiveRecursive(global_lvgl_mutex_); }
 
 }  // namespace tplp

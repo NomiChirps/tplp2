@@ -1,14 +1,7 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
-// Use Pico SDK ISR handlers
-// TODO: learn what this is for and why
-#define vPortSVCHandler isr_svcall
-#define xPortPendSVHandler isr_pendsv
-#define xPortSysTickHandler isr_systick
-
-// This is ignored because we're using heap_3, which just wraps malloc/free.
-#define configTOTAL_HEAP_SIZE 0
+#define configTOTAL_HEAP_SIZE 64*1024
 
 #define configUSE_PREEMPTION 1
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
@@ -37,12 +30,11 @@
 
 // SMP config
 #define configNUM_CORES 2
-// TODO: run multiple priorities
 #define configRUN_MULTIPLE_PRIORITIES 1
 #define configUSE_CORE_AFFINITY 0
 
 // Memory allocation related definitions.
-#define configSUPPORT_STATIC_ALLOCATION 0
+#define configSUPPORT_STATIC_ALLOCATION 1
 #define configSUPPORT_DYNAMIC_ALLOCATION 1
 #define configAPPLICATION_ALLOCATED_HEAP 0
 

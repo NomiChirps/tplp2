@@ -6,10 +6,12 @@
 #include "FreeRTOS/task.h"
 #include "lvgl/lvgl.h"
 #include "tplp/SharpLCD/lvgl_driver.h"
+#include "tplp/assert.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/logging.h"
 #include "tplp/time.h"
 #include "tplp/tplp_config.h"
+
 
 using std::chrono_literals::operator""ms;
 
@@ -30,7 +32,7 @@ void LvglTimerHandlerTask(void*) {
 
 void lvgl_print_cb_impl(const char* msg) {
   // TODO: improve formatting
-  DebugLog("[LVGL] {}", msg);
+  DebugLog("[LVGL] %s", msg);
 }
 
 }  // namespace
@@ -56,9 +58,10 @@ void InitLvgl(SharpLCD* raw_display) {
 
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.
   static_assert(LV_TICK_CUSTOM);
-  xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler",
-              TplpConfig::kDefaultTaskStackSize, nullptr,
-              TaskPriorities::kLvglTimerHandler, nullptr);
+  tplp_assert(xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler",
+                          TplpConfig::kDefaultTaskStackSize, nullptr,
+                          TaskPriorities::kLvglTimerHandler,
+                          nullptr) == pdPASS);
 }
 
 void RunLvglDemo(void*) {

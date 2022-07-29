@@ -1,12 +1,15 @@
 #include "tplp/logging.h"
 
-#include "pico/mutex.h"
-
 namespace tplp {
 namespace detail {
-namespace {
-auto_init_mutex(global_debug_log_mutex_);
-}  // namespace
-mutex_t* GetDebugLogMutex() { return &global_debug_log_mutex_; }
+SemaphoreHandle_t global_debug_log_mutex_ = 0;
+char global_debug_log_buf_[kDebugLogBufSize];
 }  // namespace detail
+
+void DebugLogStaticInit() {
+  static StaticQueue_t global_debug_log_mutex_buf_;
+  detail::global_debug_log_mutex_ =
+      xSemaphoreCreateMutexStatic(&global_debug_log_mutex_buf_);
+}
+
 }  // namespace tplp

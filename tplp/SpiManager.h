@@ -10,7 +10,6 @@
 #include "tplp/thread_local.h"
 #include "tplp/types.h"
 
-
 namespace tplp {
 
 class SpiDevice;
@@ -36,17 +35,22 @@ class SpiManager {
   int GetActualFrequency() const { return actual_frequency_; }
 
  private:
-  explicit SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
-                      dma_channel_t dma_tx, int actual_frequency);
+  explicit SpiManager(spi_inst_t* spi, int dma_irq_index, int dma_irq_number,
+                      dma_channel_t dma_tx, int actual_frequency,
+                      QueueHandle_t transmit_queue);
 
   static void TaskFn(void*);
 
  private:
   spi_inst_t* const spi_;
-  const dma_irq_index_t dma_irq_index_;
+  // Either 0 or 1.
+  const int dma_irq_index_;
+  // Some actual IRQ number.
+  const int dma_irq_number_;
   const dma_channel_t dma_tx_;
   const int actual_frequency_;
   TaskHandle_t task_;
+  QueueHandle_t transmit_queue_;
 };
 
 class SpiDevice {
@@ -70,8 +74,13 @@ class SpiDevice {
                 const transmit_callback_t& callback = nullptr);
 
   // Waits until there is space in the transmission queue, enqueues the given
-  // buffer, and waits until the transfer is complete.
-  void TransmitBlocking(const uint8_t* buf, uint32_t len);
+  // buffer, and waits until the transfer is complete. Yields to the scheduler
+  // while waiting.
+  // Returns 0 if successful, 1 if timed out enqueueing, 2 if timed out
+  // transmitting (message may still be sent later in this case!).
+  int TransmitBlocking(const uint8_t* buf, uint32_t len,
+                       TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
+                       TickType_t ticks_to_wait_transmit = portMAX_DELAY);
 
  private:
   explicit SpiDevice(SpiManager*, gpio_pin_t);

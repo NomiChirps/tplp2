@@ -10,6 +10,8 @@
 #include "tplp/time.h"
 #include "tplp/tplp_config.h"
 
+using std::chrono_literals::operator""ms;
+
 namespace tplp {
 namespace {
 
@@ -25,6 +27,7 @@ inline uint8_t BitReverse8(uint8_t b) {
 }  // namespace
 
 SharpLCD::FrameBuffer::FrameBuffer(uint8_t *fb) : buffer_(fb) {
+  tplp_assert(fb);
   Clear();
 
   /* Make sure the dummy bytes are clear */
@@ -195,7 +198,12 @@ SharpLCD::SharpLCD(SpiManager *spi) : spi_(spi) {
   tplp_assert(spi_->GetActualFrequency() <= 2'000'000);
 }
 
-void SharpLCD::Begin(gpio_pin_t cs) { spi_device_ = spi_->AddDevice(cs); }
+void SharpLCD::Begin(gpio_pin_t cs, int toggle_vcom_task_priority) {
+  spi_device_ = spi_->AddDevice(cs);
+  tplp_assert(xTaskCreate(&SharpLCD::ToggleVcomTask, "ToggleVCOM",
+                          TplpConfig::kDefaultTaskStackSize, this,
+                          toggle_vcom_task_priority, nullptr) == pdPASS);
+}
 
 SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
   return FrameBuffer(new uint8_t[FrameBuffer::kSizeofFramebufferForAlloc]);
@@ -203,7 +211,11 @@ SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
 
 void SharpLCD::WriteBufferBlocking(const uint8_t *buffer, unsigned len) {
   tplp_assert(spi_device_);
-  spi_device_->TransmitBlocking(buffer, len);
+  int ret = spi_device_->TransmitBlocking(buffer, len, as_ticks(1'000ms),
+                                          as_ticks(1'000ms));
+  if (ret) {
+    DebugLog("WriteBufferBlocking() timed out. ret=%s", ret);
+  }
 }
 
 void SharpLCD::Clear() {
@@ -236,6 +248,14 @@ void SharpLCD::ToggleVCOM(void) {
   buf[0] = mode;
   DebugLog("Sending ToggleVCOM");
   WriteBufferBlocking(buf, sizeof(buf));
+}
+
+void SharpLCD::ToggleVcomTask(void *param) {
+  DebugLog("SharpLCD::ToggleVcomTask started.");
+  for (;;) {
+    static_cast<SharpLCD *>(param)->ToggleVCOM();
+    vTaskDelay(as_ticks(std::chrono::minutes(60)));
+  }
 }
 
 }  // namespace tplp

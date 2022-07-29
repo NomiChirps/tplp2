@@ -16,7 +16,7 @@ cc_library(
 
 cc_library(
     name = "lv_tick_custom",
-    srcs = ["lv_tick_custom.c"],
+    srcs = ["lv_tick_custom.cc"],
     hdrs = ["lv_tick_custom.h"],
     deps = [
         "@rules_pico//pico:pico_time",
@@ -77,7 +77,8 @@ cc_library(
     hdrs = ["logging.h"],
     visibility = [":__subpackages__"],
     deps = [
-        "@fmtlib//:format",
+        ":time",
+        "@FreeRTOS-Kernel//:FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
 )

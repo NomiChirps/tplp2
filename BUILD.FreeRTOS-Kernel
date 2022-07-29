@@ -17,8 +17,12 @@ EXTRA_SOURCE_DIRS = [
     "portable/ThirdParty/GCC/RP2040",
 ]
 
-# heap_3 wraps malloc/free
-HEAP_IMPL = "heap_3.c"
+# heap_1 does not permit deletion
+# heap_2 permits deletion but does not coalesce
+# heap_3 wraps malloc/free (avoid)
+# heap_4 coalesces
+# TODO: switch back to heap_1 after tracking down what's deleting
+HEAP_IMPL = "heap_4.c"
 
 SOURCES = join_lists([[i.replace(d, "FreeRTOS", 1) for i in glob([d + "/*.c"])] for d in EXTRA_SOURCE_DIRS]) + ["FreeRTOS/" + s for s in glob(["*.c"]) + [HEAP_IMPL]]
 
@@ -50,6 +54,16 @@ cc_library(
         "@rules_pico//pico:pico_multicore",
         "@rules_pico//pico:pico_stdlib",
         "@rules_pico//pico:pico_sync",
+    ],
+)
+
+cc_library(
+    name = "freertos_sdk_config",
+    hdrs = ["FreeRTOS/freertos_sdk_config.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":FreeRTOSConfig",
+        ":rp2040_config",
     ],
 )
 

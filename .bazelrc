@@ -14,6 +14,10 @@ build --@rules_pico//pico/config:stdio_usb=True
 build --@rules_pico//pico/config:float_impl=@pico-sdk//:pico_float_none
 build --@rules_pico//pico/config:double_impl=@pico-sdk//:pico_double_none
 
+build --@rules_pico//pico/config:rtos_adapter_enable=True
+build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS-Kernel//:freertos_sdk_config
+build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
+
 build --@FreeRTOS-Kernel//:FreeRTOSConfig=//tplp:FreeRTOSConfig
 build --@lvgl//:lv_conf=//tplp:lv_conf
 
@@ -29,6 +33,11 @@ build --copt="-DPICO_STDOUT_MUTEX=1"
 # See https://github.com/raspberrypi/pico-sdk/issues/873
 # 0x800 is the default value, but specify it explicitly.
 build --copt="-DPICO_CORE1_STACK_SIZE=0x800"
+# malloc mutex is kind of important in multicore.
+# Just don't use it with FreeRTOS heap_3 (???)
+build --copt="-DPICO_USE_MALLOC_MUTEX=1"
+# Do not use malloc debug with FreeRTOS heap_3 and PICO_STDOUT_MUTEX!
+build --copt="-DPICO_DEBUG_MALLOC=0"
 
 # We don't use pico-sdk sleep functions, and would like to
 # disable the default alarm pool they use. Unfortunately

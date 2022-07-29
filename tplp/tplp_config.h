@@ -33,7 +33,8 @@ struct TaskPriorities {
 
 struct TplpConfig {
   // TODO: figure out what this should be per task
-  static constexpr int kDefaultTaskStackSize = 4096;
+  static constexpr int kDefaultTaskStackSize = 2048;
+  static constexpr int kSpiTransmitQueueDepth = 2;
 };
 
 }  // namespace tplp

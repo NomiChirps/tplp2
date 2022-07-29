@@ -8,7 +8,6 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/semphr.h"
-#include "fmt/format.h"
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
 #include "tplp/assert.h"
@@ -20,46 +19,13 @@ using std::chrono_literals::operator""ms;
 namespace tplp {
 namespace {
 
-// We're gonna use DMA_IRQ_0 for SPI0 and DMA_IRQ_1 for SPI1,
-// but this correspondence is not actually required.
-dma_irq_index_t FromSpiIndex(int i) {
-  switch (i) {
-    case 0:
-      return dma_irq_index_t::IRQ0;
-    case 1:
-      return dma_irq_index_t::IRQ1;
-  }
-  panic("FromSpiIndex(%d)\n", i);
-}
-
-uint ToIrqNum(dma_irq_index_t i) {
-  switch (i) {
-    case dma_irq_index_t::IRQ0:
-      return DMA_IRQ_0;
-    case dma_irq_index_t::IRQ1:
-      return DMA_IRQ_1;
-  }
-  panic("ToIrqNum(%d)\n", i);
-}
-
 struct TransferRequestMessage {
-  static QueueHandle_t queue;
-  static constexpr int kTxQueueDepth = 3;
-
   bool transmit;  // if false, receive
   SpiDevice* device;
   uint8_t* buf;
   size_t len;
   SpiDevice::transmit_callback_t callback;
 };
-
-void InitGlobalsIfNecessary() {
-  static bool is_init = false;
-  if (is_init) return;
-
-  TransferRequestMessage::queue = xQueueCreate(
-      TransferRequestMessage::kTxQueueDepth, sizeof(TransferRequestMessage));
-}
 
 // Notification index 0 is reserved by the FreeRTOS message buffer
 // implementation.
@@ -72,35 +38,39 @@ class TransferDone {
     TaskHandle_t task;
   };
   static constexpr int kMaxDevices = 3;
-  static DeviceInfo devices[kMaxDevices];
-  static int num_devices;
+  // index: (irq, device)
+  static DeviceInfo devices[2][kMaxDevices];
+  static int num_devices[2];
 
  public:
   template <int irq_index>
   static void ISR() {
     static_assert(irq_index == 0 || irq_index == 1, "bad irq_index");
-    for (int i = 0; i < num_devices; ++i) {
-      if (dma_irqn_get_channel_status(irq_index, devices[i].dma_tx)) {
-        dma_irqn_acknowledge_channel(irq_index, devices[i].dma_tx);
-        BaseType_t higher_priority_task_woken;
-        vTaskNotifyGiveIndexedFromISR(devices[i].task,
+    BaseType_t higher_priority_task_woken = 0;
+    for (int i = 0; i < num_devices[irq_index]; ++i) {
+      if (dma_irqn_get_channel_status(irq_index,
+                                      devices[irq_index][i].dma_tx)) {
+        dma_irqn_acknowledge_channel(irq_index, devices[irq_index][i].dma_tx);
+        vTaskNotifyGiveIndexedFromISR(devices[irq_index][i].task,
                                       kTransferDoneNotificationIndex,
                                       &higher_priority_task_woken);
-        portYIELD_FROM_ISR(higher_priority_task_woken);
-        return;
+        break;
       }
     }
+    portYIELD_FROM_ISR(higher_priority_task_woken);
   }
 
-  static void RegisterDevice(dma_channel_t dma_tx, TaskHandle_t task) {
-    tplp_assert(num_devices < kMaxDevices);
-    devices[num_devices++] = {.dma_tx = dma_tx, .task = task};
+  static void RegisterDevice(int irq_index, dma_channel_t dma_tx,
+                             TaskHandle_t task) {
+    tplp_assert(irq_index == 0 || irq_index == 1);
+    tplp_assert(num_devices[irq_index] < kMaxDevices);
+    devices[irq_index][num_devices[irq_index]++] = {.dma_tx = dma_tx,
+                                                    .task = task};
   }
 };
 
-QueueHandle_t TransferRequestMessage::queue = nullptr;
-int TransferDone::num_devices = 0;
-TransferDone::DeviceInfo TransferDone::devices[] = {};
+TransferDone::DeviceInfo TransferDone::devices[2][kMaxDevices] = {};
+int TransferDone::num_devices[2] = {0, 0};
 template void TransferDone::ISR<0>();
 template void TransferDone::ISR<1>();
 
@@ -109,16 +79,18 @@ template void TransferDone::ISR<1>();
 SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
                              gpio_pin_t sclk, gpio_pin_t mosi,
                              gpio_pin_t miso) {
-  InitGlobalsIfNecessary();
-
   int actual_freq_hz = spi_init(spi, freq_hz);
-  DebugLog("SPI{} clock set to {} Hz", spi_get_index(spi), actual_freq_hz);
+  DebugLog("SPI%d clock set to %d Hz", spi_get_index(spi), actual_freq_hz);
   spi_set_format(spi, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
   gpio_set_function(sclk, GPIO_FUNC_SPI);
 
+  QueueHandle_t transmit_queue = nullptr;
   dma_channel_t dma_tx = kDmaChannelInvalid;
   if (mosi) {
+    transmit_queue = xQueueCreate(TplpConfig::kSpiTransmitQueueDepth,
+                                  sizeof(TransferRequestMessage));
+
     gpio_set_function(mosi, GPIO_FUNC_SPI);
     dma_tx = dma_claim_unused_channel(true);
     dma_channel_config c = dma_channel_get_default_config(dma_tx);
@@ -131,52 +103,65 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
                           /*read_addr=*/nullptr,
                           /*transfer_count=*/0,
                           /*trigger=*/false);
-    DebugLog("DMA channel {} configured for SPI{} TX", dma_tx,
+    DebugLog("DMA channel %d configured for SPI%u TX", dma_tx,
              spi_get_index(spi));
   }
   if (miso) {
     // TODO: dma_rx not implemented
     panic("dma_rx not implemented");
   }
-  dma_irq_index_t irq_index = FromSpiIndex(spi_get_index(spi));
-  switch (irq_index) {
-    case dma_irq_index_t::IRQ0:
-      irq_add_shared_handler(ToIrqNum(irq_index), &TransferDone::ISR<0>,
-                             PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
-      break;
-    case dma_irq_index_t::IRQ1:
-      irq_add_shared_handler(ToIrqNum(irq_index), &TransferDone::ISR<1>,
-                             PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
-      break;
-  };
-  irq_set_enabled(ToIrqNum(irq_index), true);
-  dma_channel_set_irq0_enabled(dma_tx, true);
+  int spi_index = spi_get_index(spi);
+  // We're gonna use DMA_IRQ_0 for SPI0 and DMA_IRQ_1 for SPI1,
+  // but this correspondence is not actually required.
+  int irq_index;
+  int irq_number;
+  if (spi_index == 0) {
+    irq_index = 0;
+    irq_number = DMA_IRQ_0;
+    irq_set_exclusive_handler(irq_number, &TransferDone::ISR<0>);
+    dma_channel_set_irq0_enabled(dma_tx, true);
+  } else if (spi_index == 1) {
+    irq_index = 0;
+    irq_number = DMA_IRQ_1;
+    irq_set_exclusive_handler(irq_number, &TransferDone::ISR<1>);
+    dma_channel_set_irq1_enabled(dma_tx, true);
+  } else {
+    panic("bad spi index");
+  }
 
-  SpiManager* that = new SpiManager(spi, irq_index, dma_tx, actual_freq_hz);
+  SpiManager* that = new SpiManager(spi, irq_index, irq_number, dma_tx,
+                                    actual_freq_hz, transmit_queue);
 
   // task_name remains allocated forever
-  std::string* task_name =
-      new std::string(fmt::format("SpiManager{}", spi_get_index(spi)));
-  xTaskCreate(&SpiManager::TaskFn, task_name->c_str(),
-              TplpConfig::kDefaultTaskStackSize, nullptr, task_priority,
-              &that->task_);
+  char* task_name = new char[16];
+  snprintf(task_name, 16, "SpiManager%d", spi_get_index(spi));
+  tplp_assert(xTaskCreate(&SpiManager::TaskFn, task_name,
+                          TplpConfig::kDefaultTaskStackSize, that,
+                          task_priority, &that->task_) == pdPASS);
   return that;
 }
 
-SpiManager::SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
-                       dma_channel_t dma_tx, int actual_frequency)
+SpiManager::SpiManager(spi_inst_t* spi, int dma_irq_index, int dma_irq_number,
+                       dma_channel_t dma_tx, int actual_frequency,
+                       QueueHandle_t transmit_queue)
     : spi_(spi),
       dma_irq_index_(dma_irq_index),
+      dma_irq_number_(dma_irq_number),
       dma_tx_(dma_tx),
-      actual_frequency_(actual_frequency) {}
+      actual_frequency_(actual_frequency),
+      transmit_queue_(transmit_queue) {}
 
-void SpiManager::TaskFn(void*) {
+void SpiManager::TaskFn(void* task_param) {
+  SpiManager* self = static_cast<SpiManager*>(task_param);
+
+  // TODO: set irq priority?
+  irq_set_enabled(self->dma_irq_number_, true);
+
   TransferRequestMessage request;
   DebugLog("SpiManager task started.");
   for (;;) {
     // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
-    while (!xQueueReceive(TransferRequestMessage::queue, &request,
-                          as_ticks(1'000ms))) {
+    while (!xQueueReceive(self->transmit_queue_, &request, as_ticks(1'000ms))) {
       // just keep waiting for a request
       DebugLog("SpiManager task idle.");
     }
@@ -187,7 +172,7 @@ void SpiManager::TaskFn(void*) {
     while (!ulTaskNotifyTakeIndexed(kTransferDoneNotificationIndex, true,
                                     as_ticks(1'000ms))) {
       // TODO: transfer *still* not done...? what do? abort it?
-      DebugLog("SPI transfer still not finished. CS={}, len={}",
+      DebugLog("SPI transfer still not finished. CS=%u, len=%u",
                request.device->cs_, request.len);
     }
 
@@ -205,7 +190,7 @@ SpiDevice* SpiManager::AddDevice(gpio_pin_t cs) {
   gpio_init(cs);
   gpio_set_dir(cs, GPIO_OUT);
   gpio_put(cs, 1);
-  TransferDone::RegisterDevice(dma_tx_, task_);
+  TransferDone::RegisterDevice(dma_irq_index_, dma_tx_, task_);
   return new SpiDevice(this, cs);
 }
 
@@ -223,16 +208,24 @@ bool SpiDevice::Transmit(const uint8_t* buf, uint32_t len,
                                 .len = len,
                                 .callback = callback};
   // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
-  return xQueueSend(TransferRequestMessage::queue, &req, ticks_to_wait);
+  return xQueueSend(spi_->transmit_queue_, &req, ticks_to_wait);
 }
 
-void SpiDevice::TransmitBlocking(const uint8_t* buf, uint32_t len) {
+int SpiDevice::TransmitBlocking(const uint8_t* buf, uint32_t len,
+                                TickType_t ticks_to_wait_enqueue,
+                                TickType_t ticks_to_wait_transmit) {
   tplp_assert(xTaskGetSchedulerState() == taskSCHEDULER_RUNNING);
   tplp_assert(xTaskGetCurrentTaskHandle());
   SemaphoreHandle_t sem = transmit_blocking_mutex_.get_or_init();
-  Transmit(buf, len, portMAX_DELAY,
-           [sem]() { xSemaphoreGive(static_cast<SemaphoreHandle_t>(sem)); });
-  xSemaphoreTake(sem, portMAX_DELAY);
+  if (Transmit(buf, len, ticks_to_wait_enqueue, [sem]() {
+        xSemaphoreGive(static_cast<SemaphoreHandle_t>(sem));
+      })) {
+    if (xSemaphoreTake(sem, ticks_to_wait_transmit)) {
+      return 0;
+    }
+    return 2;
+  }
+  return 1;
 }
 
 }  // namespace tplp

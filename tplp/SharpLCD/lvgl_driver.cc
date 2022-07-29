@@ -3,6 +3,7 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
+#include "tplp/assert.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/logging.h"
 
@@ -99,9 +100,10 @@ lv_disp_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
       .display_ready = xSemaphoreCreateBinary(),
   };
   TaskHandle_t refresh_task;
-  xTaskCreate(&DisplayRefreshTask, "lvgl_disp_drv",
-              TplpConfig::kDefaultTaskStackSize, task_param,
-              TaskPriorities::kLvglDisplayDriver, &refresh_task);
+  tplp_assert(xTaskCreate(&DisplayRefreshTask, "lvgl_disp_drv",
+                          TplpConfig::kDefaultTaskStackSize, task_param,
+                          TaskPriorities::kLvglDisplayDriver,
+                          &refresh_task) == pdPASS);
 
   lv_disp_drv_t* driver = new lv_disp_drv_t;
   lv_disp_drv_init(driver);

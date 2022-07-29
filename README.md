@@ -15,23 +15,45 @@ bazel build //tplp:firmware -c opt
 ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
-# Flashing
-Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Copy the .uf2 file to the USB mass storage device that appears.
-
-# TODO
+# TODO / Notes
+- [ ] (!!!) vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
+- [ ] does it seem to crash shortly after we disconnect USB? try it.
+  - usb reconnect also doesn't seem to work.
+- [ ] figure out what's freeing FreeRTOS memory so we can use heap_1. it ain't me!
+- [ ] switch away from heap_3 and try turning malloc debug back on
+  - really we should switch to a different heap impl ANYWAY
+- [ ] figure out why we're spending so much time in "Tmr Svc" now. 35% ?!
+  - check on the timer task's priority. it should probably be high.
+  - check the list of software timers if possible.
+  - are we using a queue/semaphore/something heavily from an ISR?
+- [ ] figure out why it crashes after running for a few minutes :/
+  - it's because: FreeRTOS assertion failed at event_groups.c:333... but why?
+  - because something wants to wait on an event group, but the scheduler is suspended
+  - what is trying to wait, on what event group? <- it's probably pico sync interop.
+  - what suspended the scheduler?
+  - *DO* i need sync interop in the first place? (yes)
+  - important defines configSUPPORT_PICO_SYNC_INTEROP and LIB_PICO_SYNC - is everything that should be, getting compiled with them?
+  - likely port.c callers: vPortLockInternalSpinUnlockWithWait, vPortLockInternalSpinUnlockWithNotify
+  - WHAT IF: freertos is doing an allocation inside a critical section (i.e. holding a spinlock), then something happens with printf-mutex?
+    - in that case, making the mutex recursive should help? PICO_MUTEX_ENABLE_SDK120_COMPATIBILITY ?
+      - tinyusb doesn't build with it
+    - let's try turning off malloc debug and see if it still crashes?
+      - so far so good...........
+      - i guess that was it!
+      - we can still use malloc debug; just switch from heap_3 to something else.
+      - wait nope that wasn't it. still switching heaps though.
+  - something weird is happening during init; SpiManager task seems to be running BEFORE we start the scheduler. stepping on its log line.
+    - check out xCreateTask impl.
+  - **IT WAS FUCKING FMTLIB THE WHOLE TIME!?!?!??!**
+  - all looks ok for now but keep an eye on it
 - [ ] generate & examine .map file for the firmware blob
 - [ ] use bloaty to find things to trim off the firmware size
 - [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
 - [ ] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
-- [x] use the genrule() trick to finally encapsulate FreeRTOS headers?
-- [x] use DMA for the Sharp LCD driver, just for funsies
 - [ ] create a lint.sh or something. to cover cc and bzl files
-- [x] figure out how to track TODO/FIXME/XXX in IDE
-- [x] organize source code under src/ (I changed my mind later)
-- [x] (it's not possible, i decided) refer to FreeRTOS headers with a prefix, if possible
 - [ ] Vendor all 3rd party libraries
 - [ ] Tune FreeRTOS
-  - [ ] enable SMP/multicore
+  - [x] enable SMP/multicore
   - [ ] audit FreeRTOSConfig.h
   - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays? 
   - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
@@ -56,6 +78,16 @@ Put the RP2040 into bootloader mode by holding BOOTSEL while pressing RESET. Cop
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
+- [x] figure out why stdio locking in logging.h is *STILL* flaky
+  - The answer was: should have used FreeRTOS mutex *with* properly configured Pico-sync-multicore interop, so as to lock out other tasks AND the other core.
+  - [x] check pico sync interop impl
+  - [x] check if freertos thread-locals are per core (they are not)
+- [x] use the genrule() trick to finally encapsulate FreeRTOS headers?
+- [x] use DMA for the Sharp LCD driver, just for funsies
+- [x] figure out how to track TODO/FIXME/XXX in IDE
+- [x] organize source code under src/ (I changed my mind later)
+- [x] (it's not possible, i decided) refer to FreeRTOS headers with a prefix, if possible (actually it is)
+- [x] perhaps pico/lock_core.h macros need to be set up for FreeRTOS! that might explain why stdio seemed so flaky...
 - [x] Make sure we're not using floating point math anywhere (including dependencies): discovered via std::unordered_map that we panic if any floating point math is used
 - [x] Reset to the bootloader without touching the board: magic 1200 baud connection
 - [x] Get FreeRTOS running
