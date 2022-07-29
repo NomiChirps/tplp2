@@ -15,6 +15,7 @@ Write-Host "Attempting to reset on $ComPort"
 $port = new-Object System.IO.Ports.SerialPort $ComPort, 1200, None, 8, one
 try {
     $port.Open()
+    Start-Sleep 1
 }
 catch [System.IO.IOException] {
     if ($PSItem.ToString() -like "*A device which does not exist was specified*") {
