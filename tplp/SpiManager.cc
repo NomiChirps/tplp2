@@ -119,15 +119,14 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
     irq_index = 0;
     irq_number = DMA_IRQ_0;
     irq_set_exclusive_handler(irq_number, &TransferDone::ISR<0>);
-    dma_channel_set_irq0_enabled(dma_tx, true);
   } else if (spi_index == 1) {
     irq_index = 0;
     irq_number = DMA_IRQ_1;
     irq_set_exclusive_handler(irq_number, &TransferDone::ISR<1>);
-    dma_channel_set_irq1_enabled(dma_tx, true);
   } else {
     panic("bad spi index");
   }
+  // IRQ is enabled when the task starts up.
 
   SpiManager* that = new SpiManager(spi, irq_index, irq_number, dma_tx,
                                     actual_freq_hz, transmit_queue);
@@ -154,7 +153,8 @@ SpiManager::SpiManager(spi_inst_t* spi, int dma_irq_index, int dma_irq_number,
 void SpiManager::TaskFn(void* task_param) {
   SpiManager* self = static_cast<SpiManager*>(task_param);
 
-  // TODO: set irq priority?
+  // TODO: set irq priority? the default middle-priority is probably fine
+  dma_irqn_set_channel_enabled(self->dma_irq_index_, self->dma_tx_, true);
   irq_set_enabled(self->dma_irq_number_, true);
 
   TransferRequestMessage request;
