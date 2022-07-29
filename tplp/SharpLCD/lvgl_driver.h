@@ -3,14 +3,14 @@
 
 #include <memory>
 
-#include "tplp/SharpLCD/SharpLCD.h"
 #include "lvgl/lvgl.h"
+#include "tplp/SharpLCD/SharpLCD.h"
+
 
 namespace tplp {
 
 lv_disp_t* InitAndRegisterDisplayDriver(SharpLCD* display);
 
-}  // namespace
-
+}  // namespace tplp
 
 #endif  // TPLP_SHARPLCD_LVGL_DRIVER_H_

@@ -20,8 +20,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":SharpLCD",
-        "@lvgl",
-        "//tplp/graphics:lvgl_mutex",
         "//tplp:logging",
+        "//tplp/graphics:lvgl_mutex",
+        "@lvgl",
     ],
 )

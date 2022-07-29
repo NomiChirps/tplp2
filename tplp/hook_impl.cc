@@ -9,7 +9,7 @@
 
 extern "C" {
 // FreeRTOS assertion failure handler
-void FreeRTOS_AssertionFailed(const char *const file, unsigned long line) {
+void FreeRTOS_AssertionFailed(const char* const file, unsigned long line) {
   printf("FreeRTOS assertion failed at: %s:%lu\n", file, line);
   panic("FreeRTOS assertion failed");
 }
@@ -24,7 +24,7 @@ unsigned long FreeRTOS_GetRunTimeCounterValue() {
   return to_us_since_boot(get_absolute_time()) >> 4;
 }
 
-void vApplicationStackOverflowHook(TaskHandle_t task, char *name) {
+void vApplicationStackOverflowHook(TaskHandle_t task, char* name) {
   panic("Stack overflow in task: %s\n", name);
 }
 
@@ -33,7 +33,8 @@ void lvgl_assertion_failed() { panic("lvgl assertion failed"); }
 // FIXME: figure out why declaring this seems to have no effect,
 //        when it should already be linked in from idle_task_static_memory.c....
 
-// // configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide
+// // configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must
+// provide
 // // an implementation of vApplicationGetIdleTaskMemory() to provide the memory
 // // that is used by the Idle task.
 // void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
@@ -45,7 +46,8 @@ void lvgl_assertion_failed() { panic("lvgl assertion failed"); }
 //   static StaticTask_t xIdleTaskTCB;
 //   static StackType_t uxIdleTaskStack[configMINIMAL_STACK_SIZE];
 
-//   // Pass out a pointer to the StaticTask_t structure in which the Idle task's
+//   // Pass out a pointer to the StaticTask_t structure in which the Idle
+//   task's
 //   // state will be stored.
 //   *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
 
@@ -62,9 +64,9 @@ void lvgl_assertion_failed() { panic("lvgl assertion failed"); }
 // the application must provide an implementation of
 // vApplicationGetTimerTaskMemory() to provide the memory that is used by the
 // Timer service task.
-void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
-                                    StackType_t **ppxTimerTaskStackBuffer,
-                                    uint32_t *pulTimerTaskStackSize) {
+void vApplicationGetTimerTaskMemory(StaticTask_t** ppxTimerTaskTCBBuffer,
+                                    StackType_t** ppxTimerTaskStackBuffer,
+                                    uint32_t* pulTimerTaskStackSize) {
   // If the buffers to be provided to the Timer task are declared inside this
   // function then they must be declared static - otherwise they will be
   // allocated on the stack and so not exists after this function exits.

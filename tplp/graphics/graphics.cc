@@ -12,7 +12,6 @@
 #include "tplp/time.h"
 #include "tplp/tplp_config.h"
 
-
 using std::chrono_literals::operator""ms;
 
 namespace tplp {

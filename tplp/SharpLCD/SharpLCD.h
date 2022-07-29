@@ -14,14 +14,14 @@ class SharpLCD {
 
    public:
     // No copies.
-    FrameBuffer(FrameBuffer &) = delete;
-    FrameBuffer &operator=(const FrameBuffer &) = delete;
+    FrameBuffer(FrameBuffer&) = delete;
+    FrameBuffer& operator=(const FrameBuffer&) = delete;
 
     // Moves are OK.
-    FrameBuffer(FrameBuffer &&) = default;
-    FrameBuffer &operator=(FrameBuffer &&) = default;
+    FrameBuffer(FrameBuffer&&) = default;
+    FrameBuffer& operator=(FrameBuffer&&) = default;
 
-    explicit FrameBuffer(uint8_t *fb);
+    explicit FrameBuffer(uint8_t* fb);
 
     void Clear(bool black = false);
 
@@ -29,7 +29,7 @@ class SharpLCD {
     // placement of the target bitmap is limited to the LCD's
     // boundary--otherwise this routine fails. Note that `bitmap` is indeed
     // tightly packed bits; its size should be (width*height/8).
-    void BitBlit(const uint8_t *bitmap, unsigned int width, unsigned int height,
+    void BitBlit(const uint8_t* bitmap, unsigned int width, unsigned int height,
                  unsigned int posx, unsigned int posy);
 
     template <typename Int>
@@ -65,16 +65,16 @@ class SharpLCD {
         kSizeofFramebuffer + kLcdEndOfDummySize;
 
    private:
-    uint8_t *buffer_;
+    uint8_t* buffer_;
   };
 
  public:
-  SharpLCD(SharpLCD &) = delete;
-  SharpLCD(SharpLCD &&) = default;
-  SharpLCD &operator=(const SharpLCD &) = delete;
+  SharpLCD(SharpLCD&) = delete;
+  SharpLCD(SharpLCD&&) = default;
+  SharpLCD& operator=(const SharpLCD&) = delete;
 
   // Caller retains ownership of `spi`.
-  explicit SharpLCD(SpiManager *spi);
+  explicit SharpLCD(SpiManager* spi);
 
   // Configure the SPI hardware and start a background task to toggle VCOM
   // periodically.
@@ -92,12 +92,12 @@ class SharpLCD {
   // immediately. Returns true if successful. Returns false if the frame was
   // dropped due to the transmit queue being full.
   bool DrawFrameBuffer(
-      const FrameBuffer &fb,
-      const SpiDevice::transmit_callback_t &callback = nullptr);
+      const FrameBuffer& fb,
+      const SpiDevice::transmit_callback_t& callback = nullptr);
 
   // Pushes the given framebuffer out to the display over SPI,
   // waiting until finished.
-  void DrawFrameBufferBlocking(const FrameBuffer &fb);
+  void DrawFrameBufferBlocking(const FrameBuffer& fb);
 
   // Toggle the VCOM mode of the LCD; it is recommended to trigger this
   // periodically. Check the datasheet.
@@ -117,12 +117,12 @@ class SharpLCD {
   static constexpr uint8_t kDummy8 = 0x00;
 
  private:
-  void WriteBufferBlocking(const uint8_t *buffer, unsigned len);
-  static void ToggleVcomTask(void *);
+  void WriteBufferBlocking(const uint8_t* buffer, unsigned len);
+  static void ToggleVcomTask(void*);
 
  private:
-  SpiManager *const spi_;
-  SpiDevice *spi_device_;
+  SpiManager* const spi_;
+  SpiDevice* spi_device_;
 };
 
 }  // namespace tplp

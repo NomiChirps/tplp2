@@ -26,17 +26,17 @@ inline uint8_t BitReverse8(uint8_t b) {
 
 }  // namespace
 
-SharpLCD::FrameBuffer::FrameBuffer(uint8_t *fb) : buffer_(fb) {
+SharpLCD::FrameBuffer::FrameBuffer(uint8_t* fb) : buffer_(fb) {
   tplp_assert(fb);
   Clear();
 
   /* Make sure the dummy bytes are clear */
-  ((uint8_t *)buffer_)[kSizeofFramebuffer] = kDummy8;
-  ((uint8_t *)buffer_)[kSizeofFramebuffer + 1] = kDummy8;
+  ((uint8_t*)buffer_)[kSizeofFramebuffer] = kDummy8;
+  ((uint8_t*)buffer_)[kSizeofFramebuffer + 1] = kDummy8;
 }
 
 void SharpLCD::FrameBuffer::Clear(bool black) {
-  uint8_t *pfb;
+  uint8_t* pfb;
   unsigned int row;
   unsigned int index;
 
@@ -194,7 +194,7 @@ SharpLCD::FrameBuffer::BitBlit(const uint8_t *bitmap,
   }
 }
 
-SharpLCD::SharpLCD(SpiManager *spi) : spi_(spi) {
+SharpLCD::SharpLCD(SpiManager* spi) : spi_(spi) {
   tplp_assert(spi_->GetActualFrequency() <= 2'000'000);
 }
 
@@ -209,7 +209,7 @@ SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
   return FrameBuffer(new uint8_t[FrameBuffer::kSizeofFramebufferForAlloc]);
 }
 
-void SharpLCD::WriteBufferBlocking(const uint8_t *buffer, unsigned len) {
+void SharpLCD::WriteBufferBlocking(const uint8_t* buffer, unsigned len) {
   tplp_assert(spi_device_);
   int ret = spi_device_->TransmitBlocking(buffer, len, as_ticks(1'000ms),
                                           as_ticks(1'000ms));
@@ -224,13 +224,13 @@ void SharpLCD::Clear() {
   WriteBufferBlocking(buf, sizeof(buf));
 }
 
-bool SharpLCD::DrawFrameBuffer(const FrameBuffer &fb,
-                               const SpiDevice::transmit_callback_t &callback) {
+bool SharpLCD::DrawFrameBuffer(const FrameBuffer& fb,
+                               const SpiDevice::transmit_callback_t& callback) {
   return spi_device_->Transmit(
       fb.buffer_, FrameBuffer::kSizeofFramebufferForAlloc, 0, callback);
 }
 
-void SharpLCD::DrawFrameBufferBlocking(const FrameBuffer &fb) {
+void SharpLCD::DrawFrameBufferBlocking(const FrameBuffer& fb) {
   WriteBufferBlocking(fb.buffer_, FrameBuffer::kSizeofFramebufferForAlloc);
 }
 
@@ -250,10 +250,10 @@ void SharpLCD::ToggleVCOM(void) {
   WriteBufferBlocking(buf, sizeof(buf));
 }
 
-void SharpLCD::ToggleVcomTask(void *param) {
+void SharpLCD::ToggleVcomTask(void* param) {
   DebugLog("SharpLCD::ToggleVcomTask started.");
   for (;;) {
-    static_cast<SharpLCD *>(param)->ToggleVCOM();
+    static_cast<SharpLCD*>(param)->ToggleVCOM();
     vTaskDelay(as_ticks(std::chrono::minutes(60)));
   }
 }

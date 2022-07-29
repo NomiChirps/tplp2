@@ -5,9 +5,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":lvgl_mutex",
+        "//tplp:logging",
         "//tplp:tplp_config",
         "//tplp/SharpLCD",
-        "//tplp:logging",
         "//tplp/SharpLCD:lvgl_driver",
         "@FreeRTOS-Kernel//:FreeRTOS",
         "@lvgl",
