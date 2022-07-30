@@ -19,7 +19,7 @@ namespace detail {
 mutex_t* GetDebugLogMutex();
 }  // namespace detail
 
-// FIXME: for god's sake just make this a macro
+// TODO: for god's sake just make this a macro
 template <typename... Params>
 struct DebugLog {
   explicit DebugLog(Params&&... params,

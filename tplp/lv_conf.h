@@ -271,7 +271,7 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h"*/
        recommended)*/
 #define LV_USE_ASSERT_STYLE \
   1 /*Check if the styles are properly initialized. (Very fast, recommended)*/
-// FIXME: disable slow asserts
+// TODO(for release): disable slow asserts
 #define LV_USE_ASSERT_MEM_INTEGRITY \
   1 /*Check the integrity of `lv_mem` after critical operations. (Slow)*/
 #define LV_USE_ASSERT_OBJ \

@@ -21,7 +21,6 @@ EXTRA_SOURCE_DIRS = [
 # heap_2 permits deletion but does not coalesce
 # heap_3 wraps malloc/free (avoid)
 # heap_4 coalesces
-# TODO: switch back to heap_1 after tracking down what's deleting
 HEAP_IMPL = "heap_4.c"
 
 SOURCES = join_lists([[i.replace(d, "FreeRTOS", 1) for i in glob([d + "/*.c"])] for d in EXTRA_SOURCE_DIRS]) + ["FreeRTOS/" + s for s in glob(["*.c"]) + [HEAP_IMPL]]
