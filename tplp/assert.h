@@ -10,7 +10,7 @@
     if (!(x)) {                                                         \
       printf("[%s:%d] Assertion failed: %s\n", __FILE__, __LINE__, #x); \
       stdio_flush();                                                    \
-      panic("Assertion failed");                                        \
+      panic("tplp_assert failed");                                      \
     }                                                                   \
   } while (0)
 
@@ -19,7 +19,7 @@
     if (!(x)) {                                                  \
       printf("[%s:%d] %s is nullptr\n", __FILE__, __LINE__, #x); \
       stdio_flush();                                             \
-      panic("Assertion failed");                                 \
+      panic("tplp_assert_notnull failed");                       \
     }                                                            \
   } while (0)
 
