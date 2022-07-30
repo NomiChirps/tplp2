@@ -16,6 +16,11 @@ ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
 # TODO / Notes
+- [ ] move/redirect config headers to a config/ dir
+- [ ] I notice `Tmr Svc` task has only 56 bytes of stack free. what if that's why we're dying? when a callback runs that uses more stack?
+  - do we even need software timers? let's try disabling them.
+    aha, i see! software timers are used in the RP2040 port for pico sync interop: in the FIFO interrupt handler (on each core), and when unlocking a mutex from an interrupt handler.
+  - so what are we doing that's using so much FIFO and/or mutex?
 - [ ] (!!!) vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
 - [ ] does it seem to crash shortly after we disconnect USB? try it.
   - usb reconnect also doesn't seem to work.
@@ -44,8 +49,10 @@ ls -lh bazel-bin/tplp/firmware.uf2
       - wait nope that wasn't it. still switching heaps though.
   - something weird is happening during init; SpiManager task seems to be running BEFORE we start the scheduler. stepping on its log line.
     - check out xCreateTask impl.
-  - **IT WAS FUCKING FMTLIB THE WHOLE TIME!?!?!??!**
+  - **IT WAS FUCKING FMTLIB THE WHOLE TIME!?!?!??!** (probably not but eh, still more stable without)
   - all looks ok for now but keep an eye on it
+  - ok i think there's a clue in my main() logs. anything i print immediately after InitLvgl() gets cut off...
+    probably something in InitLvgl is stomping on the relevant memory?
 - [ ] generate & examine .map file for the firmware blob
 - [ ] use bloaty to find things to trim off the firmware size
 - [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
