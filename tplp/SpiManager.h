@@ -29,7 +29,7 @@ class SpiManager {
                           gpio_pin_t sclk, gpio_pin_t mosi, gpio_pin_t miso);
 
   // We use software chip-select (GPIO), so cs can be any pin.
-  SpiDevice* AddDevice(gpio_pin_t cs);
+  SpiDevice* AddDevice(gpio_pin_t cs, std::string_view name);
 
   // Hz
   int GetActualFrequency() const { return actual_frequency_; }
@@ -83,11 +83,13 @@ class SpiDevice {
                        TickType_t ticks_to_wait_transmit = portMAX_DELAY);
 
  private:
-  explicit SpiDevice(SpiManager*, gpio_pin_t);
+  explicit SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name);
 
  private:
   SpiManager* const spi_;
   const gpio_pin_t cs_;
+  const std::string name_;
+
   ThreadLocal<SemaphoreHandle_t> transmit_blocking_mutex_;
 };
 

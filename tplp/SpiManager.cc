@@ -135,7 +135,7 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   char* task_name = new char[16];
   snprintf(task_name, 16, "SpiManager%d", spi_get_index(spi));
   tplp_assert(xTaskCreate(&SpiManager::TaskFn, task_name,
-                          TplpConfig::kDefaultTaskStackSize, that,
+                          TaskStacks::kDefault, that,
                           task_priority, &that->task_) == pdPASS);
   return that;
 }
@@ -161,9 +161,9 @@ void SpiManager::TaskFn(void* task_param) {
   DebugLog("SpiManager task started.");
   for (;;) {
     // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
-    while (!xQueueReceive(self->transmit_queue_, &request, as_ticks(1'000ms))) {
+    while (!xQueueReceive(self->transmit_queue_, &request, as_ticks(5'000ms))) {
       // just keep waiting for a request
-      DebugLog("SpiManager task idle.");
+      DebugLog("SpiManager%u idle.", spi_get_index(self->spi_));
     }
     if (!request.transmit) panic("rx not implemented");
     gpio_put(request.device->cs_, 0);
@@ -172,8 +172,8 @@ void SpiManager::TaskFn(void* task_param) {
     while (!ulTaskNotifyTakeIndexed(kTransferDoneNotificationIndex, true,
                                     as_ticks(1'000ms))) {
       // TODO: transfer *still* not done...? what do? abort it?
-      DebugLog("SPI transfer still not finished. CS=%u, len=%u",
-               request.device->cs_, request.len);
+      DebugLog("SPI transfer still not finished. device=%s, cs=%u, len=%u",
+               request.device->name_, request.device->cs_, request.len);
     }
 
     // Make sure the SPI TX FIFO is fully drained before we deselect the chip
@@ -186,17 +186,18 @@ void SpiManager::TaskFn(void* task_param) {
   }
 }
 
-SpiDevice* SpiManager::AddDevice(gpio_pin_t cs) {
+SpiDevice* SpiManager::AddDevice(gpio_pin_t cs, std::string_view name) {
   gpio_init(cs);
   gpio_set_dir(cs, GPIO_OUT);
   gpio_put(cs, 1);
   TransferDone::RegisterDevice(dma_irq_index_, dma_tx_, task_);
-  return new SpiDevice(this, cs);
+  return new SpiDevice(this, cs, name);
 }
 
-SpiDevice::SpiDevice(SpiManager* spi, gpio_pin_t cs)
+SpiDevice::SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name)
     : spi_(spi),
       cs_(cs),
+      name_(name),
       transmit_blocking_mutex_([]() { return xSemaphoreCreateBinary(); }) {}
 
 bool SpiDevice::Transmit(const uint8_t* buf, uint32_t len,

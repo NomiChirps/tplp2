@@ -31,13 +31,17 @@ void LvglTimerHandlerTask(void*) {
 
 void lvgl_print_cb_impl(const char* msg) {
   // TODO: improve formatting
+  // (Hackily) strip newline
+  int len = strlen(msg);
+  if (len && msg[len - 1] == '\n') {
+    const_cast<char*>(msg)[len - 1] = '\0';
+  }
   DebugLog("[LVGL] %s", msg);
 }
 
 }  // namespace
 
 void InitLvgl(SharpLCD* raw_display) {
-  LvglLock::InitOnce();
   LvglLock lock;
   // LVGL documentation says:
   // 1. Call lv_init().
@@ -47,18 +51,18 @@ void InitLvgl(SharpLCD* raw_display) {
   //    elapsed time to LVGL (or set LV_TICK_CUSTOM in lv_conf.h).
   // 5. Call lv_timer_handler() every few milliseconds to handle LVGL related
   //    tasks.
-  lv_init();
-  // All stdio needs to go through our own implementation for thread safety.
   lv_log_register_print_cb(&lvgl_print_cb_impl);
+  lv_init();
 
-  lv_disp_t* display = InitAndRegisterDisplayDriver(raw_display);
+  lv_disp_t* display = sharp_lcd::InitAndRegisterDisplayDriver(raw_display);
+  tplp_assert_notnull(display);
   lv_disp_set_theme(display, lv_theme_mono_init(display, 0, lv_font_default()));
   // TODO: register input device drivers
 
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.
   static_assert(LV_TICK_CUSTOM);
   tplp_assert(xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler",
-                          TplpConfig::kDefaultTaskStackSize, nullptr,
+                          TaskStacks::kLvglTimerHandler, nullptr,
                           TaskPriorities::kLvglTimerHandler,
                           nullptr) == pdPASS);
 }

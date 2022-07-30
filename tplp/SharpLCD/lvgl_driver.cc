@@ -8,6 +8,7 @@
 #include "tplp/logging.h"
 
 namespace tplp {
+namespace sharp_lcd {
 namespace {
 
 struct DriverUserData {
@@ -101,7 +102,7 @@ lv_disp_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
   };
   TaskHandle_t refresh_task;
   tplp_assert(xTaskCreate(&DisplayRefreshTask, "lvgl_disp_drv",
-                          TplpConfig::kDefaultTaskStackSize, task_param,
+                          TaskStacks::kDefault, task_param,
                           TaskPriorities::kLvglDisplayDriver,
                           &refresh_task) == pdPASS);
 
@@ -124,4 +125,5 @@ lv_disp_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
   return lv_disp_drv_register(driver);
 }
 
+}  // namespace sharp_lcd
 }  // namespace tplp

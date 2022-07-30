@@ -24,16 +24,19 @@ struct TaskPriorities {
   static_assert(configMAX_PRIORITIES == 5);
 
   // Bigger numbers are higher priority.
-
-  static constexpr int kSpiManager0 = 4;
+  // P4 is reserved for system startup and the FreeRTOS timer daemon.
+  static constexpr int kSpiManager0 = 3;
   static constexpr int kLvglTimerHandler = 1;
   static constexpr int kLvglDisplayDriver = 1;
-  static constexpr int kSharpLcdToggleVcom = 1;
+  static constexpr int kSharpLcdToggleVcom = 0;
+};
+
+struct TaskStacks {
+  static constexpr int kDefault = 1024;
+  static constexpr int kLvglTimerHandler = 2048;
 };
 
 struct TplpConfig {
-  // TODO: figure out what this should be per task
-  static constexpr int kDefaultTaskStackSize = 2048;
   static constexpr int kSpiTransmitQueueDepth = 2;
 };
 

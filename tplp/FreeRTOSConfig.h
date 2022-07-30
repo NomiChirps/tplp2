@@ -10,7 +10,7 @@
 #define configTICK_RATE_HZ 100
 #define configMAX_PRIORITIES 5
 #define configMINIMAL_STACK_SIZE 128
-#define configMAX_TASK_NAME_LEN 32
+#define configMAX_TASK_NAME_LEN 24
 #define configUSE_16_BIT_TICKS 0
 #define configIDLE_SHOULD_YIELD 1
 #define configUSE_TASK_NOTIFICATIONS 1
@@ -30,7 +30,7 @@
 
 // SMP config
 #define configNUM_CORES 2
-#define configRUN_MULTIPLE_PRIORITIES 1
+#define configRUN_MULTIPLE_PRIORITIES 0
 #define configUSE_CORE_AFFINITY 0
 
 // Memory allocation related definitions.
@@ -64,9 +64,10 @@ extern unsigned long FreeRTOS_GetRunTimeCounterValue();
 // Software timer related definitions.
 #define configUSE_TIMERS 1
 // TODO: what should the timer task's priority be? high or low?
-#define configTIMER_TASK_PRIORITY 3
+// (probably high)
+#define configTIMER_TASK_PRIORITY (configMAX_PRIORITIES-1)
 #define configTIMER_QUEUE_LENGTH 10
-#define configTIMER_TASK_STACK_DEPTH configMINIMAL_STACK_SIZE
+#define configTIMER_TASK_STACK_DEPTH 256
 
 // Define to trap errors during development.
 // TODO(for release): disable configASSERT

@@ -7,16 +7,15 @@
 #include <string>
 
 #include "FreeRTOS/FreeRTOS.h"
-#include "FreeRTOS/semphr.h"
 #include "FreeRTOS/task.h"
+#include "pico/mutex.h"
 #include "pico/stdio.h"
+#include "pico/time.h"
 #include "tplp/time.h"
 
 namespace tplp {
 namespace detail {
-constexpr int kDebugLogBufSize = 2048;
-extern SemaphoreHandle_t global_debug_log_mutex_;
-extern char global_debug_log_buf_[kDebugLogBufSize];
+mutex_t* GetDebugLogMutex();
 }  // namespace detail
 
 // FIXME: for god's sake just make this a macro
@@ -25,36 +24,33 @@ struct DebugLog {
   explicit DebugLog(Params&&... params,
                     const std::experimental::source_location& loc =
                         std::experimental::source_location::current()) {
-    // TODO: add timestamp
-    // TODO: add current task name
-    // Note that fmt::print() is very much thread-unsafe, on top of us wanting
-    // to serialize log lines in any case.
-    bool need_lock = xTaskGetSchedulerState() == taskSCHEDULER_RUNNING;
-    if (need_lock) {
-      if (!detail::global_debug_log_mutex_) {
-        panic("global_debug_log_mutex_ == 0");
+    uint64_t timestamp = to_us_since_boot(get_absolute_time());
+    mutex_enter_blocking(detail::GetDebugLogMutex());
+    bool scheduler = xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED;
+    const char* task_name = "SCHEDULER_NOT_STARTED";
+    if (scheduler) {
+      task_name = pcTaskGetName(nullptr);
+      if (!task_name) {
+        task_name = "NOT_A_TASK";
       }
-      xSemaphoreTake(detail::global_debug_log_mutex_,
-                     as_ticks(std::chrono::milliseconds(100)));
     }
-    snprintf(detail::global_debug_log_buf_, detail::kDebugLogBufSize,
-             std::forward<Params>(params)...);
-    printf("Ic%d %s:%lu] %s", get_core_num(), loc.file_name(), loc.line(),
-           detail::global_debug_log_buf_);
+    printf("I %llu.%06llu c%d %s %s:%lu] ", timestamp / 1000000,
+           timestamp % 1000000, get_core_num(), task_name, loc.file_name(),
+           loc.line());
     fflush(stdout);
-    putchar('\n');
-    stdio_flush();
-    if (need_lock) {
-      xSemaphoreGive(detail::global_debug_log_mutex_);
-    }
+    printf(std::forward<Params>(params)...);
+    fflush(stdout);
+    printf("\n");
+    fflush(stdout);
+    mutex_exit(detail::GetDebugLogMutex());
+    // TODO: figure out why these fflush calls are necessary
+    //       without them we get all the newlines printed FIRST (???)
+    // pico stdio_usb has no explicit flush
   }
 };
 
 template <typename... Params>
 DebugLog(Params&&...) -> DebugLog<Params...>;
-
-// Call once from main().
-void DebugLogStaticInit();
 
 }  // namespace tplp
 
