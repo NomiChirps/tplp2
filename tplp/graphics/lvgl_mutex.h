@@ -12,6 +12,8 @@ class LvglLock {
 
   LvglLock(const LvglLock&) = delete;
   LvglLock& operator=(const LvglLock&) = delete;
+
+  static void InitOnce();
 };
 
 }  // namespace tplp

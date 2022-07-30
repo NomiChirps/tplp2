@@ -31,26 +31,13 @@ build --copt="-DPICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0"
 # Wait for someone to monitor serial output
 build --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
 build --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
-# On by default but let's be sure.
-build --copt="-DPICO_STDOUT_MUTEX=1"
-# See https://github.com/raspberrypi/pico-sdk/issues/873
 # 0x800 is the default value, but specify it explicitly.
 build --copt="-DPICO_CORE1_STACK_SIZE=0x800"
-# malloc mutex is kind of important in multicore.
-# Just don't use it with FreeRTOS heap_3 (???)
-build --copt="-DPICO_USE_MALLOC_MUTEX=1"
-# Do not use malloc debug with FreeRTOS heap_3 and PICO_STDOUT_MUTEX!
-build --copt="-DPICO_DEBUG_MALLOC=0"
-# For testing only.
-build --copt="-DPARAM_ASSERTIONS_ENABLED_LOCK_CORE=1"
-
 # Undocumented option which write-protects the last 32 bytes of the stack(s)
 build --copt="-DPICO_USE_STACK_GUARDS=1"
-
 
 # We don't use pico-sdk sleep functions, and would like to
 # disable the default alarm pool they use. Unfortunately
 # @rules_pico explicitly enables it. Why?
+# See https://github.com/raspberrypi/pico-sdk/issues/873
 #build --copt="-DPICO_TIME_DEFAULT_ALARM_POOL_DISABLED=1"
-
-# May also be useful: PICO_ENTER_USB_BOOT_ON_EXIT

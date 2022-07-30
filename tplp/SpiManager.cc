@@ -134,9 +134,8 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   // task_name remains allocated forever
   char* task_name = new char[16];
   snprintf(task_name, 16, "SpiManager%d", spi_get_index(spi));
-  tplp_assert(xTaskCreate(&SpiManager::TaskFn, task_name,
-                          TaskStacks::kDefault, that,
-                          task_priority, &that->task_) == pdPASS);
+  tplp_assert(xTaskCreate(&SpiManager::TaskFn, task_name, TaskStacks::kDefault,
+                          that, task_priority, &that->task_) == pdPASS);
   return that;
 }
 
@@ -218,9 +217,8 @@ int SpiDevice::TransmitBlocking(const uint8_t* buf, uint32_t len,
   tplp_assert(xTaskGetSchedulerState() == taskSCHEDULER_RUNNING);
   tplp_assert(xTaskGetCurrentTaskHandle());
   SemaphoreHandle_t sem = transmit_blocking_mutex_.get_or_init();
-  if (Transmit(buf, len, ticks_to_wait_enqueue, [sem]() {
-        xSemaphoreGive(static_cast<SemaphoreHandle_t>(sem));
-      })) {
+  if (Transmit(buf, len, ticks_to_wait_enqueue,
+               [sem]() { xSemaphoreGive(sem); })) {
     if (xSemaphoreTake(sem, ticks_to_wait_transmit)) {
       return 0;
     }

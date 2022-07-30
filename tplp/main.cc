@@ -56,7 +56,6 @@ class StatsTask {
   static void stats_task(void*) {
     DebugLog("stats_task started.");
     for (;;) {
-      vTaskDelay(as_ticks(10'000ms));
       {
         struct mallinfo heap_stats = mallinfo();
         DebugLog("System heap arena=%u uordblks=%u fordblks=%u",
@@ -85,10 +84,11 @@ class StatsTask {
             lvgl_heap.total_size, lvgl_heap.free_size,
             lvgl_heap.free_biggest_size, lvgl_heap.max_used);
       }
-
       {
         buf_head = buf;
-        int column_width[] = {configMAX_TASK_NAME_LEN, 4};
+        int column_width[] = {/*name=*/configMAX_TASK_NAME_LEN,
+                              /*time total=*/7, /*time percent=*/4,
+                              /*min free stack=*/6};
         int num_tasks =
             uxTaskGetSystemState(task_status, kMaxTasks, &total_run_time);
         int total_num_tasks = uxTaskGetNumberOfTasks();
@@ -101,17 +101,20 @@ class StatsTask {
                     return a.xTaskNumber < b.xTaskNumber;
                   });
         total_run_time /= 100;
-        PrintToBuf("FreeRTOS Task Stats:\n%-*s%-*s %s\n", column_width[0],
-                   "Name", column_width[1], " Time", "Min free stack");
+        PrintToBuf("FreeRTOS Task Stats:\n");
         for (int i = 0; i < num_tasks; ++i) {
           TaskStatus_t& task = task_status[i];
-          PrintToBuf("%-*s%*d%% %4u\n", column_width[0], task.pcTaskName,
-                     column_width[1],
+          PrintToBuf("%-*s%*dms%*d%%%*u bytes\n", column_width[0],
+                     task.pcTaskName, column_width[1],
+                     static_cast<int>(task.ulRunTimeCounter / 1000),
+                     column_width[2],
                      static_cast<int>(task.ulRunTimeCounter / total_run_time),
+                     column_width[3],
                      static_cast<unsigned int>(task.usStackHighWaterMark));
         }
         DebugLog("%s", buf);
       }
+      vTaskDelay(as_ticks(30'000ms));
     }
   }
 
@@ -132,10 +135,8 @@ char* StatsTask::buf_head;
 
 void StartupTask(void*) {
   DebugLog("Begin startup...");
-  // FIXME: why does suspending the scheduler during startup cause so many
-  //        problems...? i want a way to run this task exclusively until
-  //        we're done creating everything!
-  // vTaskSuspendAll();
+  // Other tasks won't run during startup because this one is using the reserved
+  // highest priority.
 
   SpiManager* spi0_manager =
       SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
@@ -154,9 +155,7 @@ void StartupTask(void*) {
   tplp_assert(xTaskCreate(&RunLvglDemo, "LVGL Demo", TaskStacks::kDefault,
                           nullptr, 1, nullptr) == pdPASS);
   DebugLog("Startup complete. Resuming all tasks.");
-  // xTaskResumeAll();
-  vTaskDelay(portMAX_DELAY);
-  // vTaskDelete(nullptr);
+  vTaskDelete(nullptr);
 }
 
 int main() {
@@ -167,7 +166,6 @@ int main() {
   xTaskCreate(&StartupTask, "STARTUP", TaskStacks::kDefault, nullptr,
               configMAX_PRIORITIES - 1, nullptr);
   vTaskStartScheduler();
-  // cheeky usage of pico's utility stringification macro
   panic("scheduler died :(");
 }
 

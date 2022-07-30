@@ -42,6 +42,7 @@ void lvgl_print_cb_impl(const char* msg) {
 }  // namespace
 
 void InitLvgl(SharpLCD* raw_display) {
+  LvglLock::InitOnce();
   LvglLock lock;
   // LVGL documentation says:
   // 1. Call lv_init().

@@ -1,16 +1,23 @@
 #include "tplp/graphics/lvgl_mutex.h"
 
-#include "pico/mutex.h"
+#include "FreeRTOS/FreeRTOS.h"
+#include "FreeRTOS/semphr.h"
 
 namespace tplp {
 namespace {
 
-auto_init_recursive_mutex(global_lvgl_mutex_);
+static SemaphoreHandle_t global_lvgl_mutex_;
 
 }  // namespace
 
-LvglLock::LvglLock() { recursive_mutex_enter_blocking(&global_lvgl_mutex_); }
+LvglLock::LvglLock() {
+  xSemaphoreTakeRecursive(global_lvgl_mutex_, portMAX_DELAY);
+}
 
-LvglLock::~LvglLock() { recursive_mutex_exit(&global_lvgl_mutex_); }
+LvglLock::~LvglLock() { xSemaphoreGiveRecursive(global_lvgl_mutex_); }
+
+void LvglLock::InitOnce() {
+  global_lvgl_mutex_ = xSemaphoreCreateRecursiveMutex();
+}
 
 }  // namespace tplp

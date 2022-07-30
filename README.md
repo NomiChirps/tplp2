@@ -17,54 +17,15 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 # TODO / Notes
 - [ ] move/redirect config headers to a config/ dir
-- [ ] I notice `Tmr Svc` task has only 56 bytes of stack free. what if that's why we're dying? when a callback runs that uses more stack?
-  - do we even need software timers? let's try disabling them.
-    aha, i see! software timers are used in the RP2040 port for pico sync interop: in the FIFO interrupt handler (on each core), and when unlocking a mutex from an interrupt handler.
-  - so what are we doing that's using so much FIFO and/or mutex?
+- [ ] Why are we spending so much time in Tmr Svc?
 - [ ] (!!!) vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
-- [ ] does it seem to crash shortly after we disconnect USB? try it.
-  - usb reconnect also doesn't seem to work.
-- [ ] figure out what's freeing FreeRTOS memory so we can use heap_1. it ain't me!
-- [ ] switch away from heap_3 and try turning malloc debug back on
-  - really we should switch to a different heap impl ANYWAY
-- [ ] figure out why we're spending so much time in "Tmr Svc" now. 35% ?!
-  - check on the timer task's priority. it should probably be high.
-  - check the list of software timers if possible.
-  - are we using a queue/semaphore/something heavily from an ISR?
-- [ ] figure out why it crashes after running for a few minutes :/
-  - it's because: FreeRTOS assertion failed at event_groups.c:333... but why?
-  - because something wants to wait on an event group, but the scheduler is suspended
-  - what is trying to wait, on what event group? <- it's probably pico sync interop.
-  - what suspended the scheduler?
-  - *DO* i need sync interop in the first place? (yes)
-  - important defines configSUPPORT_PICO_SYNC_INTEROP and LIB_PICO_SYNC - is everything that should be, getting compiled with them?
-  - likely port.c callers: vPortLockInternalSpinUnlockWithWait, vPortLockInternalSpinUnlockWithNotify
-  - WHAT IF: freertos is doing an allocation inside a critical section (i.e. holding a spinlock), then something happens with printf-mutex?
-    - in that case, making the mutex recursive should help? PICO_MUTEX_ENABLE_SDK120_COMPATIBILITY ?
-      - tinyusb doesn't build with it
-    - let's try turning off malloc debug and see if it still crashes?
-      - so far so good...........
-      - i guess that was it!
-      - we can still use malloc debug; just switch from heap_3 to something else.
-      - wait nope that wasn't it. still switching heaps though.
-  - something weird is happening during init; SpiManager task seems to be running BEFORE we start the scheduler. stepping on its log line.
-    - check out xCreateTask impl.
-  - **IT WAS FUCKING FMTLIB THE WHOLE TIME!?!?!??!** (probably not but eh, still more stable without)
-  - all looks ok for now but keep an eye on it
-  - ok i think there's a clue in my main() logs. anything i print immediately after InitLvgl() gets cut off...
-    probably something in InitLvgl is stomping on the relevant memory?
+- [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.
 - [ ] generate & examine .map file for the firmware blob
 - [ ] use bloaty to find things to trim off the firmware size
 - [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
 - [ ] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
 - [ ] create a lint.sh or something. to cover cc and bzl files
 - [ ] Vendor all 3rd party libraries
-- [ ] Tune FreeRTOS
-  - [x] enable SMP/multicore
-  - [ ] audit FreeRTOSConfig.h
-  - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays? 
-  - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
-  - [x] write configASSERT handler (use the NeoPixel LED?)
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
 - [ ] Get peripheral hardware running
@@ -85,6 +46,22 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
+
+## Done
+
+- [x] I notice Tmr Svc task has only 56 bytes of stack free. what if that's why we're dying? when a callback runs that uses more stack?
+  - do we even need software timers? let's try disabling them.
+    aha, i see! software timers are used in the RP2040 port for pico sync interop: in the FIFO interrupt handler (on each core), and when unlocking a mutex from an interrupt handler.
+  - so what are we doing that's using so much FIFO and/or mutex?
+  - increased the stack size; it's fine now.
+- [x] Tune FreeRTOS
+  - The verdict: we'll be using non-SMP with preemption. If we need the second core for something, we'll put it there manually.
+  - [x] enable SMP/multicore
+    - turns out this was a terrible idea.
+  - [x] audit FreeRTOSConfig.h
+  - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays? 
+  - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
+  - [x] write configASSERT handler (use the NeoPixel LED?)
 - [x] figure out why stdio locking in logging.h is *STILL* flaky
   - The answer was: should have used FreeRTOS mutex *with* properly configured Pico-sync-multicore interop, so as to lock out other tasks AND the other core.
   - [x] check pico sync interop impl

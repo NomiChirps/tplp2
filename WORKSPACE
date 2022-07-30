@@ -18,13 +18,13 @@ rules_pico_dependencies()
 
 rules_pico_toolchains()
 
-# Latest on the SMP branch.
-FREERTOS_COMMIT = "13f034eb7480f11c9fc43e7b51a1e55656985bf4"
+# Latest on the main branch.
+FREERTOS_COMMIT = "c22f40d9a5e239fdfd98bfc210a33c26a627b9f6"
 
 http_archive(
     name = "FreeRTOS-Kernel",
     build_file = "//:BUILD.FreeRTOS-Kernel",
-    sha256 = "f25e2924fc503e4a0733cdc3a12ca6187d9f864b6e3dfd3d64282b5dc1ab7869",
+    sha256 = "4b6b28745cb1f1755596b12bb04549a1dc0eacdbcb16facd8754a6f7cfb72546",
     strip_prefix = "FreeRTOS-Kernel-" + FREERTOS_COMMIT,
     url = "https://github.com/FreeRTOS/FreeRTOS-Kernel/archive/" + FREERTOS_COMMIT + ".zip",
 )
