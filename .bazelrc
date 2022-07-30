@@ -44,6 +44,9 @@ build --copt="-DPICO_DEBUG_MALLOC=0"
 # For testing only.
 build --copt="-DPARAM_ASSERTIONS_ENABLED_LOCK_CORE=1"
 
+# Undocumented option which write-protects the last 32 bytes of the stack(s)
+build --copt="-DPICO_USE_STACK_GUARDS=1"
+
 
 # We don't use pico-sdk sleep functions, and would like to
 # disable the default alarm pool they use. Unfortunately
