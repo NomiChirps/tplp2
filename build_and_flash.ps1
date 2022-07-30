@@ -9,9 +9,10 @@ function ThrowOnNativeFailure {
     }
 }
 
-if (!(Test-Path $UploadPath)) {
-    throw "UploadPath $UploadPath does not exist"
-}
+# On my system this makes the Z:/ archive array spin up, even though we're testing D:/ ...
+# if (!(Test-Path $UploadPath)) {
+#     throw "UploadPath $UploadPath does not exist"
+# }
 
 bazel build -c opt //tplp:firmware.uf2
 ThrowOnNativeFailure

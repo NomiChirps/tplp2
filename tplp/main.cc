@@ -1,5 +1,3 @@
-#include <malloc.h>
-
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
