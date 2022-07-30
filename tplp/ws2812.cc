@@ -2,7 +2,6 @@
 #include "hardware/pio.h"
 #include "tplp/ws2812.pio.h"
 
-
 void ws2812_program_init(PIO pio, uint sm, uint offset, uint pin, float freq,
                          bool rgbw) {
   pio_gpio_init(pio, pin);
