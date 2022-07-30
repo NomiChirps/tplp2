@@ -63,3 +63,13 @@ http_archive(
     strip_prefix = "lvgl-" + LVGL_VERSION,
     url = "https://github.com/lvgl/lvgl/archive/v" + LVGL_VERSION + ".zip",
 )
+
+NAMEDTYPE_COMMIT = "77a95c8002a28f5cb48d2d0cd985904d66912af3"
+
+http_archive(
+    name = "NamedType",
+    build_file = "//:BUILD.NamedType",
+    sha256 = "708f0dcbc2d6321a9b696212e1f33dc0286ff942f93b09039884739f37050268",
+    strip_prefix = "NamedType-" + NAMEDTYPE_COMMIT + "/include",
+    url = "https://github.com/joboccara/NamedType/archive/" + NAMEDTYPE_COMMIT + ".zip",
+)

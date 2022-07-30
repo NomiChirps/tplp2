@@ -49,7 +49,7 @@ void StartupTask(void*) {
 
   SpiManager* spi0_manager =
       SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
-                       Pins::SPI_SCLK, Pins::SPI_MOSI, /*miso=*/0);
+                       Pins::SPI_SCLK, Pins::SPI_MOSI, /*miso=*/std::nullopt);
   DebugLog("SpiManager::Init() OK");
 
   SharpLCD* display = new SharpLCD(spi0_manager);

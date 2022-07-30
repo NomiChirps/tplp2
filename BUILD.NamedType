@@ -1,0 +1,14 @@
+cc_library(
+    name = "NamedType",
+    srcs = [
+        "NamedType/crtp.hpp",
+        "NamedType/named_type_impl.hpp",
+        "NamedType/underlying_functionalities.hpp",
+        "NamedType/version.hpp",
+        "NamedType/named_type.hpp",
+    ],
+    hdrs = [
+        "NamedType/named_type.hpp",
+    ],
+    visibility = ["//visibility:public"],
+)

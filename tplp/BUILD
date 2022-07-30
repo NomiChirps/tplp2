@@ -102,6 +102,7 @@ cc_library(
     name = "types",
     hdrs = ["types.h"],
     deps = [
+        "@NamedType",
         "@rules_pico//pico:hardware_base",  # should be pico_types, but it's not visible
     ],
 )

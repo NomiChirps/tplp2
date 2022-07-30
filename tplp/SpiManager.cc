@@ -33,7 +33,7 @@ static constexpr int kTransferDoneNotificationIndex = 1;
 class TransferDone {
  private:
   struct DeviceInfo {
-    dma_channel_t dma_tx;
+    std::optional<dma_channel_t> dma_tx;
     TaskHandle_t task;
   };
   static constexpr int kMaxDevices = 3;
@@ -47,19 +47,23 @@ class TransferDone {
     static_assert(irq_index == 0 || irq_index == 1, "bad irq_index");
     BaseType_t higher_priority_task_woken = 0;
     for (int i = 0; i < num_devices[irq_index]; ++i) {
-      if (dma_irqn_get_channel_status(irq_index,
-                                      devices[irq_index][i].dma_tx)) {
-        dma_irqn_acknowledge_channel(irq_index, devices[irq_index][i].dma_tx);
-        vTaskNotifyGiveIndexedFromISR(devices[irq_index][i].task,
-                                      kTransferDoneNotificationIndex,
-                                      &higher_priority_task_woken);
-        break;
+      if (devices[irq_index][i].dma_tx) {
+        if (dma_irqn_get_channel_status(irq_index,
+                                        *devices[irq_index][i].dma_tx)) {
+          dma_irqn_acknowledge_channel(irq_index,
+                                       *devices[irq_index][i].dma_tx);
+          vTaskNotifyGiveIndexedFromISR(devices[irq_index][i].task,
+                                        kTransferDoneNotificationIndex,
+                                        &higher_priority_task_woken);
+          break;
+        }
       }
     }
     portYIELD_FROM_ISR(higher_priority_task_woken);
   }
 
-  static void RegisterDevice(int irq_index, dma_channel_t dma_tx,
+  static void RegisterDevice(dma_irq_index_t irq_index,
+                             std::optional<dma_channel_t> dma_tx,
                              TaskHandle_t task) {
     tplp_assert(irq_index == 0 || irq_index == 1);
     tplp_assert(num_devices[irq_index] < kMaxDevices);
@@ -76,8 +80,8 @@ template void TransferDone::ISR<1>();
 }  // namespace
 
 SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
-                             gpio_pin_t sclk, gpio_pin_t mosi,
-                             gpio_pin_t miso) {
+                             gpio_pin_t sclk, std::optional<gpio_pin_t> mosi,
+                             std::optional<gpio_pin_t> miso) {
   int actual_freq_hz = spi_init(spi, freq_hz);
   DebugLog("SPI%d clock set to %d Hz", spi_get_index(spi), actual_freq_hz);
   spi_set_format(spi, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
@@ -85,24 +89,24 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   gpio_set_function(sclk, GPIO_FUNC_SPI);
 
   QueueHandle_t transmit_queue = nullptr;
-  dma_channel_t dma_tx = kDmaChannelInvalid;
+  std::optional<dma_channel_t> dma_tx;
   if (mosi) {
     transmit_queue = xQueueCreate(TplpConfig::kSpiTransmitQueueDepth,
                                   sizeof(TransferRequestMessage));
 
-    gpio_set_function(mosi, GPIO_FUNC_SPI);
-    dma_tx = dma_claim_unused_channel(true);
-    dma_channel_config c = dma_channel_get_default_config(dma_tx);
+    gpio_set_function(*mosi, GPIO_FUNC_SPI);
+    dma_tx = dma_channel_t(dma_claim_unused_channel(true));
+    dma_channel_config c = dma_channel_get_default_config(*dma_tx);
     channel_config_set_dreq(&c, spi_get_dreq(spi, /*is_tx=*/true));
     channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
     channel_config_set_read_increment(&c, true);
     channel_config_set_write_increment(&c, false);
     channel_config_set_irq_quiet(&c, false);
-    dma_channel_configure(dma_tx, &c, /*write_addr=*/&spi_get_hw(spi)->dr,
+    dma_channel_configure(*dma_tx, &c, /*write_addr=*/&spi_get_hw(spi)->dr,
                           /*read_addr=*/nullptr,
                           /*transfer_count=*/0,
                           /*trigger=*/false);
-    DebugLog("DMA channel %d configured for SPI%u TX", dma_tx,
+    DebugLog("DMA channel %d configured for SPI%u TX", *dma_tx,
              spi_get_index(spi));
   }
   if (miso) {
@@ -112,15 +116,15 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   int spi_index = spi_get_index(spi);
   // We're gonna use DMA_IRQ_0 for SPI0 and DMA_IRQ_1 for SPI1,
   // but this correspondence is not actually required.
-  int irq_index;
-  int irq_number;
+  dma_irq_index_t irq_index;
+  dma_irq_number_t irq_number;
   if (spi_index == 0) {
-    irq_index = 0;
-    irq_number = DMA_IRQ_0;
+    irq_index = dma_irq_index_t(0);
+    irq_number = dma_irq_number_t(DMA_IRQ_0);
     irq_set_exclusive_handler(irq_number, &TransferDone::ISR<0>);
   } else if (spi_index == 1) {
-    irq_index = 0;
-    irq_number = DMA_IRQ_1;
+    irq_index = dma_irq_index_t(1);
+    irq_number = dma_irq_number_t(DMA_IRQ_1);
     irq_set_exclusive_handler(irq_number, &TransferDone::ISR<1>);
   } else {
     panic("bad spi index");
@@ -138,9 +142,10 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   return that;
 }
 
-SpiManager::SpiManager(spi_inst_t* spi, int dma_irq_index, int dma_irq_number,
-                       dma_channel_t dma_tx, int actual_frequency,
-                       QueueHandle_t transmit_queue)
+SpiManager::SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
+                       dma_irq_number_t dma_irq_number,
+                       std::optional<dma_channel_t> dma_tx,
+                       int actual_frequency, QueueHandle_t transmit_queue)
     : spi_(spi),
       dma_irq_index_(dma_irq_index),
       dma_irq_number_(dma_irq_number),
@@ -152,8 +157,10 @@ void SpiManager::TaskFn(void* task_param) {
   SpiManager* self = static_cast<SpiManager*>(task_param);
 
   // TODO: set irq priority? the default middle-priority is probably fine
-  dma_irqn_set_channel_enabled(self->dma_irq_index_, self->dma_tx_, true);
-  irq_set_enabled(self->dma_irq_number_, true);
+  if (self->dma_tx_) {
+    dma_irqn_set_channel_enabled(self->dma_irq_index_, *self->dma_tx_, true);
+    irq_set_enabled(self->dma_irq_number_, true);
+  }
 
   TransferRequestMessage request;
   DebugLog("SpiManager task started.");
@@ -165,7 +172,7 @@ void SpiManager::TaskFn(void* task_param) {
     }
     if (!request.transmit) panic("rx not implemented");
     gpio_put(request.device->cs_, 0);
-    dma_channel_transfer_from_buffer_now(request.device->spi_->dma_tx_,
+    dma_channel_transfer_from_buffer_now(*request.device->spi_->dma_tx_,
                                          request.buf, request.len);
     while (!ulTaskNotifyTakeIndexed(kTransferDoneNotificationIndex, true,
                                     as_ticks(1'000ms))) {
