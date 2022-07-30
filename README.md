@@ -16,16 +16,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
 # TODO / Notes
-- [ ] run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
-- [ ] move/redirect config headers to a config/ dir
-- [ ] Why are we spending so much time in Tmr Svc?
-- [ ] (!!!) vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
-- [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.
-- [ ] generate & examine .map file for the firmware blob
-- [ ] use bloaty to find things to trim off the firmware size
-- [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
-- [ ] create a lint.sh or something. to cover cc and bzl files
-- [ ] Vendor all 3rd party libraries
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
 - [ ] Get peripheral hardware running
@@ -46,9 +36,22 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
+- Nice-to-haves
+  - [ ] Why are we spending so much time in Tmr Svc?
+    - it's actually not that much time now, without SMP.
+  - [ ] move/redirect config headers to a config/ dir
+  - [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.
+  - [ ] generate & examine .map file for the firmware blob
+  - [ ] use bloaty to find things to trim off the firmware size
+  - [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
+  - [ ] create a lint.sh or something. to cover cc and bzl files
+  - [ ] Vendor all 3rd party libraries
+  - [ ] run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
 
 ## Done
 
+- [x] vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
+  - ah. because i needed alwayslink=1 in FreeRTOS. it's fine though, we don't need to add it. the local definition gets linked in just fine.
 - [x] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
 - [x] I notice Tmr Svc task has only 56 bytes of stack free. what if that's why we're dying? when a callback runs that uses more stack?
   - do we even need software timers? let's try disabling them.
