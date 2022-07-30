@@ -29,6 +29,7 @@ pico_binary(
         "main.cc",
     ],
     deps = [
+        ":RuntimeStats",
         ":SpiManager",
         ":hook_impl",
         ":time",
@@ -63,11 +64,15 @@ cc_library(
 )
 
 cc_library(
-    name = "assert",
-    hdrs = ["assert.h"],
-    visibility = [":__subpackages__"],
+    name = "RuntimeStats",
+    srcs = ["RuntimeStats.cc"],
+    hdrs = ["RuntimeStats.h"],
     deps = [
-        "@rules_pico//pico:pico_stdlib",
+        ":logging",
+        ":time",
+        ":tplp_config",
+        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@lvgl",
     ],
 )
 
@@ -117,7 +122,6 @@ cc_library(
     hdrs = ["SpiManager.h"],
     visibility = [":__subpackages__"],
     deps = [
-        ":assert",
         ":logging",
         ":thread_local",
         ":time",

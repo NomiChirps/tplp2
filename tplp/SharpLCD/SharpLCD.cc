@@ -5,7 +5,6 @@
 #include <utility>
 #include <vector>
 
-#include "tplp/assert.h"
 #include "tplp/logging.h"
 #include "tplp/time.h"
 #include "tplp/tplp_config.h"
@@ -201,8 +200,8 @@ SharpLCD::SharpLCD(SpiManager* spi) : spi_(spi) {
 void SharpLCD::Begin(gpio_pin_t cs, int toggle_vcom_task_priority) {
   spi_device_ = spi_->AddDevice(cs, "SharpLCD");
   tplp_assert(xTaskCreate(&SharpLCD::ToggleVcomTask, "SharpLCD::ToggleVCOM",
-                          TaskStacks::kDefault, this,
-                          toggle_vcom_task_priority, nullptr) == pdPASS);
+                          TaskStacks::kDefault, this, toggle_vcom_task_priority,
+                          nullptr) == pdPASS);
 }
 
 SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {

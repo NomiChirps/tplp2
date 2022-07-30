@@ -3,7 +3,6 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
-#include "tplp/assert.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/logging.h"
 

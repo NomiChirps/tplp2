@@ -9,6 +9,7 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "pico/mutex.h"
+#include "pico/runtime.h"
 #include "pico/stdio.h"
 #include "pico/time.h"
 #include "tplp/time.h"
@@ -51,6 +52,26 @@ struct DebugLog {
 
 template <typename... Params>
 DebugLog(Params&&...) -> DebugLog<Params...>;
+
+// TODO: use a proper logging/assert framework...
+// TODO: move body to .c file
+#define tplp_assert(x)                                                  \
+  do {                                                                  \
+    if (!(x)) {                                                         \
+      printf("[%s:%d] Assertion failed: %s\n", __FILE__, __LINE__, #x); \
+      stdio_flush();                                                    \
+      panic("tplp_assert failed");                                      \
+    }                                                                   \
+  } while (0)
+
+#define tplp_assert_notnull(x)                                   \
+  do {                                                           \
+    if (!(x)) {                                                  \
+      printf("[%s:%d] %s is nullptr\n", __FILE__, __LINE__, #x); \
+      stdio_flush();                                             \
+      panic("tplp_assert_notnull failed");                       \
+    }                                                            \
+  } while (0)
 
 }  // namespace tplp
 

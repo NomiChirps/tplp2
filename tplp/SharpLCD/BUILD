@@ -9,7 +9,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//tplp:SpiManager",
-        "//tplp:assert",
+        "//tplp:logging",
     ],
 )
 

@@ -6,7 +6,6 @@
 #include "FreeRTOS/task.h"
 #include "lvgl/lvgl.h"
 #include "tplp/SharpLCD/lvgl_driver.h"
-#include "tplp/assert.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/logging.h"
 #include "tplp/time.h"
