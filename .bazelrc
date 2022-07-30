@@ -15,10 +15,10 @@ build --@rules_pico//pico/config:float_impl=@pico-sdk//:pico_float_none
 build --@rules_pico//pico/config:double_impl=@pico-sdk//:pico_double_none
 
 build --@rules_pico//pico/config:rtos_adapter_enable=True
-build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS-Kernel//:freertos_sdk_config
+build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//:freertos_sdk_config
 build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
 
-build --@FreeRTOS-Kernel//:FreeRTOSConfig=//tplp:FreeRTOSConfig
+build --@FreeRTOS//:FreeRTOSConfig=//tplp:FreeRTOSConfig
 build --@lvgl//:lv_conf=//tplp:lv_conf
 
 # quality of life

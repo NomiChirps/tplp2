@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
 # TODO / Notes
+- [ ] run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
 - [ ] move/redirect config headers to a config/ dir
 - [ ] Why are we spending so much time in Tmr Svc?
 - [ ] (!!!) vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
@@ -23,7 +24,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - [ ] generate & examine .map file for the firmware blob
 - [ ] use bloaty to find things to trim off the firmware size
 - [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
-- [ ] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
 - [ ] create a lint.sh or something. to cover cc and bzl files
 - [ ] Vendor all 3rd party libraries
 - [ ] Create a front panel UI
@@ -49,6 +49,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## Done
 
+- [x] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
 - [x] I notice Tmr Svc task has only 56 bytes of stack free. what if that's why we're dying? when a callback runs that uses more stack?
   - do we even need software timers? let's try disabling them.
     aha, i see! software timers are used in the RP2040 port for pico sync interop: in the FIFO interrupt handler (on each core), and when unlocking a mutex from an interrupt handler.

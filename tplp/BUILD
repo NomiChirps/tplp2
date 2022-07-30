@@ -4,7 +4,7 @@ cc_library(
     name = "FreeRTOSConfig",
     hdrs = ["FreeRTOSConfig.h"],
     strip_include_prefix = "/tplp",
-    deps = ["@FreeRTOS-Kernel//:rp2040_config"],
+    deps = ["@FreeRTOS//:rp2040_config"],
 )
 
 cc_library(
@@ -38,7 +38,7 @@ pico_binary(
         ":ws2812",
         "//tplp/SharpLCD",
         "//tplp/graphics",
-        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
 )
@@ -47,7 +47,7 @@ cc_library(
     name = "hook_impl",
     srcs = ["hook_impl.cc"],
     deps = [
-        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS",
         "@rules_pico//pico:pico_time",
     ],
     alwayslink = 1,
@@ -71,7 +71,7 @@ cc_library(
         ":logging",
         ":time",
         ":tplp_config",
-        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS",
         "@lvgl",
     ],
 )
@@ -83,7 +83,7 @@ cc_library(
     visibility = [":__subpackages__"],
     deps = [
         ":time",
-        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
 )
@@ -111,7 +111,7 @@ cc_library(
     hdrs = ["thread_local.h"],
     deps = [
         ":tplp_config",
-        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS",
         "@etl//:flat_map",
     ],
 )
@@ -126,7 +126,7 @@ cc_library(
         ":thread_local",
         ":time",
         ":types",
-        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS",
         "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_spi",

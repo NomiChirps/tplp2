@@ -9,7 +9,7 @@ cc_library(
         "//tplp:tplp_config",
         "//tplp/SharpLCD",
         "//tplp/SharpLCD:lvgl_driver",
-        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS",
         "@lvgl",
     ],
 )
@@ -20,6 +20,6 @@ cc_library(
     hdrs = ["lvgl_mutex.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "@FreeRTOS-Kernel//:FreeRTOS",
+        "@FreeRTOS",
     ],
 )
