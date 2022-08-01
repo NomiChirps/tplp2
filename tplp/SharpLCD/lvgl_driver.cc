@@ -7,7 +7,6 @@
 #include "tplp/logging.h"
 
 namespace tplp {
-namespace sharp_lcd {
 namespace {
 
 struct DriverUserData {
@@ -80,7 +79,7 @@ void DisplayRefreshTask(void* param) {
 
 }  // namespace
 
-lv_disp_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
+lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display) {
   // Doesn't actually need to be screen-sized, but we get better "vsync" if it
   // is, since we don't need to coalesce multiple flush_cb calls to update the
   // entire framebuffer. It also ends up being way more efficient.
@@ -124,5 +123,4 @@ lv_disp_t* InitAndRegisterDisplayDriver(SharpLCD* display) {
   return lv_disp_drv_register(driver);
 }
 
-}  // namespace sharp_lcd
 }  // namespace tplp

@@ -36,8 +36,9 @@ pico_binary(
         ":tplp_config",
         ":types",
         ":ws2812",
+        "//tplp/HX8357",
         "//tplp/SharpLCD",
-        "//tplp/graphics",
+        "//tplp/graphics:lvgl_init",
         "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
@@ -101,6 +102,7 @@ cc_library(
 cc_library(
     name = "types",
     hdrs = ["types.h"],
+    visibility = [":__subpackages__"],
     deps = [
         "@NamedType",
         "@rules_pico//pico:hardware_base",  # should be pico_types, but it's not visible

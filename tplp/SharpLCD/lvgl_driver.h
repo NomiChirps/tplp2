@@ -7,11 +7,9 @@
 #include "tplp/SharpLCD/SharpLCD.h"
 
 namespace tplp {
-namespace sharp_lcd {
 
-lv_disp_t* InitAndRegisterDisplayDriver(SharpLCD* display);
+lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display);
 
-}  // namespace sharp_lcd
 }  // namespace tplp
 
 #endif  // TPLP_SHARPLCD_LVGL_DRIVER_H_

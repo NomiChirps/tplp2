@@ -16,10 +16,16 @@ ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
 # TODO / Notes
+- [ ] please let's replace tplp_assert() with CHECK(), CHECK_NOTNULL(), etc. likewise DebugLog() -> LOG(INFO), VLOG(1), etc.
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
+  - [ ] runtime stats / logging screen
+  - [ ] manual peripheral control screen
+  - [ ] parameters screen
+  - [ ] (later) print status / main screen ?
 - [ ] Get peripheral hardware running
-  - [ ] Shiny new front panel display with touchscreen
+  - [ ] touchscreen input (SPI breakout)
+  - [ ] Shiny new front panel display
   - [x] Sharp LCD display
   - [ ] Front panel buttons
   - [ ] Stepper drivers (use pico_stepper)
@@ -88,15 +94,15 @@ See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts
 **Caution!** Numeric labels on the board do NOT necessarily match the GPIO number!
 
 | Pin | Label | Assignment |
-| --- | ----- |---------- |
-| GPIO02 | SDA | SDA1: I2C data |
-| GPIO03 | SCL | SCL1: I2C clock |
+| - | - | - |
+| GPIO02 | SDA | I2C1 SDA (STEMMA QT connector) |
+| GPIO03 | SCL | I2C1 SCL (STEMMA QT connector) |
 | GPIO04 | - | *Reserved by platform* |
 | GPIO05 | - | *Reserved by platform* |
 | GPIO06 | D4 | **available** |
 | GPIO07 | D5 | **available** |
-| GPIO08 | D6 | LCD CS |
-| GPIO09 | D9 | (tmp) Red button |
+| GPIO08 | D6 | **available** |
+| GPIO09 | D9 | **available** |
 | GPIO10 | D10 | **available** |
 | GPIO11 | D11 | **available** |
 | GPIO12 | D12 | **available** |
@@ -105,20 +111,24 @@ See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts
 | GPIO15 | - | *Reserved by platform* |
 | GPIO16 | - | *Hardwired to Neopixel* |
 | GPIO17 | - | *Reserved by playform* |
-| GPIO18 | SCK | SCK0: LCK SCLK (and other peripherals later) |
-| GPIO19 | MOSI | TX0: LCD MOSI (and other peripherals later) |
+| GPIO18 | SCK | **available** |
+| GPIO19 | MOSI | **available** |
 | GPIO20 | MISO | **available** |
 | GPIO21 | - | *Reserved by platform* |
 | GPIO22 | - | *Reserved by platform* |
 | GPIO23 | - | *Reserved by platform* |
-| GPIO24 | D24 | **available** |
-| GPIO25 | D25 | **available** |
-| GPIO26 | A0 | **available** |
-| GPIO27 | A1 | **available** |
-| GPIO28 | A2 | **available** |
+| GPIO24 | D24 | HX3587 CS |
+| GPIO25 | D25 | HX3587 DC |
+| GPIO26 | A0 | SPI1 SCK |
+| GPIO27 | A1 | SPI1 MOSI |
+| GPIO28 | A2 | SPI1 MISO |
 | GPIO29 | A3 | **available** |
 
-GPIO2 and GPIO3 are brought out via the [STEMMA QT](https://learn.adafruit.com/introducing-adafruit-stemma-qt) connector.
+| Bus | Devices |
+| - | - |
+| SPI0 | - |
+| SPI1 | HX8357 |
+| I2C1 | - |
 
 Note: "while many pins are capable of I2C, SPI and UART, you can only do two at a
 time, and only on separate peripherals, 0 and 1." This means we can use e.g. SCK0 and SCL1

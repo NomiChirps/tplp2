@@ -6,10 +6,10 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "pico/stdlib.h"
+#include "tplp/HX8357/HX8357.h"
 #include "tplp/RuntimeStats.h"
-#include "tplp/SharpLCD/SharpLCD.h"
 #include "tplp/SpiManager.h"
-#include "tplp/graphics/graphics.h"
+#include "tplp/graphics/lvgl_init.h"
 #include "tplp/logging.h"
 #include "tplp/time.h"
 #include "tplp/tplp_config.h"
@@ -39,27 +39,42 @@ void neopixel_task(void*) {
   // bool rgbw)
 }
 
+void tft_test_task(void* task_param) {
+  HX8357* display = static_cast<HX8357*>(task_param);
+
+  display->SelfTest();
+
+  // SpiManager* spi1_manager = SpiManager::Init(TaskPriorities::kSpiManager1,
+  // spi1, HX8357::kNominalMaxSpiFrequency, gpio_pin_t sclk,
+  // std::optional<gpio_pin_t> mosi, std::optional<gpio_pin_t> miso)
+}
+
 // TODO: move this to its own file.
 void StartupTask(void*) {
   DebugLog("Begin startup...");
   // Other tasks won't run during startup because this one is using the reserved
   // highest priority.
 
-  SpiManager* spi0_manager =
-      SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
-                       Pins::SPI_SCLK, Pins::SPI_MOSI, /*miso=*/std::nullopt);
-  DebugLog("SpiManager::Init() OK");
-
-  SharpLCD* display = new SharpLCD(spi0_manager);
-  display->Begin(Pins::LCD_CS, TaskPriorities::kSharpLcdToggleVcom);
-  DebugLog("SharpLCD->Begin() OK");
-  InitLvgl(display);
-  DebugLog("InitLvgl() OK");
+  StartRuntimeStatsReportingTask(/*priority=*/1);
   tplp_assert(xTaskCreate(&led_task, "blinky", TaskStacks::kDefault, nullptr, 1,
                           nullptr) == pdPASS);
-  StartRuntimeStatsReportingTask(/*priority=*/1);
-  tplp_assert(xTaskCreate(&RunLvglDemo, "LVGL Demo", TaskStacks::kDefault,
-                          nullptr, 1, nullptr) == pdPASS);
+
+  SpiManager* spi1_manager =
+      SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
+                       Pins::SPI1_SCLK, Pins::SPI1_MOSI, /*miso=*/std::nullopt);
+  DebugLog("SpiManager::Init() OK");
+
+  HX8357* display = new HX8357(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
+  display->Begin();
+  DebugLog("HX8357->Begin() OK");
+
+  tplp_assert(xTaskCreate(&tft_test_task, "TFT Test", TaskStacks::kDefault,
+                          display, 1, nullptr));
+
+  // InitLvgl(display);
+  // DebugLog("InitLvgl() OK");
+  // tplp_assert(xTaskCreate(&RunLvglDemo, "LVGL Demo", TaskStacks::kDefault,
+  //                         nullptr, 1, nullptr) == pdPASS);
   DebugLog("Startup complete.");
   vTaskDelete(nullptr);
 }

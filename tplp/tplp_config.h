@@ -7,10 +7,13 @@
 namespace tplp {
 
 struct Pins {
-  static constexpr gpio_pin_t LCD_CS = gpio_pin_t(8);
-  static constexpr gpio_pin_t SPI_SCLK = gpio_pin_t(18);
-  static constexpr gpio_pin_t SPI_MOSI = gpio_pin_t(19);
   static constexpr gpio_pin_t NEOPIXEL = gpio_pin_t(16);  // hardwired
+
+  static constexpr gpio_pin_t SPI1_SCLK = gpio_pin_t(26);
+  static constexpr gpio_pin_t SPI1_MOSI = gpio_pin_t(27);
+  static constexpr gpio_pin_t SPI1_MISO = gpio_pin_t(28);
+  static constexpr gpio_pin_t HX8357_CS = gpio_pin_t(24);
+  static constexpr gpio_pin_t HX8357_DC = gpio_pin_t(25);
 };
 
 // Indices into the fixed-size FreeRTOS thread-local storage array.

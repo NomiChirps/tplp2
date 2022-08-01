@@ -1,12 +1,14 @@
 cc_library(
-    name = "graphics",
-    srcs = ["graphics.cc"],
-    hdrs = ["graphics.h"],
+    name = "lvgl_init",
+    srcs = ["lvgl_init.cc"],
+    hdrs = ["lvgl_init.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":lvgl_mutex",
         "//tplp:logging",
         "//tplp:tplp_config",
+        "//tplp/HX8357",
+        "//tplp/HX8357:lvgl_driver",
         "//tplp/SharpLCD",
         "//tplp/SharpLCD:lvgl_driver",
         "@FreeRTOS",
