@@ -17,6 +17,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 # TODO / Notes
 - [ ] please let's replace tplp_assert() with CHECK(), CHECK_NOTNULL(), etc. likewise DebugLog() -> LOG(INFO), VLOG(1), etc.
+  - per-file VLOG toggles at compile time (use a constexpr function for string comparison, probably)
+  - LOG level toggles at runtime
+  - plan for eventually logging to Flash or SD instead of USB
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
@@ -49,43 +52,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
-  - [ ] find or make a proper logging framework so i can selectively enable tracing stuff.
   - [ ] create a lint.sh or something. to cover cc and bzl files
   - [ ] Vendor all 3rd party libraries
   - [ ] run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
-
-## Done
-
-- [x] vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
-  - ah. because i needed alwayslink=1 in FreeRTOS. it's fine though, we don't need to add it. the local definition gets linked in just fine.
-- [x] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
-- [x] I notice Tmr Svc task has only 56 bytes of stack free. what if that's why we're dying? when a callback runs that uses more stack?
-  - do we even need software timers? let's try disabling them.
-    aha, i see! software timers are used in the RP2040 port for pico sync interop: in the FIFO interrupt handler (on each core), and when unlocking a mutex from an interrupt handler.
-  - so what are we doing that's using so much FIFO and/or mutex?
-  - increased the stack size; it's fine now.
-- [x] Tune FreeRTOS
-  - The verdict: we'll be using non-SMP with preemption. If we need the second core for something, we'll put it there manually.
-  - [x] enable SMP/multicore
-    - turns out this was a terrible idea.
-  - [x] audit FreeRTOSConfig.h
-  - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays? 
-  - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
-  - [x] write configASSERT handler (use the NeoPixel LED?)
-- [x] figure out why stdio locking in logging.h is *STILL* flaky
-  - The answer was: should have used FreeRTOS mutex *with* properly configured Pico-sync-multicore interop, so as to lock out other tasks AND the other core.
-  - [x] check pico sync interop impl
-  - [x] check if freertos thread-locals are per core (they are not)
-- [x] use the genrule() trick to finally encapsulate FreeRTOS headers?
-- [x] use DMA for the Sharp LCD driver, just for funsies
-- [x] figure out how to track TODO/FIXME/XXX in IDE
-- [x] organize source code under src/ (I changed my mind later)
-- [x] (it's not possible, i decided) refer to FreeRTOS headers with a prefix, if possible (actually it is)
-- [x] perhaps pico/lock_core.h macros need to be set up for FreeRTOS! that might explain why stdio seemed so flaky...
-- [x] Make sure we're not using floating point math anywhere (including dependencies): discovered via std::unordered_map that we panic if any floating point math is used
-- [x] Reset to the bootloader without touching the board: magic 1200 baud connection
-- [x] Get FreeRTOS running
-- [x] Bazel-ify the build
 
 # Board configuration/pins
 ## RP2040 pins
@@ -175,3 +144,27 @@ We might be able to save 2 pins by combining the button signals.
 - [Use Arduino Libraries with the Rasperry Pi Pico C/C++ SDK](https://www.hackster.io/fhdm-dev/use-arduino-libraries-with-the-rasperry-pi-pico-c-c-sdk-eff55c)
 - [How to define and measure clock jitter](https://www.sitime.com/api/gated/AN10007-Jitter-and-measurement.pdf)
 - [Bit Twiddling Hacks](http://graphics.stanford.edu/~seander/bithacks.html) (the one and only)
+
+# todos whomst done
+
+- [x] spend a week fruitlessly debugging instability between FreeRTOS-SMP + pico-sdk before giving up on SMP in disgust. at least I learned a lot and ironed out a few other issues along the way.
+- [x] vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
+  - ah. because i needed alwayslink=1 in FreeRTOS. it's fine though, we don't need to add it. the local definition gets linked in just fine.
+- [x] (vanity) rename FreeRTOS or FreeRTOS-Kernel to the same thing, so we can say e.g. "@FreeRTOS" instead of "@FreeRTOS-Kernel//:FreeRTOS"
+- [x] Tune FreeRTOS
+  - The verdict: we'll be using non-SMP with preemption. If we need the second core for something, we'll put it there manually.
+  - [x] enable SMP/multicore
+    - turns out this was a terrible idea.
+  - [x] audit FreeRTOSConfig.h
+  - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays? 
+  - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
+  - [x] write configASSERT handler (use the NeoPixel LED?)
+- [x] use the genrule() trick to finally encapsulate FreeRTOS headers
+- [x] use DMA for the Sharp LCD driver, just for funsies
+- [x] figure out how to track TODO/FIXME/XXX in IDE
+- [x] organize source code under src/ (I changed my mind later)
+- [x] (it's not possible, i decided) refer to FreeRTOS headers with a prefix, if possible (actually it is)
+- [x] Make sure we're not using floating point math anywhere (including dependencies): discovered via std::unordered_map that we panic if any floating point math is used
+- [x] Reset to the bootloader without touching the board: magic 1200 baud connection
+- [x] Get FreeRTOS running
+- [x] Bazel-ify the build
