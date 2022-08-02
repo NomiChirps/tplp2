@@ -81,9 +81,8 @@ cc_library(
     name = "logging",
     srcs = ["logging.cc"],
     hdrs = ["logging.h"],
-    visibility = [":__subpackages__"],
+    visibility = ["//visibility:public"],
     deps = [
-        ":time",
         "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],

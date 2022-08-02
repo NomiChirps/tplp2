@@ -21,7 +21,7 @@ using std::chrono_literals::operator""ms;
 namespace tplp {
 
 void led_task(void*) {
-  DebugLog("led_task started.");
+  LOG(INFO) << "led_task started.";
   const int LED_PIN = PICO_DEFAULT_LED_PIN;
   gpio_init(LED_PIN);
   gpio_set_dir(LED_PIN, GPIO_OUT);
@@ -41,41 +41,46 @@ void neopixel_task(void*) {
 
 void tft_test_task(void* task_param) {
   HX8357* display = static_cast<HX8357*>(task_param);
-
-  display->SelfTest();
-
-  // SpiManager* spi1_manager = SpiManager::Init(TaskPriorities::kSpiManager1,
-  // spi1, HX8357::kNominalMaxSpiFrequency, gpio_pin_t sclk,
-  // std::optional<gpio_pin_t> mosi, std::optional<gpio_pin_t> miso)
+  for (;;) {
+    vTaskDelay(as_ticks(1'000ms));
+    display->SelfTest();
+  }
 }
 
 // TODO: move this to its own file.
 void StartupTask(void*) {
-  DebugLog("Begin startup...");
+  picolog::InitLogging();
+  if (!xTaskCreate(&picolog::BackgroundTask, "LOGGER", TaskStacks::kDefault,
+                   nullptr, TaskPriorities::kLogging, nullptr)) {
+    panic("Failed to start log task");
+  }
+
+  LOG(INFO) << "Begin startup...";
   // Other tasks won't run during startup because this one is using the reserved
   // highest priority.
 
   StartRuntimeStatsReportingTask(/*priority=*/1);
-  tplp_assert(xTaskCreate(&led_task, "blinky", TaskStacks::kDefault, nullptr, 1,
-                          nullptr) == pdPASS);
+  CHECK(xTaskCreate(&led_task, "blinky", TaskStacks::kDefault, nullptr, 1,
+                    nullptr));
 
+  // TODO: increase frequency
   SpiManager* spi1_manager =
-      SpiManager::Init(TaskPriorities::kSpiManager0, spi0, 2'000'000,
+      SpiManager::Init(TaskPriorities::kSpiManager1, spi1, 2'000'000,
                        Pins::SPI1_SCLK, Pins::SPI1_MOSI, /*miso=*/std::nullopt);
-  DebugLog("SpiManager::Init() OK");
+  LOG(INFO) << "SpiManager::Init() OK";
 
   HX8357* display = new HX8357(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
   display->Begin();
-  DebugLog("HX8357->Begin() OK");
+  LOG(INFO) << "HX8357->Begin() OK";
 
-  tplp_assert(xTaskCreate(&tft_test_task, "TFT Test", TaskStacks::kDefault,
-                          display, 1, nullptr));
+  CHECK(xTaskCreate(&tft_test_task, "TFT Test", TaskStacks::kDefault, display,
+                    1, nullptr));
 
   // InitLvgl(display);
-  // DebugLog("InitLvgl() OK");
-  // tplp_assert(xTaskCreate(&RunLvglDemo, "LVGL Demo", TaskStacks::kDefault,
-  //                         nullptr, 1, nullptr) == pdPASS);
-  DebugLog("Startup complete.");
+  // LOG(INFO) << "InitLvgl() OK);
+  // CHECK(xTaskCreate(&RunLvglDemo, "LVGL Demo", TaskStacks::kDefault,
+  //                         nullptr, 1, nullptr));
+  LOG(INFO) << "Startup complete.";
   vTaskDelete(nullptr);
 }
 

@@ -34,8 +34,7 @@ class ThreadLocal {
     if (!p) {
       p = new container_t;
       vTaskSetThreadLocalStoragePointer(nullptr, RtosTlsIndex, p);
-      DebugLog("ThreadLocal storage initialized for task '%s' = %p",
-               pcTaskGetName(nullptr), static_cast<void*>(p));
+      LOG(INFO) << "ThreadLocal storage initialized.";
     }
     return p;
   }
@@ -48,7 +47,7 @@ class ThreadLocal {
 
   ~ThreadLocal() {
     if (!xTaskGetCurrentTaskHandle()) {
-      panic("ThreadLocal::~ThreadLocal() called outside a task context");
+      LOG(FATAL) << "ThreadLocal::~ThreadLocal() called outside a task context";
     }
     container_t* p = InitAndFetch();
     auto it = p->find(this);
@@ -61,7 +60,7 @@ class ThreadLocal {
 
   T& get_or_init() {
     if (!xTaskGetCurrentTaskHandle()) {
-      panic("ThreadLocal::get_or_init() called outside a task context");
+      LOG(FATAL) << "ThreadLocal::get_or_init() called outside a task context";
     }
     container_t* p = InitAndFetch();
     auto it = p->find(this);

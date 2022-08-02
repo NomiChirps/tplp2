@@ -16,10 +16,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
 # TODO / Notes
-- [ ] please let's replace tplp_assert() with CHECK(), CHECK_NOTNULL(), etc. likewise DebugLog() -> LOG(INFO), VLOG(1), etc.
-  - per-file VLOG toggles at compile time (use a constexpr function for string comparison, probably)
-  - LOG level toggles at runtime
-  - plan for eventually logging to Flash or SD instead of USB
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
@@ -36,7 +32,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Load cell reader https://github.com/endail/hx711-pico-c
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
-  - [ ] MicroSD card reader (use [SD](https://github.com/arduino-libraries/SD/tree/a64c2bd907460dd01cef07fff003550cfcae0119))
+  - [ ] MicroSD card reader
 - [ ] Finish the electronics hardware
   - [x] install inverter on the Sharp LCD CS pin so it behaves like EVERY OTHER SPI DEVICE IN THE WORLD
   - [ ] Power everything from the 12v bus
@@ -55,6 +51,10 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] create a lint.sh or something. to cover cc and bzl files
   - [ ] Vendor all 3rd party libraries
   - [ ] run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
+- [x] please let's replace tplp_assert() with CHECK(), CHECK_NOTNULL(), etc. likewise DebugLog() -> LOG(INFO), VLOG(1), etc.
+  - [ ] per-file VLOG toggles at compile time (use a constexpr function for string comparison, probably)
+  - [ ] LOG level toggles at runtime
+  - plan for eventually logging to Flash or SD instead of USB (i did not so plan)
 
 # Board configuration/pins
 ## RP2040 pins

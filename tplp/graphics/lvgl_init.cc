@@ -19,7 +19,7 @@ namespace tplp {
 namespace {
 
 void LvglTimerHandlerTask(void*) {
-  DebugLog("LVGL timer handler task started.");
+  LOG(INFO) << "LVGL timer handler task started.";
   for (;;) {
     {
       LvglLock lock;
@@ -37,7 +37,7 @@ void lvgl_print_cb_impl(const char* msg) {
   if (len && msg[len - 1] == '\n') {
     const_cast<char*>(msg)[len - 1] = '\0';
   }
-  DebugLog("[LVGL] %s", msg);
+  LOG(INFO) << msg;
 }
 
 void InitLvglImpl(const std::function<lv_disp_t*()> init_display) {
@@ -55,16 +55,15 @@ void InitLvglImpl(const std::function<lv_disp_t*()> init_display) {
   lv_init();
 
   lv_disp_t* display = init_display();
-  tplp_assert_notnull(display);
+  CHECK_NOTNULL(display);
   lv_disp_set_theme(display, lv_theme_mono_init(display, 0, lv_font_default()));
   // TODO: register input device drivers
 
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.
   static_assert(LV_TICK_CUSTOM);
-  tplp_assert(xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler",
-                          TaskStacks::kLvglTimerHandler, nullptr,
-                          TaskPriorities::kLvglTimerHandler,
-                          nullptr) == pdPASS);
+  CHECK(xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler",
+                    TaskStacks::kLvglTimerHandler, nullptr,
+                    TaskPriorities::kLvglTimerHandler, nullptr));
 }
 
 }  // namespace
@@ -80,7 +79,7 @@ void InitLvgl(HX8357* raw_display) {
 }
 
 void RunLvglDemo(void*) {
-  DebugLog("RunLvglDemo task started.");
+  LOG(INFO) << "RunLvglDemo task started.";
   lv_obj_t* label1;
   {
     LvglLock lock;

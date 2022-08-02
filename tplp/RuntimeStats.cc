@@ -28,35 +28,35 @@ class StatsTask {
 
  public:
   static void stats_task(void*) {
-    DebugLog("stats_task started.");
+    LOG(INFO) << "stats_task started.";
     for (;;) {
       {
         struct mallinfo heap_stats = mallinfo();
-        DebugLog("System heap arena=%u uordblks=%u fordblks=%u",
-                 heap_stats.arena, heap_stats.uordblks, heap_stats.fordblks);
+        LOG(INFO) << "System heap arena=" << heap_stats.arena
+                  << " uordblks=" << heap_stats.uordblks
+                  << " fordblks=" << heap_stats.fordblks;
       }
       {
         HeapStats_t freertos_heap_stats;
         vPortGetHeapStats(&freertos_heap_stats);
-        DebugLog(
-            "FreeRTOS heap size=%u free=%u low_water=%u largest=%u "
-            "num_allocs=%u "
-            "num_frees=%u",
-            configTOTAL_HEAP_SIZE,
-            freertos_heap_stats.xAvailableHeapSpaceInBytes,
-            freertos_heap_stats.xMinimumEverFreeBytesRemaining,
-            freertos_heap_stats.xSizeOfLargestFreeBlockInBytes,
-            freertos_heap_stats.xNumberOfSuccessfulAllocations,
-            freertos_heap_stats.xNumberOfSuccessfulFrees);
+        LOG(INFO) << "FreeRTOS heap size=" << configTOTAL_HEAP_SIZE
+                  << " free=" << freertos_heap_stats.xAvailableHeapSpaceInBytes
+                  << " low_water="
+                  << freertos_heap_stats.xMinimumEverFreeBytesRemaining
+                  << " largest="
+                  << freertos_heap_stats.xSizeOfLargestFreeBlockInBytes
+                  << " num_allocs="
+                  << freertos_heap_stats.xNumberOfSuccessfulAllocations
+                  << " num_frees="
+                  << freertos_heap_stats.xNumberOfSuccessfulFrees;
       }
       if (lv_is_initialized()) {
         lv_mem_monitor_t lvgl_heap;
         lv_mem_monitor(&lvgl_heap);
-        DebugLog(
-            "LVGL heap total_size=%u free_size=%u free_biggest_size=%u "
-            "max_used=%u",
-            lvgl_heap.total_size, lvgl_heap.free_size,
-            lvgl_heap.free_biggest_size, lvgl_heap.max_used);
+        LOG(INFO) << "LVGL heap total_size=" << lvgl_heap.total_size
+                  << " free_size=" << lvgl_heap.free_size
+                  << " free_biggest_size=" << lvgl_heap.free_biggest_size
+                  << " max_used=" << lvgl_heap.max_used;
       }
       {
         buf_head = buf;
@@ -67,15 +67,17 @@ class StatsTask {
             uxTaskGetSystemState(task_status, kMaxTasks, &total_run_time);
         int total_num_tasks = uxTaskGetNumberOfTasks();
         if (num_tasks != total_num_tasks) {
-          DebugLog("Warning: %d tasks shown of %u running.\n", num_tasks,
-                   uxTaskGetNumberOfTasks());
+          LOG(WARNING) << "Only " << num_tasks << " tasks shown of "
+                       << uxTaskGetNumberOfTasks() << " running.";
         }
         std::sort(task_status, task_status + num_tasks,
                   [](const TaskStatus_t& a, const TaskStatus_t& b) {
                     return a.xTaskNumber < b.xTaskNumber;
                   });
         total_run_time /= 100;
-        PrintToBuf("FreeRTOS Task Stats:\n");
+        PrintToBuf(
+            "FreeRTOS Task Stats: Task name; Total runtime; Percent runtime; "
+            "Stack high-water mark\n");
         for (int i = 0; i < num_tasks; ++i) {
           TaskStatus_t& task = task_status[i];
           PrintToBuf("%-*s%*dms%*d%%%*u bytes\n", column_width[0],
@@ -86,7 +88,7 @@ class StatsTask {
                      column_width[3],
                      static_cast<unsigned int>(task.usStackHighWaterMark));
         }
-        DebugLog("%s", buf);
+        LOG(INFO) << std::string_view(buf);
       }
       vTaskDelay(as_ticks(30'000ms));
     }
@@ -108,8 +110,7 @@ uint32_t StatsTask::total_run_time;
 char* StatsTask::buf_head;
 
 void StartRuntimeStatsReportingTask(int priority) {
-  tplp_assert(xTaskCreate(&StatsTask::stats_task, "print_stats",
-                          TaskStacks::kDefault, nullptr, priority,
-                          nullptr) == pdPASS);
+  CHECK(xTaskCreate(&StatsTask::stats_task, "print_stats", TaskStacks::kDefault,
+                    nullptr, priority, nullptr));
 }
 }  // namespace tplp

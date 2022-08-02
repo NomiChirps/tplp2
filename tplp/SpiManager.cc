@@ -65,8 +65,8 @@ class TransferDone {
   static void RegisterDevice(dma_irq_index_t irq_index,
                              std::optional<dma_channel_t> dma_tx,
                              TaskHandle_t task) {
-    tplp_assert(irq_index == 0 || irq_index == 1);
-    tplp_assert(num_devices[irq_index] < kMaxDevices);
+    CHECK(irq_index == 0 || irq_index == 1);
+    CHECK_LT(num_devices[irq_index], kMaxDevices);
     devices[irq_index][num_devices[irq_index]++] = {.dma_tx = dma_tx,
                                                     .task = task};
   }
@@ -83,7 +83,8 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
                              gpio_pin_t sclk, std::optional<gpio_pin_t> mosi,
                              std::optional<gpio_pin_t> miso) {
   int actual_freq_hz = spi_init(spi, freq_hz);
-  DebugLog("SPI%d clock set to %d Hz", spi_get_index(spi), actual_freq_hz);
+  LOG(INFO) << "SPI" << spi_get_index(spi) << " clock set to " << actual_freq_hz
+            << "Hz";
   spi_set_format(spi, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
   gpio_set_function(sclk, GPIO_FUNC_SPI);
@@ -106,8 +107,8 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
                           /*read_addr=*/nullptr,
                           /*transfer_count=*/0,
                           /*trigger=*/false);
-    DebugLog("DMA channel %d configured for SPI%u TX", *dma_tx,
-             spi_get_index(spi));
+    LOG(INFO) << "DMA channel " << *dma_tx << " configured for SPI"
+              << spi_get_index(spi) << " TX";
   }
   if (miso) {
     // TODO: dma_rx not implemented
@@ -137,8 +138,8 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   // task_name remains allocated forever
   char* task_name = new char[16];
   snprintf(task_name, 16, "SpiManager%d", spi_get_index(spi));
-  tplp_assert(xTaskCreate(&SpiManager::TaskFn, task_name, TaskStacks::kDefault,
-                          that, task_priority, &that->task_) == pdPASS);
+  CHECK(xTaskCreate(&SpiManager::TaskFn, task_name, TaskStacks::kDefault, that,
+                    task_priority, &that->task_));
   return that;
 }
 
@@ -163,12 +164,13 @@ void SpiManager::TaskFn(void* task_param) {
   }
 
   TransferRequestMessage request;
-  DebugLog("SpiManager task started.");
+  LOG(INFO) << "SpiManager task started.";
   for (;;) {
     // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
-    while (!xQueueReceive(self->transmit_queue_, &request, as_ticks(5'000ms))) {
+    while (
+        !xQueueReceive(self->transmit_queue_, &request, as_ticks(10'000ms))) {
       // just keep waiting for a request
-      DebugLog("SpiManager%u idle.", spi_get_index(self->spi_));
+      LOG(INFO) << "SpiManager" << spi_get_index(self->spi_) << " idle.";
     }
     if (!request.transmit) panic("rx not implemented");
     gpio_put(request.device->cs_, 0);
@@ -177,8 +179,11 @@ void SpiManager::TaskFn(void* task_param) {
     while (!ulTaskNotifyTakeIndexed(kTransferDoneNotificationIndex, true,
                                     as_ticks(1'000ms))) {
       // TODO: transfer *still* not done...? what do? abort it?
-      DebugLog("SPI transfer still not finished. device=%s, cs=%u, len=%u",
-               request.device->name_, request.device->cs_, request.len);
+      // can we detect if it's making progress? retry?
+      // how would this even happen?
+      LOG(WARNING) << "SPI transfer still not finished. device="
+                   << request.device->name_ << " cs=" << request.device->cs_
+                   << " len=" << request.len;
     }
 
     // Make sure the SPI TX FIFO is fully drained before we deselect the chip
@@ -220,8 +225,8 @@ bool SpiDevice::Transmit(const uint8_t* buf, uint32_t len,
 int SpiDevice::TransmitBlocking(const uint8_t* buf, uint32_t len,
                                 TickType_t ticks_to_wait_enqueue,
                                 TickType_t ticks_to_wait_transmit) {
-  tplp_assert(xTaskGetSchedulerState() == taskSCHEDULER_RUNNING);
-  tplp_assert(xTaskGetCurrentTaskHandle());
+  CHECK_EQ(xTaskGetSchedulerState(), taskSCHEDULER_RUNNING);
+  CHECK_NOTNULL(xTaskGetCurrentTaskHandle());
   SemaphoreHandle_t sem = transmit_blocking_mutex_.get_or_init();
   if (Transmit(buf, len, ticks_to_wait_enqueue,
                [sem]() { xSemaphoreGive(sem); })) {

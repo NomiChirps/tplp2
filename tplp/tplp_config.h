@@ -26,12 +26,18 @@ struct TaskPriorities {
   // Just so we don't change it in one place and not update the other.
   static_assert(configMAX_PRIORITIES == 5);
 
-  // Bigger numbers are higher priority.
-  // P4 is reserved for system startup and the FreeRTOS timer daemon.
+  // The highest priority is reserved for system startup and the
+  // FreeRTOS timer daemon.
+  static constexpr int kStartup = 4;
+  static_assert(configTIMER_TASK_PRIORITY == 4);
+
   static constexpr int kSpiManager0 = 3;
+  static constexpr int kSpiManager1 = 3;
+  static constexpr int kLogging = 2;
   static constexpr int kLvglTimerHandler = 1;
   static constexpr int kLvglDisplayDriver = 1;
-  static constexpr int kSharpLcdToggleVcom = 0;
+
+  // FreeRTOS idle task runs at priority 0.
 };
 
 struct TaskStacks {

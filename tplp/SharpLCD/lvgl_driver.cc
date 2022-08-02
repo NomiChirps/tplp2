@@ -59,7 +59,7 @@ struct DisplayRefreshTaskData {
 };
 
 void DisplayRefreshTask(void* param) {
-  DebugLog("Display refresh task started.");
+  LOG(INFO) << "Display refresh task started.";
   auto data = static_cast<DisplayRefreshTaskData*>(param);
   // Allegedly, the display sometimes needs to be cleared twice on startup.
   data->display->Clear();
@@ -99,10 +99,9 @@ lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display) {
       .display_ready = xSemaphoreCreateBinary(),
   };
   TaskHandle_t refresh_task;
-  tplp_assert(xTaskCreate(&DisplayRefreshTask, "lvgl_disp_drv",
-                          TaskStacks::kDefault, task_param,
-                          TaskPriorities::kLvglDisplayDriver,
-                          &refresh_task) == pdPASS);
+  CHECK(xTaskCreate(&DisplayRefreshTask, "lvgl_disp_drv", TaskStacks::kDefault,
+                    task_param, TaskPriorities::kLvglDisplayDriver,
+                    &refresh_task));
 
   lv_disp_drv_t* driver = new lv_disp_drv_t;
   lv_disp_drv_init(driver);
