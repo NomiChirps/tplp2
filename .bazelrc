@@ -41,3 +41,7 @@ build --copt="-DPICO_USE_STACK_GUARDS=1"
 # @rules_pico explicitly enables it. Why?
 # See https://github.com/raspberrypi/pico-sdk/issues/873
 #build --copt="-DPICO_TIME_DEFAULT_ALARM_POOL_DISABLED=1"
+
+# Flags for the backtrace library
+build --copt="-mpoke-function-name"
+# Not clear if we need these. Are they implied? Already set? -fno-omit-frame-pointer -funwind-tables

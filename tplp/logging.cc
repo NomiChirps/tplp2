@@ -1,5 +1,7 @@
 #include "tplp/logging.h"
 
+#include <cxxabi.h>
+
 #include <atomic>
 #include <cstdio>
 #include <cstring>
@@ -10,6 +12,7 @@
 #include "FreeRTOS/task.h"
 #include "pico/stdio.h"
 #include "pico/time.h"
+#include "tplp/backtrace.h"
 
 namespace picolog {
 namespace {
@@ -37,15 +40,16 @@ const char* GetTID() {
 
 // An arbitrary limit on the length of a single log message. This
 // is so that streaming can be done more efficiently.
-// TODO: this should be compile-time configurable
+// TODO: these should be compile-time configurable somehow?
 const size_t LogMessage::kMaxLogMessageLen = 512;
+const size_t kMaxBacktraceLength = 8;
 
 struct LogMessage::LogMessageData {
   LogMessageData() : stream_(message_text_, LogMessage::kMaxLogMessageLen) {}
 
   // Buffer space; contains complete message text.
   char message_text_[LogMessage::kMaxLogMessageLen + 1];
-  LogStream stream_;  // TODO: move to LogMessage?
+  LogStream stream_;  // TODO: move to LogMessage! it's huge!
 
   LogMessageTime logmsgtime_;
   LogSeverity severity_;     // What level is this LogMessage logged at?
@@ -56,6 +60,8 @@ struct LogMessage::LogMessageData {
   size_t num_chars_to_log_;  // # of chars of msg to send to log
   bool has_been_flushed_;    // TODO: move to LogMessage
   bool first_fatal_;         // true => this was first fatal msg
+  backtrace_frame_t backtrace_[kMaxBacktraceLength];
+  int backtrace_length_;
 
  private:
   LogMessageData(const LogMessageData&) = delete;
@@ -114,6 +120,7 @@ void LogMessage::Init(const char* file, int line, LogSeverity severity) {
   data_->fullname_ = file;
   data_->task_name_ = GetTID();
   data_->has_been_flushed_ = false;
+  data_->backtrace_length_ = 0;
 
   // clang-format off
   stream() << std::setfill('0')
@@ -145,6 +152,11 @@ void LogMessage::Flush() {
     return;
   }
   // TODO: short-circuit here when logging is disabled/filtered at runtime.
+
+  if (data_->severity_ == PICOLOG_FATAL) {
+    data_->backtrace_length_ =
+        TakeBacktrace(data_->backtrace_, kMaxBacktraceLength);
+  }
 
   data_->num_chars_to_log_ = data_->stream_.pcount();
 
@@ -219,6 +231,28 @@ int LogMessageTime::usec() const {
   return usecs_since_boot_ % kMicrosecondsPerSecond;
 }
 
+static void PrintStackTrace(const backtrace_frame_t* frames, int count) {
+  // __cxa_demangle claims to automatically realloc() the buffer if it's not
+  // large enough. wild.
+  char* demangled = static_cast<char*>(malloc(40));
+  size_t demangled_len = 40;
+  int status;
+  for (int i = 0; i < count; ++i) {
+    demangled =
+        abi::__cxa_demangle(frames[i].name, demangled, &demangled_len, &status);
+    if (status == 0) {
+      printf("    @ %p %.*s\n", frames[i].ip, demangled_len, demangled);
+    } else {
+      // demangling failed
+      printf("    @ %p %s\n", frames[i].ip, frames[i].name);
+    }
+  }
+  if (count == kMaxBacktraceLength) {
+    printf("    <backtrace limit reached>\n");
+  }
+  free(demangled);
+}
+
 void BackgroundTask(void*) {
   std::byte recv_buf[sizeof(LogMessage::LogMessageData)];
 
@@ -238,10 +272,15 @@ void BackgroundTask(void*) {
     // We disabled stdout's buffering earlier, so this should go straight to the
     // pico-sdk _write() function, which always flushes.
     fwrite(data->message_text_, data->num_chars_to_log_, 1, stdout);
+
     if (data->severity_ == PICOLOG_FATAL) {
-      // TODO: stack trace or something? idk, can we do that?
-      vTaskSuspendAll();
-      panic("Fatal error");
+      // TODO: suspend others? what about the printf/malloc mutex?
+      // vTaskSuspendAll();
+      printf("\n*** Aborted at %llu ***\n",
+             to_us_since_boot(get_absolute_time()));
+      PrintStackTrace(data->backtrace_, data->backtrace_length_);
+      fflush(stdout);  // just in case
+      panic("Aborted by fatal error handler");
     }
   }
 }

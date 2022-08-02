@@ -85,7 +85,15 @@ cc_library(
     deps = [
         "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
+        ":backtrace",
     ],
+)
+
+cc_library(
+    name = "backtrace",
+    srcs = ["backtrace.cc"],
+    hdrs = ["backtrace.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(

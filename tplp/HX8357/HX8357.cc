@@ -19,7 +19,8 @@ HX8357::HX8357(SpiManager* spi, gpio_pin_t cs, gpio_pin_t dc)
 void HX8357::Begin() { this->spi_device_ = spi_->AddDevice(cs_, "HX8357"); }
 
 bool HX8357::SelfTest() {
-  //
+  // todo
+  return false;
 }
 
 }  // namespace tplp
