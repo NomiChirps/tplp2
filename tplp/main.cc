@@ -6,15 +6,16 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "pico/stdlib.h"
+#include "picolog/picolog.h"
 #include "tplp/HX8357/HX8357.h"
 #include "tplp/RuntimeStats.h"
 #include "tplp/SpiManager.h"
 #include "tplp/graphics/lvgl_init.h"
-#include "tplp/logging.h"
 #include "tplp/time.h"
 #include "tplp/tplp_config.h"
 #include "tplp/types.h"
 #include "tplp/ws2812.h"
+
 
 using std::chrono_literals::operator""ms;
 

@@ -69,31 +69,12 @@ cc_library(
     srcs = ["RuntimeStats.cc"],
     hdrs = ["RuntimeStats.h"],
     deps = [
-        ":logging",
+        "//picolog",
         ":time",
         ":tplp_config",
         "@FreeRTOS",
         "@lvgl",
     ],
-)
-
-cc_library(
-    name = "logging",
-    srcs = ["logging.cc"],
-    hdrs = ["logging.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "@FreeRTOS",
-        "@rules_pico//pico:pico_stdlib",
-        ":backtrace",
-    ],
-)
-
-cc_library(
-    name = "backtrace",
-    srcs = ["backtrace.cc"],
-    hdrs = ["backtrace.h"],
-    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -132,7 +113,7 @@ cc_library(
     hdrs = ["SpiManager.h"],
     visibility = [":__subpackages__"],
     deps = [
-        ":logging",
+        "//picolog",
         ":thread_local",
         ":time",
         ":types",

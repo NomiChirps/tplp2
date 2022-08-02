@@ -1,15 +1,12 @@
-#ifndef TPLP_LOGGING_H_
-#define TPLP_LOGGING_H_
+#ifndef PICOLOG_LOGGING_H_
+#define PICOLOG_LOGGING_H_
 
 #include <cstdlib>
 #include <ctime>
 #include <ostream>
 #include <sstream>
 
-// Large parts of this have been ripped off verbatim from glog.
-//
-// Optimistically given its own name independent of this project in case I want
-// to use it for others later.
+// Yes, large parts of this library have been ripped off verbatim from glog.
 namespace picolog {
 
 // Call before doing anything else with this library. Note that this does not
@@ -20,6 +17,8 @@ void InitLogging();
 // actually go somewhere.
 // TODO: support logging before the scheduler starts
 [[noreturn]] void BackgroundTask(void* ignored);
+
+///////////////////////////////////////////////////////////////////////////////
 
 typedef int LogSeverity;
 
@@ -448,4 +447,4 @@ DECLARE_CHECK_STROP_IMPL(strcasecmp, false)
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#endif  // TPLP_LOGGING_H_
+#endif  // PICOLOG_LOGGING_H_

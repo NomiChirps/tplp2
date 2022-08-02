@@ -8,7 +8,7 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "lvgl/lvgl.h"  // for heap monitoring
-#include "tplp/logging.h"
+#include "picolog/picolog.h"
 #include "tplp/time.h"
 #include "tplp/tplp_config.h"
 

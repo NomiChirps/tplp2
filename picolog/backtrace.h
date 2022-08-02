@@ -5,6 +5,7 @@ struct backtrace_frame_t {
   // Instruction pointer.
   const void* ip;
   // Name of the surrounding function. Never null. Does not need to be freed.
+  // If this is "<unknown>" all the time, you might need `-mpoke-function-name`
   const char* name;
 };
 

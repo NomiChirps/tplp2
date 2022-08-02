@@ -1,4 +1,4 @@
-#include "tplp/logging.h"
+#include "picolog/picolog.h"
 
 #include <cxxabi.h>
 
@@ -12,7 +12,7 @@
 #include "FreeRTOS/task.h"
 #include "pico/stdio.h"
 #include "pico/time.h"
-#include "tplp/backtrace.h"
+#include "picolog/backtrace.h"
 
 namespace picolog {
 namespace {
@@ -82,6 +82,7 @@ static_assert(sizeof(QueueContent) * kQueueLength * 4 < configTOTAL_HEAP_SIZE,
 }  // namespace
 
 // As a belt-and-suspenders move, ask GCC to run this before main().
+// Just in case the user forgot.
 [[gnu::constructor]] void InitLogging() {
   if (!queue) {
     queue = xQueueCreateStatic(kQueueLength, sizeof(QueueContent),

@@ -3,8 +3,9 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
+#include "picolog/picolog.h"
 #include "tplp/graphics/lvgl_mutex.h"
-#include "tplp/logging.h"
+
 
 namespace tplp {
 namespace {

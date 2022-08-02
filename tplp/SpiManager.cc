@@ -10,7 +10,7 @@
 #include "FreeRTOS/semphr.h"
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
-#include "tplp/logging.h"
+#include "picolog/picolog.h"
 #include "tplp/time.h"
 
 using std::chrono_literals::operator""ms;

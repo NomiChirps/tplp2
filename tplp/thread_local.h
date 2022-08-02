@@ -4,7 +4,7 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "etl/flat_map.h"
-#include "tplp/logging.h"
+#include "picolog/picolog.h"
 #include "tplp/tplp_config.h"
 
 namespace tplp {

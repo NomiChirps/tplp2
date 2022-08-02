@@ -9,7 +9,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//tplp:SpiManager",
-        "//tplp:logging",
+        "//picolog",
     ],
 )
 
@@ -20,7 +20,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":SharpLCD",
-        "//tplp:logging",
+        "//picolog",
         "//tplp/graphics:lvgl_mutex",
         "@lvgl",
     ],
