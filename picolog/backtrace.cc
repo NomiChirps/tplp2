@@ -70,6 +70,12 @@ _Unwind_Reason_Code trace_func(struct _Unwind_Context* ctx, void* raw_param) {
   backtrace_frame_t* out_frame = &param->buffer[param->count];
   out_frame->ip = reinterpret_cast<void*>(_Unwind_GetIP(ctx));
 
+  // I tried getting `fp` (via `_Unwind_VRS_Get(ctx, _UVRSC_CORE, 11,
+  // _UVRSD_UINT32, &fp)`) and dereferencing it to obtain `pc` as the big GCC
+  // comment above suggests, but that doesn't seem to work at all. Instead we
+  // can use `_Unwind_GetRegionStart` to obtain a pointer to the start of the
+  // function with no fuss. For `_Unwind_VRS_Get`, see:
+  // https://github.com/gcc-mirror/gcc/blob/16e2427f50c208dfe07d07f18009969502c25dc8/libgcc/config/arm/unwind-arm.c#L156
   const _Unwind_Word* pc =
       reinterpret_cast<_Unwind_Word*>(_Unwind_GetRegionStart(ctx));
   if (!pc) {
