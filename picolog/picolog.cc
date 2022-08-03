@@ -87,6 +87,9 @@ static_assert(sizeof(QueueContent) * kQueueLength * 4 < configTOTAL_HEAP_SIZE,
   if (!queue) {
     queue = xQueueCreateStatic(kQueueLength, sizeof(QueueContent),
                                queue_storage, &queue_structure);
+    if (!queue) {
+      panic("Failed to create picolog event queue");
+    }
 
     // disable newlib's stdout buffering
     setvbuf(stdout, nullptr, _IONBF, 0);
@@ -255,7 +258,7 @@ static void PrintStackTrace(const backtrace_frame_t* frames, int count) {
 }
 
 void BackgroundTask(void*) {
-  std::byte recv_buf[sizeof(LogMessage::LogMessageData)];
+  static std::byte recv_buf[sizeof(LogMessage::LogMessageData)];
 
   for (;;) {
     while (!xQueueReceive(queue, recv_buf, portMAX_DELAY)) {
