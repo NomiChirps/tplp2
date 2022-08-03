@@ -91,9 +91,8 @@ class SharpLCD {
   // Pushes the given framebuffer out to the display over SPI, returning
   // immediately. Returns true if successful. Returns false if the frame was
   // dropped due to the transmit queue being full.
-  bool DrawFrameBuffer(
-      const FrameBuffer& fb,
-      const SpiDevice::transmit_callback_t& callback = nullptr);
+  bool DrawFrameBuffer(const FrameBuffer& fb,
+                       const std::function<void()>& callback = nullptr);
 
   // Pushes the given framebuffer out to the display over SPI,
   // waiting until finished.

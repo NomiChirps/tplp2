@@ -12,39 +12,119 @@
 #include "hardware/gpio.h"
 #include "picolog/picolog.h"
 #include "tplp/time.h"
+#include "tplp/tplp_config.h"
 
 using std::chrono_literals::operator""ms;
 
 namespace tplp {
-namespace {
 
-struct TransferRequestMessage {
-  bool transmit;  // if false, receive
+struct SpiManager::StartTransactionEvent {
   SpiDevice* device;
-  uint8_t* buf;
-  size_t len;
-  SpiDevice::transmit_callback_t callback;
 };
 
-// Notification index 0 is reserved by the FreeRTOS message buffer
-// implementation.
-static constexpr int kTransferDoneNotificationIndex = 1;
+struct SpiManager::TransmitEvent {
+  SpiDevice* device;
+  const uint8_t* buf;
+  size_t len;
+  std::function<void()> run_before;
+  std::function<void()> run_after;
+};
 
-class TransferDone {
+struct SpiManager::ReceiveEvent {
+  //
+};
+
+struct SpiManager::EndTransactionEvent {
+  SpiDevice* device;
+};
+
+struct SpiManager::Event {
+  Event() : tag(Tag::NOT_INITIALIZED), body() {}
+  Event(const SpiManager::StartTransactionEvent& e)
+      : tag(Tag::START_TRANSACTION), body(e) {}
+  Event(const SpiManager::TransmitEvent& e) : tag(Tag::TRANSMIT), body(e) {}
+  Event(const SpiManager::ReceiveEvent& e) : tag(Tag::RECEIVE), body(e) {}
+  Event(const SpiManager::EndTransactionEvent& e)
+      : tag(Tag::END_TRANSACTION), body(e) {}
+  ~Event();
+
+  enum class Tag {
+    NOT_INITIALIZED = 0,
+    START_TRANSACTION,
+    TRANSMIT,
+    RECEIVE,
+    END_TRANSACTION
+  } tag;
+
+  union Body {
+    struct Empty {
+    } not_initialized;
+    SpiManager::StartTransactionEvent start_transaction;
+    SpiManager::TransmitEvent transmit;
+    SpiManager::ReceiveEvent receive;
+    SpiManager::EndTransactionEvent end_transaction;
+
+   private:
+    Body() : not_initialized() {}
+    Body(const SpiManager::StartTransactionEvent& e) : start_transaction(e) {}
+    Body(const SpiManager::TransmitEvent& e) : transmit(e) {}
+    Body(const SpiManager::ReceiveEvent& e) : receive(e) {}
+    Body(const SpiManager::EndTransactionEvent& e) : end_transaction(e) {}
+    ~Body() {}  // handled by ~Event
+    friend Event;
+  } body;
+};
+
+SpiManager::Event::~Event() {
+  switch (tag) {
+    case Tag::NOT_INITIALIZED:
+      body.not_initialized.~Empty();
+      break;
+    case Tag::START_TRANSACTION:
+      body.start_transaction.~StartTransactionEvent();
+    case Tag::TRANSMIT:
+      body.transmit.~TransmitEvent();
+      break;
+    case Tag::RECEIVE:
+      body.receive.~ReceiveEvent();
+      break;
+    case Tag::END_TRANSACTION:
+      body.end_transaction.~EndTransactionEvent();
+      break;
+  }
+  LOG(FATAL) << "Unexpected/corrupt Event tag " << static_cast<int>(tag);
+}
+
+namespace {
+// Notification index 0 is reserved by the FreeRTOS message buffer
+// implementation, so we use the next one. This index of the SpiManager task is
+// notified from `TransferDone::ISR` whenever a send or receive DMA finishes.
+static constexpr int kDmaFinishedNotificationIndex = 1;
+
+// The RP2040 DMA unit provides 2 IRQs to which each of the 12 DMA channels can
+// be assigned.
+static constexpr int kNumDmaIrqs = 2;
+// This limit is arbitrary and only exists to save some static memory.
+static constexpr int kMaxDevicesPerDmaIrq = 4;
+// This limit is mostly arbitrary.
+static constexpr int kEventQueueDepth = 8;
+
+class DmaFinishedNotifier {
  private:
   struct DeviceInfo {
+    // Transmit DMA channel
     std::optional<dma_channel_t> dma_tx;
+    // TODO: receive
     TaskHandle_t task;
   };
-  static constexpr int kMaxDevices = 3;
   // index: (irq, device)
-  static DeviceInfo devices[2][kMaxDevices];
-  static int num_devices[2];
+  static DeviceInfo devices[kNumDmaIrqs][kMaxDevicesPerDmaIrq];
+  static int num_devices[kNumDmaIrqs];
 
  public:
   template <int irq_index>
   static void ISR() {
-    static_assert(irq_index == 0 || irq_index == 1, "bad irq_index");
+    static_assert(irq_index >= 0 && irq_index < kNumDmaIrqs, "bad irq_index");
     BaseType_t higher_priority_task_woken = 0;
     for (int i = 0; i < num_devices[irq_index]; ++i) {
       if (devices[irq_index][i].dma_tx) {
@@ -53,7 +133,7 @@ class TransferDone {
           dma_irqn_acknowledge_channel(irq_index,
                                        *devices[irq_index][i].dma_tx);
           vTaskNotifyGiveIndexedFromISR(devices[irq_index][i].task,
-                                        kTransferDoneNotificationIndex,
+                                        kDmaFinishedNotificationIndex,
                                         &higher_priority_task_woken);
           break;
         }
@@ -65,17 +145,24 @@ class TransferDone {
   static void RegisterDevice(dma_irq_index_t irq_index,
                              std::optional<dma_channel_t> dma_tx,
                              TaskHandle_t task) {
-    CHECK(irq_index == 0 || irq_index == 1);
-    CHECK_LT(num_devices[irq_index], kMaxDevices);
+    CHECK_GE(irq_index, 0);
+    CHECK_LT(irq_index, kNumDmaIrqs);
+    CHECK_LT(num_devices[irq_index], kMaxDevicesPerDmaIrq)
+        << "Too many devices assigned to the SpiManager associated with DMA "
+        << irq_index;
     devices[irq_index][num_devices[irq_index]++] = {.dma_tx = dma_tx,
                                                     .task = task};
   }
 };
 
-TransferDone::DeviceInfo TransferDone::devices[2][kMaxDevices] = {};
-int TransferDone::num_devices[2] = {0, 0};
-template void TransferDone::ISR<0>();
-template void TransferDone::ISR<1>();
+// First index is the DMA interrupt index, 0 or 1. A value of the second index
+// is assigned to an `SpiDevice` when it's created.
+DmaFinishedNotifier::DeviceInfo
+    DmaFinishedNotifier::devices[kNumDmaIrqs][kMaxDevicesPerDmaIrq] = {};
+int DmaFinishedNotifier::num_devices[kNumDmaIrqs] = {0, 0};
+
+template void DmaFinishedNotifier::ISR<0>();
+template void DmaFinishedNotifier::ISR<1>();
 
 }  // namespace
 
@@ -86,17 +173,16 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   LOG(INFO) << "SPI" << spi_get_index(spi) << " clock set to " << actual_freq_hz
             << "Hz";
   spi_set_format(spi, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-
   gpio_set_function(sclk, GPIO_FUNC_SPI);
 
-  QueueHandle_t transmit_queue = nullptr;
+  QueueHandle_t event_queue =
+      CHECK_NOTNULL(xQueueCreate(kEventQueueDepth, sizeof(Event)));
+
   std::optional<dma_channel_t> dma_tx;
   if (mosi) {
-    transmit_queue = xQueueCreate(TplpConfig::kSpiTransmitQueueDepth,
-                                  sizeof(TransferRequestMessage));
-
     gpio_set_function(*mosi, GPIO_FUNC_SPI);
-    dma_tx = dma_channel_t(dma_claim_unused_channel(true));
+    dma_tx = dma_channel_t(dma_claim_unused_channel(false));
+    LOG_IF(FATAL, dma_tx < 0) << "No free DMA channels available!";
     dma_channel_config c = dma_channel_get_default_config(*dma_tx);
     channel_config_set_dreq(&c, spi_get_dreq(spi, /*is_tx=*/true));
     channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
@@ -112,28 +198,32 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   }
   if (miso) {
     // TODO: dma_rx not implemented
-    panic("dma_rx not implemented");
+    LOG(FATAL) << "dma_rx not implemented";
   }
   int spi_index = spi_get_index(spi);
   // We're gonna use DMA_IRQ_0 for SPI0 and DMA_IRQ_1 for SPI1,
-  // but this correspondence is not actually required.
+  // but this correspondence is not actually required. Each DMA channel can be
+  // assigned to either IRQ.
   dma_irq_index_t irq_index;
   dma_irq_number_t irq_number;
   if (spi_index == 0) {
     irq_index = dma_irq_index_t(0);
     irq_number = dma_irq_number_t(DMA_IRQ_0);
-    irq_set_exclusive_handler(irq_number, &TransferDone::ISR<0>);
+    irq_set_exclusive_handler(irq_number, &DmaFinishedNotifier::ISR<0>);
   } else if (spi_index == 1) {
     irq_index = dma_irq_index_t(1);
     irq_number = dma_irq_number_t(DMA_IRQ_1);
-    irq_set_exclusive_handler(irq_number, &TransferDone::ISR<1>);
+    irq_set_exclusive_handler(irq_number, &DmaFinishedNotifier::ISR<1>);
   } else {
-    panic("bad spi index");
+    LOG(FATAL) << "spi index out of expected range: " << spi_index;
   }
-  // IRQ is enabled when the task starts up.
+  // The IRQ will only be enabled when the task starts up.
+  // There is no particularly strong reason to do it there instead of here.
 
-  SpiManager* that = new SpiManager(spi, irq_index, irq_number, dma_tx,
-                                    actual_freq_hz, transmit_queue);
+  SemaphoreHandle_t transaction_mutex = CHECK_NOTNULL(xSemaphoreCreateMutex());
+  SpiManager* that =
+      new SpiManager(spi, irq_index, irq_number, dma_tx, actual_freq_hz,
+                     transaction_mutex, event_queue);
 
   // task_name remains allocated forever
   char* task_name = new char[16];
@@ -146,96 +236,222 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
 SpiManager::SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
                        dma_irq_number_t dma_irq_number,
                        std::optional<dma_channel_t> dma_tx,
-                       int actual_frequency, QueueHandle_t transmit_queue)
+                       int actual_frequency,
+                       SemaphoreHandle_t transaction_mutex,
+                       QueueHandle_t event_queue)
     : spi_(spi),
       dma_irq_index_(dma_irq_index),
       dma_irq_number_(dma_irq_number),
       dma_tx_(dma_tx),
       actual_frequency_(actual_frequency),
-      transmit_queue_(transmit_queue) {}
+      transaction_mutex_(transaction_mutex),
+      event_queue_(event_queue) {}
+
+SpiDevice* SpiManager::AddDevice(gpio_pin_t cs, std::string_view name) {
+  gpio_init(cs);
+  gpio_set_dir(cs, GPIO_OUT);
+  gpio_put(cs, 1);
+  DmaFinishedNotifier::RegisterDevice(dma_irq_index_, dma_tx_, task_);
+  return new SpiDevice(this, cs, name);
+}
+
+SpiDevice::SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name)
+    : spi_(spi), cs_(cs), name_(name) {}
+
+SpiTransaction SpiDevice::StartTransaction() {
+  auto tx = StartTransaction(portMAX_DELAY);
+  LOG_IF(FATAL, !tx) << "Unable to get SpiTransaction after waiting forever?";
+  VLOG(1) << "StartTransaction() wrapper returning";
+  return std::move(*tx);
+}
 
 void SpiManager::TaskFn(void* task_param) {
   SpiManager* self = static_cast<SpiManager*>(task_param);
 
+  // Enable the IRQ used for DmaFinishedNotifier.
   // TODO: set irq priority? the default middle-priority is probably fine
   if (self->dma_tx_) {
     dma_irqn_set_channel_enabled(self->dma_irq_index_, *self->dma_tx_, true);
     irq_set_enabled(self->dma_irq_number_, true);
   }
 
-  TransferRequestMessage request;
+  Event event;
   LOG(INFO) << "SpiManager task started.";
   for (;;) {
-    // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
-    while (
-        !xQueueReceive(self->transmit_queue_, &request, as_ticks(10'000ms))) {
-      // just keep waiting for a request
-      LOG(INFO) << "SpiManager" << spi_get_index(self->spi_) << " idle.";
+    while (!xQueueReceive(self->event_queue_, &event, as_ticks(10'000ms))) {
+      // Just keep waiting for events.
+      VLOG(1) << "SpiManager" << spi_get_index(self->spi_) << " idle.";
     }
-    if (!request.transmit) panic("rx not implemented");
-    gpio_put(request.device->cs_, 0);
-    dma_channel_transfer_from_buffer_now(*request.device->spi_->dma_tx_,
-                                         request.buf, request.len);
-    while (!ulTaskNotifyTakeIndexed(kTransferDoneNotificationIndex, true,
-                                    as_ticks(1'000ms))) {
-      // TODO: transfer *still* not done...? what do? abort it?
-      // can we detect if it's making progress? retry?
-      // how would this even happen?
-      LOG(WARNING) << "SPI transfer still not finished. device="
-                   << request.device->name_ << " cs=" << request.device->cs_
-                   << " len=" << request.len;
-    }
+    VLOG(1) << "SpiManager got event: " << static_cast<int>(event.tag);
 
-    // Make sure the SPI TX FIFO is fully drained before we deselect the chip
-    // and potentially start another transfer on this bus. The FIFO is only 8
-    // 16-bit words deep (and we only use 8 bits of each), so this shouldn't
-    // take too long. Not a critical section.
-    while (spi_is_busy(request.device->spi_->spi_)) tight_loop_contents();
-    gpio_put(request.device->cs_, 1);
-    if (request.callback) request.callback();
+    switch (event.tag) {
+      case Event::Tag::START_TRANSACTION:
+        self->HandleEvent(event.body.start_transaction);
+        break;
+      case Event::Tag::TRANSMIT:
+        self->HandleEvent(event.body.transmit);
+        break;
+      case Event::Tag::RECEIVE:
+        self->HandleEvent(event.body.receive);
+        break;
+      case Event::Tag::END_TRANSACTION:
+        self->HandleEvent(event.body.end_transaction);
+        break;
+      default:
+        LOG(ERROR) << "Uninitialized/corrupt event discarded. tag="
+                   << static_cast<int>(event.tag);
+    }
   }
 }
 
-SpiDevice* SpiManager::AddDevice(gpio_pin_t cs, std::string_view name) {
-  gpio_init(cs);
-  gpio_set_dir(cs, GPIO_OUT);
-  gpio_put(cs, 1);
-  TransferDone::RegisterDevice(dma_irq_index_, dma_tx_, task_);
-  return new SpiDevice(this, cs, name);
+void SpiManager::HandleEvent(const StartTransactionEvent& event) {
+  // At this point `transaction_mutex_` will already be held by whatever task
+  // owns the relevant SpiTransaction object.
+
+  VLOG(1) << "StartTransactionEvent device=" << event.device->name_;
+  // Consistency checks
+  CHECK_EQ(active_device_, nullptr)
+      << "Got StartTransactionEvent for device=\"" << event.device->name_
+      << "\" while a transaction is already in progress on device=\""
+      << active_device_->name_ << "\"";
+  CHECK_EQ(event.device->spi_, this);
+
+  // Select the device.
+  gpio_put(event.device->cs_, 0);
+  active_device_ = event.device;
 }
 
-SpiDevice::SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name)
-    : spi_(spi),
-      cs_(cs),
-      name_(name),
-      transmit_blocking_mutex_([]() { return xSemaphoreCreateBinary(); }) {}
+void SpiManager::HandleEvent(const TransmitEvent& event) {
+  if (event.run_before) event.run_before();
 
-bool SpiDevice::Transmit(const uint8_t* buf, uint32_t len,
-                         TickType_t ticks_to_wait,
-                         const transmit_callback_t& callback) {
-  TransferRequestMessage req = {.transmit = true,
-                                .device = this,
-                                .buf = const_cast<uint8_t*>(buf),
-                                .len = len,
-                                .callback = callback};
-  // TODO: memcpy'ing a std::function is not STRICTLY SPEAKING safe
-  return xQueueSend(spi_->transmit_queue_, &req, ticks_to_wait);
+  dma_channel_transfer_from_buffer_now(*event.device->spi_->dma_tx_, event.buf,
+                                       event.len);
+  // Wait for the DMA to complete before processing any more events.
+  CHECK(ulTaskNotifyTakeIndexed(kDmaFinishedNotificationIndex, true,
+                                portMAX_DELAY));
+
+  // Make sure the SPI TX FIFO is fully drained before we call callbacks and/or
+  // start another transfer on this bus. The FIFO is only 8 16-bit words deep
+  // (and we only use 8 bits of each), so this shouldn't take too long. Doesn't
+  // need to be a critical section.
+  // TODO: Callbacks require this guarantee, but what about tx/rx?
+  //       Could we proceed immediately if run_after isn't set?
+  while (spi_is_busy(event.device->spi_->spi_)) tight_loop_contents();
+
+  if (event.run_after) event.run_after();
 }
 
-int SpiDevice::TransmitBlocking(const uint8_t* buf, uint32_t len,
-                                TickType_t ticks_to_wait_enqueue,
-                                TickType_t ticks_to_wait_transmit) {
-  CHECK_EQ(xTaskGetSchedulerState(), taskSCHEDULER_RUNNING);
-  CHECK_NOTNULL(xTaskGetCurrentTaskHandle());
-  SemaphoreHandle_t sem = transmit_blocking_mutex_.get_or_init();
-  if (Transmit(buf, len, ticks_to_wait_enqueue,
-               [sem]() { xSemaphoreGive(sem); })) {
-    if (xSemaphoreTake(sem, ticks_to_wait_transmit)) {
-      return 0;
-    }
-    return 2;
+void SpiManager::HandleEvent(const ReceiveEvent& event) {
+  LOG(FATAL) << "not implemented";
+}
+
+void SpiManager::HandleEvent(const EndTransactionEvent& event) {
+  VLOG(1) << "EndTransactionEvent device=" << event.device->name_;
+  // Consistency checks
+  CHECK_EQ(active_device_, event.device)
+      << "active_device_->name_=" << active_device_->name_
+      << "; event.device->name_=" << event.device->name_;
+
+  // Deselect the device.
+  gpio_put(active_device_->cs_, 1);
+  active_device_ = nullptr;
+
+  // At this point the SpiTransaction will likely already have exited its
+  // destructor, abandoning ownership of `transaction_mutex_` to us. We can
+  // release it now, since all events related to this device should have
+  // finished being processed.
+  CHECK_EQ(uxQueueMessagesWaiting(event_queue_), 0u)
+      << "Transaction finished but there are still events in the queue.";
+  xSemaphoreGive(transaction_mutex_);
+}
+
+std::optional<SpiTransaction> SpiDevice::StartTransaction(
+    TickType_t ticks_to_wait) {
+  VLOG(1) << "StartTransaction() device=" << name_;
+  if (!xSemaphoreTake(spi_->transaction_mutex_, ticks_to_wait)) {
+    // timed out
+    return std::nullopt;
   }
-  return 1;
+
+  SpiManager::Event event(SpiManager::StartTransactionEvent{
+      .device = this,
+  });
+  // Now that we hold the mutex, the event queue must be empty and we can
+  // get away with specifying ticks_to_wait=0.
+  CHECK_EQ(uxQueueMessagesWaiting(spi_->event_queue_), 0u);
+  CHECK(xQueueSendToBack(spi_->event_queue_, &event, 0));
+
+  VLOG(1) << "StartTransaction() done. device=" << name_;
+  return SpiTransaction(this);
+}
+
+SpiTransaction::SpiTransaction(SpiDevice* device)
+    : device_(device),
+      blocking_mutex_(CHECK_NOTNULL(
+          new SemaphoreHandle_t(CHECK_NOTNULL(xSemaphoreCreateBinary())))) {}
+
+void SpiTransaction::SemaphoreDeleter::operator()(SemaphoreHandle_t* sem) {
+  VLOG(1) << "SemaphoreDeleteWrapper deleting " << sem;
+  if (sem) vSemaphoreDelete(sem);
+}
+
+SpiTransaction::Result SpiTransaction::Transmit(const TxMessage& msg,
+                                                TickType_t ticks_to_wait) {
+  VLOG(1) << "Transmit() device=" << device_->name_ << " len=" << msg.len;
+  CHECK_EQ(device_->spi_->active_device_, device_);
+  SpiManager::Event event(SpiManager::TransmitEvent{
+      .device = device_,
+      .buf = msg.buf,
+      .len = msg.len,
+      .run_before = msg.run_before,
+      .run_after = msg.run_after,
+  });
+  if (xQueueSendToBack(device_->spi_->event_queue_, &event, ticks_to_wait)) {
+    return Result::OK;
+  }
+  return Result::ENQUEUE_TIMEOUT;
+}
+
+SpiTransaction::Result SpiTransaction::TransmitBlocking(
+    const TxMessage& msg, TickType_t ticks_to_wait_enqueue,
+    TickType_t ticks_to_wait_transmit) {
+  VLOG(1) << "TransmitBlocking() start device=" << device_->name_
+          << " len=" << msg.len;
+  CHECK_EQ(device_->spi_->active_device_, device_);
+  SemaphoreHandle_t sem = *blocking_mutex_;
+  SpiManager::Event event(SpiManager::TransmitEvent{
+      .device = device_,
+      .buf = msg.buf,
+      .len = msg.len,
+      .run_before = msg.run_before,
+      .run_after =
+          [sem, orig_run_after = msg.run_after]() {
+            if (orig_run_after) orig_run_after();
+            xSemaphoreGive(sem);
+          },
+  });
+  if (!xQueueSendToBack(device_->spi_->event_queue_, &event,
+                        ticks_to_wait_enqueue)) {
+    return Result::ENQUEUE_TIMEOUT;
+  }
+  VLOG(1) << "TransmitBlocking() enqueued device=" << device_->name_
+          << " len=" << msg.len;
+  if (!xSemaphoreTake(sem, ticks_to_wait_transmit)) {
+    return Result::TRANSMIT_TIMEOUT;
+  }
+  VLOG(1) << "TransmitBlocking() complete device=" << device_->name_
+          << " len=" << msg.len;
+  return Result::OK;
+}
+
+SpiTransaction::~SpiTransaction() {
+  // TODO: need to handle both cases: when transmits are pending and when
+  // they're not. either way we need to deselect the device and release the
+  // lock as soon as the queue empties.
+
+  // XXX: idea: use QueueSets in TaskFn to wait on {transmit, receive, done}.
+  // From here, send `done`. TaskFn checks all queues at the end of each
+  // processing loop and does end-of-tx stuff when
 }
 
 }  // namespace tplp

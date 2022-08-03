@@ -42,6 +42,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
 - Nice-to-haves
+  - [ ] Trap hard faults in picolog, so we can get stack traces for a nullptr dereference :)
+    - https://github.com/yocto-8/yocto-8/blob/main/src/arch/pico/extmem/faulthandler.cpp#L12
+    - https://forums.raspberrypi.com/viewtopic.php?t=318745
   - [ ] Why are we spending so much time in Tmr Svc?
     - it's actually not that much time now, without SMP.
   - [ ] move/redirect config headers to a config/ dir

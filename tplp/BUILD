@@ -69,9 +69,9 @@ cc_library(
     srcs = ["RuntimeStats.cc"],
     hdrs = ["RuntimeStats.h"],
     deps = [
-        "//picolog",
         ":time",
         ":tplp_config",
+        "//picolog",
         "@FreeRTOS",
         "@lvgl",
     ],
@@ -97,13 +97,12 @@ cc_library(
     ],
 )
 
+# TODO: move to a library
 cc_library(
     name = "thread_local",
     hdrs = ["thread_local.h"],
     deps = [
-        ":tplp_config",
         "@FreeRTOS",
-        "@etl//:flat_map",
     ],
 )
 
@@ -113,10 +112,11 @@ cc_library(
     hdrs = ["SpiManager.h"],
     visibility = [":__subpackages__"],
     deps = [
-        "//picolog",
         ":thread_local",
         ":time",
+        ":tplp_config",
         ":types",
+        "//picolog",
         "@FreeRTOS",
         "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",

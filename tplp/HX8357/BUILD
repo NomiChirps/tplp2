@@ -7,6 +7,7 @@ cc_library(
         "//tplp:SpiManager",
         "//tplp:types",
         "@FreeRTOS",
+        "@rules_pico//pico:hardware_gpio",
     ],
 )
 

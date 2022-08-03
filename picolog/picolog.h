@@ -413,6 +413,10 @@ DECLARE_CHECK_STROP_IMPL(strcasecmp, false)
 // TODO: VLOG stuff. haven't defined VLOG_IS_ON yet.
 #define VLOG(verboselevel) LOG_IF(INFO, VLOG_IS_ON(verboselevel))
 
+// TODO: make this configurable per-module at compile time.
+// and optionally at runtime?
+#define VLOG_IS_ON(verboselevel) 1
+
 }  // namespace picolog
 
 // For whatever portions and snippets were copied from glog verbatim.

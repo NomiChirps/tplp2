@@ -5,6 +5,7 @@
 #include "FreeRTOS/task.h"
 #include "picolog/picolog.h"
 #include "tplp/graphics/lvgl_mutex.h"
+#include "tplp/tplp_config.h"
 
 
 namespace tplp {

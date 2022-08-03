@@ -16,7 +16,6 @@
 #include "tplp/types.h"
 #include "tplp/ws2812.h"
 
-
 using std::chrono_literals::operator""ms;
 
 namespace tplp {
@@ -51,14 +50,11 @@ void tft_test_task(void* task_param) {
 // TODO: move this to its own file.
 void StartupTask(void*) {
   picolog::InitLogging();
-  if (!xTaskCreate(&picolog::BackgroundTask, "LOGGER", TaskStacks::kDefault,
+  if (!xTaskCreate(&picolog::BackgroundTask, "LOGGER", TaskStacks::kLogging,
                    nullptr, TaskPriorities::kLogging, nullptr)) {
     panic("Failed to start log task");
   }
-
   LOG(INFO) << "Begin startup...";
-  // Other tasks won't run during startup because this one is using the reserved
-  // highest priority.
 
   StartRuntimeStatsReportingTask(/*priority=*/1);
   CHECK(xTaskCreate(&led_task, "blinky", TaskStacks::kDefault, nullptr, 1,
@@ -70,7 +66,7 @@ void StartupTask(void*) {
                        Pins::SPI1_SCLK, Pins::SPI1_MOSI, /*miso=*/std::nullopt);
   LOG(INFO) << "SpiManager::Init() OK";
 
-  HX8357* display = new HX8357(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
+  HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
   display->Begin();
   LOG(INFO) << "HX8357->Begin() OK";
 
@@ -89,9 +85,10 @@ int main() {
   stdio_init_all();
   // TODO: add a build timestamp and version line at bootup
   // printf("tplp2 built %s at %s", TPLP_BUILD_TIMESTAMP, TPLP_VERSION_ID);
+  printf("tplp2 boot. TODO: add a build timestamp\n");
 
   xTaskCreate(&StartupTask, "STARTUP", TaskStacks::kDefault, nullptr,
-              configMAX_PRIORITIES - 1, nullptr);
+              TaskPriorities::kStartup, nullptr);
   vTaskStartScheduler();
   panic("scheduler died :(");
 }

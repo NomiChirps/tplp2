@@ -210,10 +210,16 @@ SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
 
 void SharpLCD::WriteBufferBlocking(const uint8_t* buffer, unsigned len) {
   CHECK_NOTNULL(spi_device_);
-  int ret = spi_device_->TransmitBlocking(buffer, len, as_ticks(1'000ms),
-                                          as_ticks(1'000ms));
-  if (ret) {
-    LOG(ERROR) << "WriteBufferBlocking() timed out. ret=" << ret;
+  SpiTransaction txn = spi_device_->StartTransaction();
+  auto ret = txn.TransmitBlocking(
+      SpiTransaction::TxMessage{
+          .buf = buffer,
+          .len = len,
+      },
+      as_ticks(1000ms), as_ticks(1000ms));
+  if (ret != SpiTransaction::Result::OK) {
+    LOG(ERROR) << "WriteBufferBlocking() timed out. ret="
+               << static_cast<int>(ret);
   }
 }
 
@@ -224,9 +230,12 @@ void SharpLCD::Clear() {
 }
 
 bool SharpLCD::DrawFrameBuffer(const FrameBuffer& fb,
-                               const SpiDevice::transmit_callback_t& callback) {
-  return spi_device_->Transmit(
-      fb.buffer_, FrameBuffer::kSizeofFramebufferForAlloc, 0, callback);
+                               const std::function<void()>& callback) {
+  SpiTransaction txn = spi_device_->StartTransaction();
+  return txn.Transmit({.buf = fb.buffer_,
+                       .len = FrameBuffer::kSizeofFramebufferForAlloc,
+                       .run_after = callback},
+                      /*ticks_to_wait=*/0) == SpiTransaction::Result::OK;
 }
 
 void SharpLCD::DrawFrameBufferBlocking(const FrameBuffer& fb) {

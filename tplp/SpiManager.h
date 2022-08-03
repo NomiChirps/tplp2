@@ -14,11 +14,13 @@
 namespace tplp {
 
 class SpiDevice;
+class SpiTransaction;
 
 // Manages a number of devices on one SPI bus.
 // TODO: finish implementing receive mode
 class SpiManager {
   friend class SpiDevice;
+  friend class SpiTransaction;
 
  public:
   SpiManager(const SpiManager&) = delete;
@@ -40,9 +42,19 @@ class SpiManager {
   explicit SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
                       dma_irq_number_t dma_irq_number,
                       std::optional<dma_channel_t> dma_tx, int actual_frequency,
-                      QueueHandle_t transmit_queue);
-
+                      SemaphoreHandle_t transaction_mutex,
+                      QueueHandle_t event_queue);
   static void TaskFn(void*);
+
+  struct Event;
+  struct StartTransactionEvent;
+  void HandleEvent(const StartTransactionEvent&);
+  struct TransmitEvent;
+  void HandleEvent(const TransmitEvent&);
+  struct ReceiveEvent;
+  void HandleEvent(const ReceiveEvent&);
+  struct EndTransactionEvent;
+  void HandleEvent(const EndTransactionEvent&);
 
  private:
   spi_inst_t* const spi_;
@@ -51,47 +63,109 @@ class SpiManager {
   const std::optional<dma_channel_t> dma_tx_;
   const int actual_frequency_;
   TaskHandle_t task_;
-  QueueHandle_t transmit_queue_;
+
+  // Held for the duration of an `SpiTransaction`.
+  SemaphoreHandle_t transaction_mutex_;
+  QueueHandle_t event_queue_;
+  // Only used for consistency checks.
+  SpiDevice* active_device_;
+};
+
+class SpiTransaction {
+  friend class SpiDevice;
+
+ public:
+  struct TxMessage {
+    // Data to transmit.
+    const uint8_t* buf;
+    // Number of bytes in the buffer to transmit.
+    uint32_t len;
+    // Optional callback to be run just before setting CS active.
+    std::function<void()> run_before;
+    // Optional callback to be run just after setting CS inactive.
+    std::function<void()> run_after;
+  };
+
+  enum class Result {
+    OK = 0,
+    // Timed out waiting for space in the event queue. The operation will not be
+    // executed.
+    ENQUEUE_TIMEOUT,
+    // Timed out waiting for the operation to finish. It will still be executed
+    // at some point in the future.
+    TRANSMIT_TIMEOUT,
+  };
+
+ public:
+  // Ends the transaction and allows the lock on the bus to be released when all
+  // pending operations have completed. If you want to wait for them to finish,
+  // use `Flush()`.
+  ~SpiTransaction();
+  // Moveable, but not copyable.
+  SpiTransaction(SpiTransaction&&) = default;
+
+  // Attempts to queue the given message for transmission, then returns without
+  // waiting for it to complete. See `SpiDevice::TxMessage` for options.
+  // If `ticks_to_wait` is set to 0, does not block waiting for space in the
+  // queue and returns immediately.
+  //
+  // Returns `OK` if the event was enqueued, `ENQUEUE_TIMEOUT` otherwise.
+  Result Transmit(const TxMessage& msg,
+                  TickType_t ticks_to_wait = portMAX_DELAY);
+
+  // Waits until there is space in the transmission queue, enqueues the given
+  // message, and waits until the transfer is complete. Yields to the scheduler
+  // while waiting. Note that if a nonblocking `Transmit` was previously queued,
+  // this one will be queued behind it and must wait for it to complete.
+  // Not thread-safe.
+  //
+  // Returns `OK` if the transmission was fully completed.
+  Result TransmitBlocking(const TxMessage& msg,
+                          TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
+                          TickType_t ticks_to_wait_transmit = portMAX_DELAY);
+
+  // TODO: Flush()
+
+ private:
+  SpiTransaction(const SpiTransaction&) = delete;
+  SpiTransaction& operator=(const SpiTransaction&) = delete;
+
+  explicit SpiTransaction(SpiDevice* device);
+
+ private:
+  SpiDevice* const device_;
+
+  struct SemaphoreDeleter {
+    void operator()(SemaphoreHandle_t*);
+  };
+  // A semaphore used in the implementation of TransmitBlocking.
+  std::unique_ptr<SemaphoreHandle_t, SemaphoreDeleter> blocking_mutex_;
 };
 
 class SpiDevice {
   friend class SpiManager;
+  friend class SpiTransaction;
 
  public:
-  using transmit_callback_t = std::function<void()>;
+  // Locks the SPI bus to this device and returns a transaction handle that can
+  // be used to send and receive messages. Returns `std::nullopt` if a lock on
+  // the bus could not be obtained before `timeout` (due to other transactions
+  // in progress).
+  std::optional<SpiTransaction> StartTransaction(TickType_t timeout);
 
-  SpiDevice(const SpiDevice&) = delete;
-  SpiDevice& operator=(const SpiDevice&) = delete;
-
-  // Attempts to queue the given buffer for transmission.
-  // `buf` MUST remain valid until the transfer is complete.
-  // `ticks_to_wait`: how long to wait if the transmit queue is full.
-  // `callback`: an optional callback for when the transfer is complete. Runs
-  // within a task context, not an interrupt.
-  //
-  // Returns: true if successful, false if we timed out waiting for space in the
-  // transmit queue.
-  bool Transmit(const uint8_t* buf, uint32_t len, TickType_t ticks_to_wait,
-                const transmit_callback_t& callback = nullptr);
-
-  // Waits until there is space in the transmission queue, enqueues the given
-  // buffer, and waits until the transfer is complete. Yields to the scheduler
-  // while waiting.
-  // Returns 0 if successful, 1 if timed out enqueueing, 2 if timed out
-  // transmitting (message may still be sent later in this case!).
-  int TransmitBlocking(const uint8_t* buf, uint32_t len,
-                       TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
-                       TickType_t ticks_to_wait_transmit = portMAX_DELAY);
+  // As `StartTransaction(timeout)`, but waits forever.
+  SpiTransaction StartTransaction();
 
  private:
   explicit SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name);
 
  private:
+  SpiDevice(const SpiDevice&) = delete;
+  SpiDevice& operator=(const SpiDevice&) = delete;
+
   SpiManager* const spi_;
   const gpio_pin_t cs_;
   const std::string name_;
-
-  ThreadLocal<SemaphoreHandle_t> transmit_blocking_mutex_;
 };
 
 }  // namespace tplp
