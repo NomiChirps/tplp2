@@ -8,7 +8,6 @@
 #include "FreeRTOS/semphr.h"
 #include "FreeRTOS/task.h"
 #include "hardware/spi.h"
-#include "tplp/thread_local.h"
 #include "tplp/types.h"
 
 namespace tplp {

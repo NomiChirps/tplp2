@@ -112,7 +112,6 @@ cc_library(
     hdrs = ["SpiManager.h"],
     visibility = [":__subpackages__"],
     deps = [
-        ":thread_local",
         ":time",
         ":tplp_config",
         ":types",

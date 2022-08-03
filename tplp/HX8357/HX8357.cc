@@ -6,7 +6,9 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "hardware/gpio.h"
+#include "picolog/picolog.h"
 #include "tplp/time.h"
+
 
 // - see commands and init sequence at
 //   https://github.com/adafruit/Adafruit_HX8357_Library/blob/master/Adafruit_HX8357.h
