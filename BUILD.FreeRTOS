@@ -1,5 +1,13 @@
 # Yeah this is a bunch of cobbled-together nonsense.
 # Hardcoded to use the RP2040 port.
+#
+# REQUIRED flags in .bazelrc:
+#     build --@rules_pico//pico/config:rtos_adapter_enable=True
+#     build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//:freertos_sdk_config
+#     build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
+#
+# TODO: watch https://github.com/bazelbuild/bazel/issues/14950. when that's sorted out,
+#       break the dependency cycles using implementation_deps and reorganize this entire thing.
 
 load("@//:util.bzl", "join_lists")
 
@@ -54,6 +62,8 @@ cc_library(
         "@rules_pico//pico:pico_stdlib",
         "@rules_pico//pico:pico_sync",
     ],
+    # Needed for when @rules_pico depends on :freertos_sdk_config.
+    alwayslink = 1,
 )
 
 cc_library(
@@ -64,6 +74,24 @@ cc_library(
         ":FreeRTOSConfig",
         ":rp2040_config",
     ],
+)
+
+cc_library(
+    name = "port_impl",
+    # Source files from the RP2040 port that were copied by _construct_source_tree
+    srcs = [
+        "FreeRTOS/idle_task_static_memory.c",
+        "FreeRTOS/port.c",
+    ],
+    # See: https://github.com/bazelbuild/bazel/issues/14950
+    # This WILL break very soon. Probably they'll decide to keep implementation_deps around, in which case we can remove the tag and switch to that.
+    tags = ["__INTERFACE_DEPS__"],
+    deps = [
+        ":FreeRTOS",
+        "@rules_pico//pico:pico_stdlib",
+    ],
+    # Needed for when @rules_pico depends on :freertos_sdk_config.
+    alwayslink = 1,
 )
 
 cc_library(
