@@ -18,10 +18,9 @@ genrule(
         sed 's@#include "src/@#include "lvgl/@' $(location lvgl.h) > $(location newroot/lvgl.h)
     """.format(",".join(["lvgl.h"])),
     cmd_ps = """
-        New-Item -Path $(RULEDIR) -Name lvgl -ItemType directory -Force | Out-Null
         Copy-Item -Recurse -Force -Path "external/lvgl/src/*" -Destination $(RULEDIR)/newroot/lvgl
         (Get-Content -ReadCount 0 $(location lvgl.h)) -replace '^#include "src/', '#include "lvgl/' | Set-Content $(location newroot/lvgl.h)
-    """.format(",".join(["lvgl.h"])),
+    """,
 )
 
 cc_library(
