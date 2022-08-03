@@ -60,65 +60,15 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - plan for eventually logging to Flash or SD instead of USB (i did not so plan)
 
 # Board configuration/pins
-## RP2040 pins
-See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts
+## Pinout / Peripherals
 
-**Caution!** Numeric labels on the board do NOT necessarily match the GPIO number!
-
-| Pin | Label | Assignment |
-| - | - | - |
-| GPIO02 | SDA | I2C1 SDA (STEMMA QT connector) |
-| GPIO03 | SCL | I2C1 SCL (STEMMA QT connector) |
-| GPIO04 | - | *Reserved by platform* |
-| GPIO05 | - | *Reserved by platform* |
-| GPIO06 | D4 | **available** |
-| GPIO07 | D5 | **available** |
-| GPIO08 | D6 | **available** |
-| GPIO09 | D9 | **available** |
-| GPIO10 | D10 | **available** |
-| GPIO11 | D11 | **available** |
-| GPIO12 | D12 | **available** |
-| GPIO13 | D13 | **available** |
-| GPIO14 | - | *Reserved by platform* |
-| GPIO15 | - | *Reserved by platform* |
-| GPIO16 | - | *Hardwired to Neopixel* |
-| GPIO17 | - | *Reserved by playform* |
-| GPIO18 | SCK | **available** |
-| GPIO19 | MOSI | **available** |
-| GPIO20 | MISO | **available** |
-| GPIO21 | - | *Reserved by platform* |
-| GPIO22 | - | *Reserved by platform* |
-| GPIO23 | - | *Reserved by platform* |
-| GPIO24 | D24 | HX3587 CS |
-| GPIO25 | D25 | HX3587 DC |
-| GPIO26 | A0 | SPI1 SCK |
-| GPIO27 | A1 | SPI1 MOSI |
-| GPIO28 | A2 | SPI1 MISO |
-| GPIO29 | A3 | **available** |
+See `tplp/tplp_config.h` for pin and GPIO assignments.
 
 | Bus | Devices |
 | - | - |
 | SPI0 | - |
 | SPI1 | HX8357 |
 | I2C1 | - |
-
-Note: "while many pins are capable of I2C, SPI and UART, you can only do two at a
-time, and only on separate peripherals, 0 and 1." This means we can use e.g. SCK0 and SCL1
-but not SCK0 and SCL0 (if we want hardware acceleration).
-
-## Front panel ribbon cable layout
-- Pin 1 (red) - LCD Enable (should be left open)
-- Pin 2 - LCD SPI CS (active high)
-- Pin 3 - LCD SPI MOSI
-- Pin 4 - LCD SPI SCLK
-- Pin 5 - GND
-- Pin 6 - V3.3
-- Pin 7 - Btn Down (Open V3.3, Closed GND)
-- Pin 8 - Btn Left (Open V3.3, Closed GND)
-- Pin 9 - Btn Up (Open V3.3, Closed GND)
-- Pin 10 - Btn Right (Open V3.3, Closed GND)
-
-We might be able to save 2 pins by combining the button signals.
 
 ## Stepper driver ribbon cable layout
 - Pin 1 (red) - ENA

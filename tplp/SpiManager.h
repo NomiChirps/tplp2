@@ -101,7 +101,8 @@ class SpiTransaction {
   // use `Flush()`.
   ~SpiTransaction();
   // Moveable, but not copyable.
-  SpiTransaction(SpiTransaction&&) = default;
+  // FIXME: shouldn't the default impl be good enough?
+  SpiTransaction(SpiTransaction&&);
 
   // Attempts to queue the given message for transmission, then returns without
   // waiting for it to complete. See `SpiDevice::TxMessage` for options.
@@ -132,6 +133,7 @@ class SpiTransaction {
   explicit SpiTransaction(SpiDevice* device);
 
  private:
+  bool moved_from_;
   SpiDevice* const device_;
 
   struct SemaphoreDeleter {
