@@ -22,10 +22,10 @@ void InitLogging();
 
 typedef int LogSeverity;
 
-const int PICOLOG_INFO = 0, PICOLOG_WARNING = 1, PICOLOG_ERROR = 2,
-          PICOLOG_FATAL = 3, NUM_SEVERITIES = 4;
-const int INFO = PICOLOG_INFO, WARNING = PICOLOG_WARNING, ERROR = PICOLOG_ERROR,
-          FATAL = PICOLOG_FATAL;
+constexpr int PICOLOG_INFO = 0, PICOLOG_WARNING = 1, PICOLOG_ERROR = 2,
+              PICOLOG_FATAL = 3, NUM_SEVERITIES = 4;
+constexpr int INFO = PICOLOG_INFO, WARNING = PICOLOG_WARNING,
+              ERROR = PICOLOG_ERROR, FATAL = PICOLOG_FATAL;
 
 // We're not using the RTC (yet?) so this only has the microseconds since boot.
 struct LogMessageTime {
