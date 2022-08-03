@@ -12,7 +12,11 @@ genrule(
     name = "_construct_source_tree",
     srcs = RAW_HEADERS + RAW_SOURCES + ["lvgl.h"],
     outs = HEADERS + SOURCES + ["newroot/lvgl.h"],
-    # TODO: cmd_bash
+    cmd_bash = """
+        mkdir -p $(RULEDIR)/newroot/lvgl
+        cp -rf external/lvgl/src/* $(RULEDIR)/newroot/lvgl
+        sed 's@#include "src/@#include "lvgl/@' $(location lvgl.h) > $(location newroot/lvgl.h)
+    """.format(",".join(["lvgl.h"])),
     cmd_ps = """
         New-Item -Path $(RULEDIR) -Name lvgl -ItemType directory -Force | Out-Null
         Copy-Item -Recurse -Force -Path "external/lvgl/src/*" -Destination $(RULEDIR)/newroot/lvgl
