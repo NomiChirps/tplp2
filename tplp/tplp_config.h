@@ -3,12 +3,7 @@
 
 #include "tplp/FreeRTOSConfig.h"
 #include "tplp/types.h"
-
-#if defined(__clang__)
-// Because my IDE doesn't seem to pick this up from the pico-sdk headers.
-// Relax, the firmware can only actually build with GCC.
-#define RASPBERRYPI_PICO 1
-#endif
+#include "pico/config_autogen.h"  // for board identifier
 
 namespace tplp {
 

@@ -2,12 +2,11 @@
 #define TPLP_TYPES_H_
 
 #include "NamedType/named_type.hpp"
-#include "pico/types.h"
 
 namespace tplp {
 
 using gpio_pin_t =
-    fluent::NamedType<uint, struct GpioPinTag, fluent::FunctionCallable>;
+    fluent::NamedType<unsigned int, struct GpioPinTag, fluent::FunctionCallable>;
 using dma_channel_t =
     fluent::NamedType<int, struct DmaChannelTag, fluent::FunctionCallable>;
 

@@ -93,7 +93,6 @@ cc_library(
     visibility = [":__subpackages__"],
     deps = [
         "@NamedType",
-        "@rules_pico//pico:hardware_base",  # should be pico_types, but it's not visible
     ],
 )
 
