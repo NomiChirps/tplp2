@@ -1,4 +1,7 @@
-# Building
+# TPLP2
+
+## Building
+
 Install `bazel`, `gcc-arm-none-eabi`, `arm-none-eabi-newlib`.
 
 Developed with `gcc-arm-11.2-2022.02`.
@@ -15,7 +18,8 @@ bazel build //tplp:firmware -c opt
 ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
-# TODO / Notes
+## TODO / Notes
+
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
@@ -51,7 +55,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
-  - [ ] create a lint.sh or something. to cover cc and bzl files
   - [ ] Vendor all 3rd party libraries
   - [ ] run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
 - [x] please let's replace tplp_assert() with CHECK(), CHECK_NOTNULL(), etc. likewise DebugLog() -> LOG(INFO), VLOG(1), etc.
@@ -59,18 +62,20 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] LOG level toggles at runtime
   - plan for eventually logging to Flash or SD instead of USB (i did not so plan)
 
-# Board configuration/pins
-## Pinout / Peripherals
+## Board configuration/pins
+
+### Pinout / Peripherals
 
 See `tplp/tplp_config.h` for pin and GPIO assignments.
 
-| Bus | Devices |
-| - | - |
-| SPI0 | - |
-| SPI1 | HX8357 |
-| I2C1 | - |
+| Bus  | Devices |
+| ---- | ------- |
+| SPI0 | -       |
+| SPI1 | HX8357  |
+| I2C1 | -       |
 
-## Stepper driver ribbon cable layout
+### Stepper driver ribbon cable layout
+
 - Pin 1 (red) - ENA
 - Pin 2 - IN1
 - Pin 3 - IN2
@@ -78,13 +83,15 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
 - Pin 5 - IN4
 - Pin 6 - ENB
 
-## Load cell wires
+### Load cell wires
+
 - Red - E+
 - Black - E-
 - Green - A-
 - White - A+
 
-# Reference Materials
+## Reference Materials
+
 - [RP2040 Datasheet](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf) (the good stuff)
 - [Raspberry Pi Pico SDK PDF docs](https://datasheets.raspberrypi.com/pico/raspberry-pi-pico-c-sdk.pdf) (more info than the HTML version)
 - [Raspberry Pi Pico SDK HTML docs](https://raspberrypi.github.io/pico-sdk-doxygen/) (bare API reference)
@@ -98,8 +105,10 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
 - [How to define and measure clock jitter](https://www.sitime.com/api/gated/AN10007-Jitter-and-measurement.pdf)
 - [Bit Twiddling Hacks](http://graphics.stanford.edu/~seander/bithacks.html) (the one and only)
 
-# todos whomst done
+## todos whomst done
 
+- [x] switch to Linux because wow gosh heckie does windows suck for this kind of development
+- [x] create a lint.sh or something. to cover cc and bzl files (using Trunk vscode extension)
 - [x] spend a week fruitlessly debugging instability between FreeRTOS-SMP + pico-sdk before giving up on SMP in disgust. at least I learned a lot and ironed out a few other issues along the way.
 - [x] vApplicationGetIdleTaskMemory mystery: why doesn't my definition clash with the rp2040 port's in idle_task_static_memory.c?
   - ah. because i needed alwayslink=1 in FreeRTOS. it's fine though, we don't need to add it. the local definition gets linked in just fine.
@@ -109,7 +118,7 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
   - [x] enable SMP/multicore
     - turns out this was a terrible idea.
   - [x] audit FreeRTOSConfig.h
-  - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays? 
+  - [x] (friendship ended with Arduino) audit Arduino compat libraries for blocking delays?
   - [x] (friendship ended with Arduino) use scope to verify reliability in the presence of Arduino libs
   - [x] write configASSERT handler (use the NeoPixel LED?)
 - [x] use the genrule() trick to finally encapsulate FreeRTOS headers
