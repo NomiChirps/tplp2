@@ -24,10 +24,11 @@ cc_library(
 )
 
 pico_binary(
-    name = "firmware",
+    name = "firmware.elf",
     srcs = [
         "main.cc",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         ":RuntimeStats",
         ":SpiManager",
@@ -96,7 +97,7 @@ cc_library(
     ],
 )
 
-# TODO: move to a library
+# TODO: move to a library. or yeet it.
 cc_library(
     name = "thread_local",
     hdrs = ["thread_local.h"],
@@ -124,12 +125,14 @@ cc_library(
 
 pico_add_uf2_output(
     name = "firmware.uf2",
-    input = "firmware",
+    input = "firmware.elf",
+    visibility = ["//visibility:public"],
 )
 
+# TODO: check this out
 pico_add_map_output(
     name = "firmware.map",
-    input = "firmware",
+    input = "firmware.elf",
 )
 
 pico_pio_header(

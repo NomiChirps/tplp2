@@ -2,34 +2,67 @@
 
 ## Building
 
-Install `bazel`, `gcc-arm-none-eabi`, `arm-none-eabi-newlib`.
-
-Developed with `gcc-arm-11.2-2022.02`.
-
-On Windows, requires bazel >= 6.0.0-pre.20220630.1 (due to mystery bug, present in 5.2.0) and gcc-arm-none-eabi >= 10.3.1 (due to [bug](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95253)).
+Install `bazel` (or `bazelisk`), `gcc-arm-none-eabi`, `arm-none-eabi-newlib`. Developed with `gcc-arm-12.1.0`.
 
 ```sh
 # debug build
-bazel build //tplp:firmware
+bazel build //tplp:firmware.uf2
 # optimized build
-bazel build //tplp:firmware -c opt
+bazel build //tplp:firmware.uf2 -c opt
 
 # firmware blob is in bazel-bin
 ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
+## Debugging
+
+Note that USB serial stdio is not available while debugging because pico-debug uses the USB port.
+
+### Setup
+
+1. Install OpenOCD built at or after [commit b60d06ae325c00979e9ff17bb35e868879e6047f](https://github.com/openocd-org/openocd/commit/b60d06ae325c00979e9ff17bb35e868879e6047f). This commit isn't in release 11.0, which is the latest at the time of this writing, so OpenOCD must be built from source.
+1. Install the "Cortex-Debug" extension for Visual Studio Code.
+1. Make sure you'll have the appropriate permissions to access the pico-debug CMSIS-DAP USB device; this can be accomplished by adding a [udev rule](https://github.com/openocd-org/openocd/blob/master/contrib/60-openocd.rules) and adding yourself to the `plugdev` group mentioned in that rule (or edit the rule to use a different group).
+1. If using Visual Studio Code, install the "Cortex-Debug" extension.
+
+### To debug under VSCode
+
+See also: https://github.com/majbthrd/pico-debug/blob/master/howto/vscode1.md
+
+1. Put Pico into bootloader mode (reset while holding BOOTSEL).
+1. Run the `flash pico-debug` task in VSCode. This downloads a prebuilt pico-debug image and copies it to the device. Pico is now running the debugger on core 1.
+1. Build tplp in debug mode by running the `[debug] build` task.
+1. Launch the debug configuration in VSCode ("Run and Debug" tab). This is defined in `.vscode/launch.json`.
+1. The program should automatically be loaded onto the Pico and start running in the debugger.
+1. You can restart the program freely, but ending the debug session means you'll need to reflash pico-debug to start again.
+   In order to make changes and restart, run the `[debug] build` task and then issue the `load` command in the debug console. Wait for the transfer to finish before hitting the Restart button (Ctrl+Shift+F5).
+
+### To debug without IDE support
+
+See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
+
+1. Put Pico into bootloader mode (reset while holding BOOTSEL).
+1. Run `bazel run //tools:flash-pico-debug`, which downloads a prebuilt [pico-debug](https://github.com/majbthrd/pico-debug) binary and copies it to the device. Pico is now running the debugger on core 1.
+1. Run `openocd -f board/pico-debug.cfg`.
+1. Build tplp in debug mode: `bazel build --config=debug //tplp:firmware.elf`
+1. Start GDB: `arm-none-eabi-gdb bazel-bin/tplp/firmware.elf`.
+1. Connect GDB to OpenOCD: `(gdb) target remote localhost:3333`.
+1. Load the target into flash: `(gdb) load`.
+1. Start it: `(gdb) monitor reset init`, `(gdb) continue`.
+
 ## TODO / Notes
 
+- [ ] fix compile_commands extraction, again (problem with lvgl build? maybe strip_include_prefix works correctly on Linux?)
+- [ ] bazel build for OpenOCD binary!
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
   - [ ] manual peripheral control screen
   - [ ] parameters screen
-  - [ ] (later) print status / main screen ?
+  - [ ] (later) print status / job control / main screen ?
 - [ ] Get peripheral hardware running
   - [ ] touchscreen input (SPI breakout)
-  - [ ] Shiny new front panel display
-  - [x] Sharp LCD display
+  - [ ] Shiny new front panel display + LVGL driver
   - [ ] Front panel buttons
   - [ ] Stepper drivers (use pico_stepper)
   - [ ] Laser module
@@ -37,8 +70,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
   - [ ] MicroSD card reader
+  - [x] Sharp LCD display + LVGL driver
 - [ ] Finish the electronics hardware
-  - [x] install inverter on the Sharp LCD CS pin so it behaves like EVERY OTHER SPI DEVICE IN THE WORLD
   - [ ] Power everything from the 12v bus
   - [ ] Add bus capacitors
   - [ ] Install jumpers on the stepper drivers (to configure internal 5v power supply)
@@ -46,21 +79,12 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
 - Nice-to-haves
-  - [ ] Trap hard faults in picolog, so we can get stack traces for a nullptr dereference :)
-    - https://github.com/yocto-8/yocto-8/blob/main/src/arch/pico/extmem/faulthandler.cpp#L12
-    - https://forums.raspberrypi.com/viewtopic.php?t=318745
-  - [ ] Why are we spending so much time in Tmr Svc?
-    - it's actually not that much time now, without SMP.
   - [ ] move/redirect config headers to a config/ dir
   - [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
   - [ ] Vendor all 3rd party libraries
   - [ ] run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
-- [x] please let's replace tplp_assert() with CHECK(), CHECK_NOTNULL(), etc. likewise DebugLog() -> LOG(INFO), VLOG(1), etc.
-  - [ ] per-file VLOG toggles at compile time (use a constexpr function for string comparison, probably)
-  - [ ] LOG level toggles at runtime
-  - plan for eventually logging to Flash or SD instead of USB (i did not so plan)
 
 ## Board configuration/pins
 
@@ -107,6 +131,10 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
 
 ## todos whomst done
 
+- [x] Why are we spending so much time in Tmr Svc?
+  - it's actually not that much time now, without SMP.
+- [x] please let's replace tplp_assert() with CHECK(), CHECK_NOTNULL(), etc. likewise DebugLog() -> LOG(INFO), VLOG(1), etc.
+  - Implemented "picolog" and broke it out into a library :)
 - [x] switch to Linux because wow gosh heckie does windows suck for this kind of development
 - [x] create a lint.sh or something. to cover cc and bzl files (using Trunk vscode extension)
 - [x] spend a week fruitlessly debugging instability between FreeRTOS-SMP + pico-sdk before giving up on SMP in disgust. at least I learned a lot and ironed out a few other issues along the way.

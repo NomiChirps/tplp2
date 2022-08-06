@@ -10,6 +10,7 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
+#include "pico/bootrom.h"
 #include "pico/stdio.h"
 #include "pico/time.h"
 #include "picolog/backtrace.h"
@@ -158,6 +159,19 @@ void LogMessage::Flush() {
   // TODO: short-circuit here when logging is disabled/filtered at runtime.
 
   if (data_->severity_ == PICOLOG_FATAL) {
+    // TODO: it would be cool if we could automatically break into the debugger
+    // from here. unfortunately this doesn't seem to work.
+    /*
+    #if
+        !defined(PICOLOG_BKPT_ON_FATAL) || PICOLOG_BKPT_ON_FATAL
+            // See DHCSR description in ARMv6-M Architecture Reference Manual
+            volatile const uint32_t* dhcsr = (uint32_t*)0xE000EDF0;
+        if (*dhcsr & 0x1) {
+          // stop here if we're running under a debugger
+          asm volatile("bkpt #0");
+        }
+    #endif
+    */
     data_->backtrace_length_ =
         TakeBacktrace(data_->backtrace_, kMaxBacktraceLength);
   }
@@ -252,7 +266,7 @@ static void PrintStackTrace(const backtrace_frame_t* frames, int count) {
     }
   }
   if (count == kMaxBacktraceLength) {
-    printf("    <backtrace limit reached>\n");
+    printf("  <backtrace limit reached>\n");
   }
   free(demangled);
 }
@@ -280,11 +294,17 @@ void BackgroundTask(void*) {
     if (data->severity_ == PICOLOG_FATAL) {
       // TODO: suspend others? what about the printf/malloc mutex?
       // vTaskSuspendAll();
-      printf("\n*** Aborted at %llu ***\n",
+      printf("\n*** Aborted at %lluus since boot ***\n",
              to_us_since_boot(get_absolute_time()));
       PrintStackTrace(data->backtrace_, data->backtrace_length_);
       fflush(stdout);  // just in case
+#if PICOLOG_RESET_TO_BOOTLOADER_ON_FATAL
+      // TODO maybe there's a better way to configure this
+      printf("\n*** Resetting to Pico bootloader!\n");
+      reset_usb_boot(0, 0);
+#else
       panic("Aborted by fatal error handler");
+#endif
     }
   }
 }

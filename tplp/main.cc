@@ -82,7 +82,20 @@ void StartupTask(void*) {
 }
 
 int main() {
-  stdio_init_all();
+#if LIB_PICO_STDIO_USB
+  stdio_usb_init();
+#endif
+#if LIB_PICO_STDIO_UART
+  stdio_uart_init_full(uart_default, PICO_DEFAULT_UART_BAUD_RATE, Pins::UART_TX, -1);
+#endif
+  const int LED_PIN = PICO_DEFAULT_LED_PIN;
+  gpio_init(LED_PIN);
+  gpio_set_dir(LED_PIN, GPIO_OUT);
+  gpio_put(LED_PIN, 1);
+  busy_wait_ms(200);
+  gpio_put(LED_PIN, 0);
+  gpio_deinit(LED_PIN);
+
   // TODO: add a build timestamp and version line at bootup
   // printf("tplp2 built %s at %s", TPLP_BUILD_TIMESTAMP, TPLP_VERSION_ID);
   printf("tplp2 boot. TODO: add a build timestamp\n");

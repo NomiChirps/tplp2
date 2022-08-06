@@ -1,15 +1,14 @@
 workspace(name = "tplp2")
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 RULES_PICO_COMMIT = "main"
 
 http_archive(
     name = "rules_pico",
-    sha256 = "7f3056700621b72463f282379f9ab79646262af4f2f345bbf72e7420d2935101",
+    sha256 = "5d33e7d989252807a87dc57608da1b649c576a22bdbe1a8ec2fc781433fa10ac",
     strip_prefix = "rules_pico-" + RULES_PICO_COMMIT,
-    # TODO: switch back to dfr's repo later
-    url = "https://github.com/NomiChirps/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
+    url = "https://github.com/dfr/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
 )
 
 load("@rules_pico//pico:repositories.bzl", "rules_pico_dependencies", "rules_pico_toolchains")
@@ -72,4 +71,10 @@ http_archive(
     sha256 = "708f0dcbc2d6321a9b696212e1f33dc0286ff942f93b09039884739f37050268",
     strip_prefix = "NamedType-" + NAMEDTYPE_COMMIT + "/include",
     url = "https://github.com/joboccara/NamedType/archive/" + NAMEDTYPE_COMMIT + ".zip",
+)
+
+http_file(
+    name = "pico-debug",
+    sha256 = "4c232340c7e0a276e0ea94d54c5de7d05e18500a1b5b3984b6dcb67617e9df55",
+    urls = ["https://github.com/majbthrd/pico-debug/releases/download/v10.05/pico-debug-gimmecache.uf2"],
 )

@@ -1,7 +1,7 @@
 load("@rules_pico//pico:defs.bzl", "pico_add_uf2_output", "pico_binary")
 
 pico_binary(
-    name = "blinky",
+    name = "blinky.elf",
     srcs = ["blinky.cc"],
     deps = [
         ":hook_impl",
@@ -12,7 +12,7 @@ pico_binary(
 
 pico_add_uf2_output(
     name = "blinky.uf2",
-    input = "blinky",
+    input = "blinky.elf",
 )
 
 # Stubs so we don't have to change to a different :FreeRTOSConfig (in .bazelrc) just for this.

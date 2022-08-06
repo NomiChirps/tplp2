@@ -2,47 +2,76 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "bazel build",
+            "label": "[debug] build",
             "command": "bazel",
             "args": [
                 "build",
-                "//tplp:firmware"
+                "//tplp:firmware.elf",
+                "//tplp:firmware.uf2",
+                "--config=debug",
             ],
             "type": "shell",
         },
         {
-            "label": "bazel build -c opt",
+            "label": "[iterate] build",
             "command": "bazel",
             "args": [
                 "build",
-                "-c",
-                "opt",
-                "//tplp:firmware"
+                "//tplp:firmware.elf",
+                "//tplp:firmware.uf2",
+                "--config=iterate",
             ],
-            "type": "shell",
         },
         {
-            "label": "!! Reset into bootloader !!",
-            "command": "./reset_to_bootloader.ps1",
+            "label": "[iterate] build & flash",
+            "dependsOn": [
+                "[iterate] build",
+                "flash tplp",
+            ],
+            "dependsOrder": "sequence",
+        },
+        {
+            "label": "[iterate] build & flash & monitor",
+            "dependsOn": [
+                "[iterate] build",
+                "flash tplp",
+                "monitor usb serial output",
+            ],
+            "dependsOrder": "sequence",
+        },
+        {
+            "label": "flash tplp",
+            "command": "./tools/flash_usbmsc.sh",
             "args": [
-                "-ComPort",
-                "COM7",
+                "${workspaceFolder}/bazel-bin/tplp/firmware.uf2",
             ],
             "type": "shell",
         },
         {
-            "label": "!! Build and flash !!",
-            "command": "./build_and_flash.ps1",
+            "label": "monitor usb serial output",
+            "command": "./tools/monitor_usbserial.sh",
+            "type": "shell",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "refresh compile_commands.json",
+            "command": "./tools/refresh_compile_commands.sh",
+            "type": "shell",
+        },
+        {
+            "label": "flash pico-debug",
+            "command": "bazel",
             "args": [
-                "-UploadPath",
-                "D:\\"
+                "run",
+                "//tools:flash-pico-debug",
             ],
-            "type": "shell",
-        },
-        {
-            "label": "Refresh compile_commands.json",
-            "command": "./refresh_compile_commands.ps1",
-            "type": "shell",
         },
     ]
 }

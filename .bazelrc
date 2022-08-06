@@ -3,7 +3,19 @@ build --verbose_failures
 # Enable new-style C++ toolchain resolution and set the target platform
 build --incompatible_enable_cc_toolchain_resolution
 build --platforms=@rules_pico//platforms:pico
+# Target platform when running tools is the unnamed, local platform.
 run --platforms=
+
+# For a debug build, optimize everything except code in this workspace.
+# We can't build with just "-c dbg" because there's not enough flash on the board to store ALL the debug symbols.
+# Select this with "--config=debug".
+build:debug -c opt --per_file_copt=//.*\.cc@-O1,-g
+build:debug --@rules_pico//pico/config:stdio_usb=False
+
+# For regular old development without a debugger.
+# Still "-c opt" to keep the image size to a reasonable level.
+build:iterate -c opt
+build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 
 # Thanks Adafruit I love you <3
 #build --@rules_pico//pico/config:board=adafruit_feather_rp2040
@@ -21,31 +33,27 @@ build --@rules_pico//pico/config:rtos_adapter_enable=True
 build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//:freertos_sdk_config
 build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
 
+# FIXME: we really don't need this. just have the rules refer to tplp directly.
 build --@FreeRTOS//:FreeRTOSConfig=//tplp:FreeRTOSConfig
 build --@lvgl//:lv_conf=//tplp:lv_conf
 
-# quality of life
-build --copt="-Werror=format"
-
 ## Configuration of various libraries
 # TODO: can we put these defines in a header somewhere?
-# Prevent that weird "Reset" device showing up over USB
-build --copt="-DPICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0"
 # Wait for someone to monitor serial output
 build --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
 build --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
-# 0x800 is the default value, but specify it explicitly.
-build --copt="-DPICO_CORE1_STACK_SIZE=0x800"
-# Undocumented option which write-protects the last 32 bytes of the stack(s)
-build --copt="-DPICO_USE_STACK_GUARDS=1"
 
 # We don't use pico-sdk sleep functions, and would like to
-# disable the default alarm pool they use. Unfortunately
-# @rules_pico explicitly enables it. Why?
+# disable the default alarm pool they use. But @rules_pico
+# explicitly enables it. Why?
 # See https://github.com/raspberrypi/pico-sdk/issues/873
 #build --copt="-DPICO_TIME_DEFAULT_ALARM_POOL_DISABLED=1"
 
-# Flags for the backtrace library.
-build:release --copt="-mpoke-function-name"
-# Not clear if we need these. Are they implied? Already set? -fno-omit-frame-pointer -funwind-tables
-# Seems to work fine without them for now.
+# Disable CR/LF conversion on stdout. This is useless overhead.
+build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
+
+# Flags needed for //picolog:backtrace
+build --copt="-mpoke-function-name"
+# Not clear if we also need the following. Are they implied? Already set?
+# Backtrace seems to work fine without them for now.
+#     -fno-omit-frame-pointer -funwind-tables

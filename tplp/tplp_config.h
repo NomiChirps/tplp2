@@ -27,6 +27,7 @@ struct Pins {
   static constexpr gpio_pin_t SPI1_MISO = gpio_pin_t(12);
   static constexpr gpio_pin_t HX8357_CS = gpio_pin_t(2);
   static constexpr gpio_pin_t HX8357_DC = gpio_pin_t(3);
+  static constexpr gpio_pin_t UART_TX = gpio_pin_t(0);  // for log output
 #else
 #error "Board not detected"
 #endif

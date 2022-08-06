@@ -45,9 +45,10 @@ class SpiManager {
                       QueueHandle_t event_queue);
   static void TaskFn(void*);
 
+  // Caller must hold transaction_mutex_
+  void DoStartTransaction(SpiDevice* new_device);
+
   struct Event;
-  struct StartTransactionEvent;
-  void HandleEvent(const StartTransactionEvent&);
   struct TransmitEvent;
   void HandleEvent(const TransmitEvent&);
   struct ReceiveEvent;

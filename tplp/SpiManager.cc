@@ -18,10 +18,6 @@ using std::chrono_literals::operator""ms;
 
 namespace tplp {
 
-struct SpiManager::StartTransactionEvent {
-  SpiDevice* device;
-};
-
 struct SpiManager::TransmitEvent {
   SpiDevice* device;
   const uint8_t* buf;
@@ -40,8 +36,6 @@ struct SpiManager::EndTransactionEvent {
 
 struct SpiManager::Event {
   Event() : tag(Tag::NOT_INITIALIZED), body() {}
-  Event(const SpiManager::StartTransactionEvent& e)
-      : tag(Tag::START_TRANSACTION), body(e) {}
   Event(const SpiManager::TransmitEvent& e) : tag(Tag::TRANSMIT), body(e) {}
   Event(const SpiManager::ReceiveEvent& e) : tag(Tag::RECEIVE), body(e) {}
   Event(const SpiManager::EndTransactionEvent& e)
@@ -50,7 +44,6 @@ struct SpiManager::Event {
 
   enum class Tag {
     NOT_INITIALIZED = 0,
-    START_TRANSACTION,
     TRANSMIT,
     RECEIVE,
     END_TRANSACTION
@@ -59,14 +52,12 @@ struct SpiManager::Event {
   union Body {
     struct Empty {
     } not_initialized;
-    SpiManager::StartTransactionEvent start_transaction;
     SpiManager::TransmitEvent transmit;
     SpiManager::ReceiveEvent receive;
     SpiManager::EndTransactionEvent end_transaction;
 
    private:
     Body() : not_initialized() {}
-    Body(const SpiManager::StartTransactionEvent& e) : start_transaction(e) {}
     Body(const SpiManager::TransmitEvent& e) : transmit(e) {}
     Body(const SpiManager::ReceiveEvent& e) : receive(e) {}
     Body(const SpiManager::EndTransactionEvent& e) : end_transaction(e) {}
@@ -79,18 +70,16 @@ SpiManager::Event::~Event() {
   switch (tag) {
     case Tag::NOT_INITIALIZED:
       body.not_initialized.~Empty();
-      break;
-    case Tag::START_TRANSACTION:
-      body.start_transaction.~StartTransactionEvent();
+      return;
     case Tag::TRANSMIT:
       body.transmit.~TransmitEvent();
-      break;
+      return;
     case Tag::RECEIVE:
       body.receive.~ReceiveEvent();
-      break;
+      return;
     case Tag::END_TRANSACTION:
       body.end_transaction.~EndTransactionEvent();
-      break;
+      return;
   }
   LOG(FATAL) << "Unexpected/corrupt Event tag " << static_cast<int>(tag);
 }
@@ -246,7 +235,8 @@ SpiManager::SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
       dma_tx_(dma_tx),
       actual_frequency_(actual_frequency),
       transaction_mutex_(transaction_mutex),
-      event_queue_(event_queue) {}
+      event_queue_(event_queue),
+      active_device_(nullptr) {}
 
 SpiDevice* SpiManager::AddDevice(gpio_pin_t cs, std::string_view name) {
   gpio_init(cs);
@@ -288,9 +278,6 @@ void SpiManager::TaskFn(void* task_param) {
     VLOG(1) << "SpiManager got event: " << static_cast<int>(event.tag);
 
     switch (event.tag) {
-      case Event::Tag::START_TRANSACTION:
-        self->HandleEvent(event.body.start_transaction);
-        break;
       case Event::Tag::TRANSMIT:
         self->HandleEvent(event.body.transmit);
         break;
@@ -307,23 +294,23 @@ void SpiManager::TaskFn(void* task_param) {
   }
 }
 
-void SpiManager::HandleEvent(const StartTransactionEvent& event) {
+void SpiManager::DoStartTransaction(SpiDevice* new_device) {
+  CHECK_EQ(xSemaphoreGetMutexHolder(transaction_mutex_),
+           xTaskGetCurrentTaskHandle());
+  CHECK_EQ(uxQueueMessagesWaiting(event_queue_), 0u);
   CHECK_EQ(active_device_, nullptr)
-      << "Got StartTransactionEvent for device=\"" << event.device->name_
+      << "Got StartTransactionEvent for device=\"" << new_device->name_
       << "\" while a transaction is already in progress on device=\""
       << active_device_->name_ << "\"";
-  CHECK_EQ(event.device->spi_, this);
-
-  // At this point `transaction_mutex_` is already held by whatever task
-  // owns the relevant SpiTransaction object.
+  CHECK_EQ(new_device->spi_, this);
 
   // Select the device.
-  gpio_put(event.device->cs_, 0);
-  active_device_ = event.device;
+  active_device_ = new_device;
+  gpio_put(new_device->cs_, 0);
 }
 
 void SpiManager::HandleEvent(const TransmitEvent& event) {
-  CHECK_EQ(active_device_, nullptr)
+  CHECK_EQ(active_device_, event.device)
       << "Got TransmitEvent for device=\"" << event.device->name_
       << "\" while a transaction is already in progress on device=\""
       << active_device_->name_ << "\"";
@@ -383,15 +370,8 @@ std::optional<SpiTransaction> SpiDevice::StartTransaction(
     return std::nullopt;
   }
 
-  SpiManager::Event event(SpiManager::StartTransactionEvent{
-      .device = this,
-  });
-  // Now that we hold the mutex, the event queue must be empty and we can
-  // get away with specifying ticks_to_wait=0.
-  CHECK_EQ(uxQueueMessagesWaiting(spi_->event_queue_), 0u);
-  CHECK(xQueueSendToBack(spi_->event_queue_, &event, 0));
+  spi_->DoStartTransaction(this);
 
-  VLOG(1) << "StartTransaction() done. device=" << name_;
   return SpiTransaction(this);
 }
 
