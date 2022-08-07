@@ -6,6 +6,9 @@ Usage:
 
 ```bazel
 # WORKSPACE
+
+# local_repository or http_archive or git_repository or whatever rule to import this workspace as @lvgl.
+
 load("@lvgl//:repositories.bzl", "lvgl_dependencies")
 
 lvgl_dependencies()
