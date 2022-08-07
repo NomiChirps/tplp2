@@ -13,6 +13,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "serverpath": "${workspaceFolder}/openocd/bazel-bin/external/openocd/openocd/bin/openocd",
             "configFiles": [
                 "interface/cmsis-dap.cfg",
                 "target/rp2040-core0.cfg",
@@ -21,18 +22,17 @@
                 "transport select swd",
                 "adapter speed 4000"
             ],
-            "svdFile": "bazel-tplp2/external/pico-sdk/src/rp2040/hardware_regs/rp2040.svd",
+            "svdFile": "${workspaceFolder}/bazel-tplp2/external/pico-sdk/src/rp2040/hardware_regs/rp2040.svd",
             "runToEntryPoint": "main",
             "postRestartCommands": [
                 "break main",
                 "continue",
             ],
             "searchDir": [
-                // TODO: package
-                "/home/nomi/code/openocd/tcl"
+                "${workspaceFolder}/openocd/bazel-bin/external/openocd/openocd/share/openocd/scripts",
             ],
-            "preLaunchTask": "[debug] build",
-            // what does this do and why doesn't it work?
+            "preLaunchTask": "debugger-prelaunch",
+            // TODO: what does this do and why doesn't it work?
             //"rtos": "FreeRTOS",
         },
     ]

@@ -1,0 +1,28 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+
+filegroup(
+    name = "all_srcs",
+    srcs = glob(["**"]),
+)
+
+configure_make(
+    name = "openocd",
+    autogen = True,
+    autogen_command = "bootstrap",
+    configure_in_place = True,
+    env = {
+        # Submodules already initialized by Bazel (see WORKSPACE)
+        "SKIP_SUBMODULE": "1",
+        # Parallelize
+        "MAKEFLAGS": "-j8",
+    },
+    lib_source = ":all_srcs",
+    out_binaries = ["openocd"],
+    out_data_dirs = ["share/openocd/scripts"],
+    exec_compatible_with = [
+        "@platforms//os:linux",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+)

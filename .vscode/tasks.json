@@ -72,6 +72,27 @@
                 "run",
                 "//tools:flash-pico-debug",
             ],
+            "type": "shell",
+        },
+        {
+            "label": "build openocd",
+            "command": "bazel",
+            "options": {
+                "cwd": "${workspaceFolder}/openocd"
+            },
+            "args": [
+                "build",
+                "@openocd//:openocd",
+            ],
+            "type": "shell",
+        },
+        {
+            "label": "debugger-prelaunch",
+            "dependsOn": [
+                "build openocd",
+                "[debug] build"
+            ],
+            "dependsOrder": "parallel",
         },
     ]
 }

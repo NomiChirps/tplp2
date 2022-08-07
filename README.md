@@ -14,47 +14,9 @@ bazel build //tplp:firmware.uf2 -c opt
 ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
-## Debugging
-
-Note that USB serial stdio is not available while debugging because pico-debug uses the USB port.
-
-### Setup
-
-1. Install OpenOCD built at or after [commit b60d06ae325c00979e9ff17bb35e868879e6047f](https://github.com/openocd-org/openocd/commit/b60d06ae325c00979e9ff17bb35e868879e6047f). This commit isn't in release 11.0, which is the latest at the time of this writing, so OpenOCD must be built from source.
-1. Install the "Cortex-Debug" extension for Visual Studio Code.
-1. Make sure you'll have the appropriate permissions to access the pico-debug CMSIS-DAP USB device; this can be accomplished by adding a [udev rule](https://github.com/openocd-org/openocd/blob/master/contrib/60-openocd.rules) and adding yourself to the `plugdev` group mentioned in that rule (or edit the rule to use a different group).
-1. If using Visual Studio Code, install the "Cortex-Debug" extension.
-
-### To debug under VSCode
-
-See also: https://github.com/majbthrd/pico-debug/blob/master/howto/vscode1.md
-
-1. (temporarily) Update `searchDir` in vscode/launch.json to point to your own OpenOCD installation.
-1. Put Pico into bootloader mode (reset while holding BOOTSEL).
-1. Run the `flash pico-debug` task in VSCode. This downloads a prebuilt pico-debug image and copies it to the device. Pico is now running the debugger on core 1.
-1. Build tplp in debug mode by running the `[debug] build` task.
-1. Launch the debug configuration in VSCode ("Run and Debug" tab). This is defined in `.vscode/launch.json`.
-1. The program should automatically be loaded onto the Pico and start running in the debugger.
-1. You can restart the program freely, but ending the debug session means you'll need to reflash pico-debug to start again.
-   In order to make changes and restart, run the `[debug] build` task and then issue the `load` command in the debug console. Wait for the transfer to finish before hitting the Restart button (Ctrl+Shift+F5).
-
-### To debug without IDE support
-
-See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
-
-1. Put Pico into bootloader mode (reset while holding BOOTSEL).
-1. Run `bazel run //tools:flash-pico-debug`, which downloads a prebuilt [pico-debug](https://github.com/majbthrd/pico-debug) binary and copies it to the device. Pico is now running the debugger on core 1.
-1. Run `openocd -f board/pico-debug.cfg`.
-1. Build tplp in debug mode: `bazel build --config=debug //tplp:firmware.elf`
-1. Start GDB: `arm-none-eabi-gdb bazel-bin/tplp/firmware.elf`.
-1. Connect GDB to OpenOCD: `(gdb) target remote localhost:3333`.
-1. Load the target into flash: `(gdb) load`.
-1. Start it: `(gdb) monitor reset init`, `(gdb) continue`.
-
 ## TODO / Notes
 
 - [ ] next up: VLOG to reduce noise, then HX8357 self test :)
-- [ ] bazel build for OpenOCD binary!
 - [ ] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
@@ -86,7 +48,6 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
   - [ ] Vendor all 3rd party libraries
-  - [ ] run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
 
 ## Board configuration/pins
 
@@ -116,6 +77,42 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
 - Green - A-
 - White - A+
 
+## Debugging
+
+Note that USB serial stdio is not available while debugging because pico-debug uses the USB port.
+
+### Setup
+
+1. You will need to have the standard GNU autotools/configure/make toolchain installed on your system, for building OpenOCD.
+1. Make sure you'll have the appropriate permissions to access the pico-debug CMSIS-DAP USB device; this can be accomplished by adding a [udev rule](https://github.com/openocd-org/openocd/blob/master/contrib/60-openocd.rules) and adding yourself to the `plugdev` group mentioned in that rule (or edit the rule to use a different group).
+1. If using Visual Studio Code, install the "Cortex-Debug" extension.
+1. If not using Visual Studio Code, build OpenOCD: `cd openocd; bazel build //:openocd`. This will download and compile the appropriate version of OpenOCD within the Bazel sandbox, leaving the binaries in `openocd/bazel-bin/external/openocd/openocd/bin/openocd` and the scripts dir in `openocd/bazel-bin/external/openocd/openocd/share/openocd/scripts`. Isn't it funny how if you say openocd enough times it doesn't sound like a real word anymore?
+
+### To debug under VSCode
+
+See also: https://github.com/majbthrd/pico-debug/blob/master/howto/vscode1.md
+
+1. Put Pico into bootloader mode (reset while holding BOOTSEL).
+1. Run the `flash pico-debug` task in VSCode. This downloads a prebuilt pico-debug image and copies it to the device. Pico is now running the debugger on core 1.
+1. Build tplp in debug mode by running the `[debug] build` task.
+1. Launch the debug configuration in VSCode ("Run and Debug" tab). This is defined in `.vscode/launch.json`. This will also download and build OpenOCD first, if it hasn't already.
+1. The program should automatically be loaded onto the Pico and start running in the debugger.
+1. You can restart the program freely, but ending the debug session means you'll need to reflash pico-debug to start again.
+   In order to make changes and restart, run the `[debug] build` task and then issue the `load` command in the debug console. Wait for the transfer to finish before hitting the Restart button (Ctrl+Shift+F5).
+
+### To debug without IDE support
+
+See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
+
+1. Put Pico into bootloader mode (reset while holding BOOTSEL).
+1. Run `bazel run //tools:flash-pico-debug`, which downloads a prebuilt [pico-debug](https://github.com/majbthrd/pico-debug) binary and copies it to the device. Pico is now running the debugger on core 1.
+1. Start the OpenOCD server: `openocd/bazel-bin/external/openocd/openocd/bin/openocd -s openocd/bazel-bin/external/openocd/openocd/bin/openocd -f interface/cmsis-dap.cfg -f target/rp2040-core0.cfg -c "transport select swd" -c "adapter speed 4000"`. It should connect to the Pico and wait for commands.
+1. Build tplp in debug mode: `bazel build --config=debug //tplp:firmware.elf`
+1. Start GDB: `arm-none-eabi-gdb bazel-bin/tplp/firmware.elf`.
+1. Connect GDB to OpenOCD: `(gdb) target remote localhost:3333`.
+1. Load the target into flash: `(gdb) load`.
+1. Start it: `(gdb) monitor reset init`, `(gdb) continue`.
+
 ## Reference Materials
 
 - [RP2040 Datasheet](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf) (the good stuff)
@@ -133,6 +130,9 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
 
 ## todos whomst done
 
+- [x] bazel build for OpenOCD binary!
+- [x] WONTFIX: run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
+  - this definitely isn't gonna happen. it needs support from the toolchain definition and i don't want to research how to implement that.
 - [x] fix compile_commands extraction, again (problem with lvgl build? maybe strip_include_prefix works correctly on Linux?)
 - [x] Why are we spending so much time in Tmr Svc?
   - it's actually not that much time now, without SMP.
