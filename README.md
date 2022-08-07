@@ -16,7 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] next up: VLOG to reduce noise, then HX8357 self test :)
+- [ ] HX8357 self test :)
 - [ ] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)

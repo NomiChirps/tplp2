@@ -10,6 +10,6 @@ refresh_compile_commands(
         # C++ system headers.
         # Actually, it could be a totally different issue. See:
         # https://github.com/hedronvision/bazel-compile-commands-extractor/issues/70
-        "//tplp/...": "--cxxopt=-xc++ --cxxopt=-std=c++17",
+        "//tplp/...": "--cxxopt=-xc++",
     },
 )

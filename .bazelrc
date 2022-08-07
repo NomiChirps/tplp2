@@ -1,31 +1,36 @@
-common --verbose_failures
+build --verbose_failures
+build --cxxopt=-std=c++17
 
 # Enable new-style C++ toolchain resolution and set the target platform
-common --incompatible_enable_cc_toolchain_resolution
-common --platforms=@rules_pico//platforms:pico
-# Target platform when running tools is the unnamed, local platform.
+# These could be "common" options, but 'bazel dump' (among others) doesn't recognize them; see https://github.com/bazelbuild/bazel/issues/3054
+build --incompatible_enable_cc_toolchain_resolution
+build --platforms=@rules_pico//platforms:pico
+# Target platform when running tools is the host or exec platform (referred to by the empty string)
 run --platforms=
+test --platforms=
 
 # For a debug build, optimize everything except code in this workspace.
 # We can't build with just "-c dbg" because there's not enough flash on the board to store ALL the debug symbols.
 # Select this with "--config=debug".
-common:debug -c opt --per_file_copt=//.*\.cc@-O1,-g
-common:debug --@rules_pico//pico/config:stdio_usb=False
+build:debug -c opt --per_file_copt=//.*\.cc@-O1,-g
+build:debug --@rules_pico//pico/config:stdio_usb=False
 
 # For regular old development without a debugger.
 # Still "-c opt" to keep the image size to a reasonable level.
-common:iterate -c opt
-common:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
+build:iterate -c opt
+build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 
 # FIXME: we really don't need this. just have the rules refer to tplp directly.
-common --@FreeRTOS//:FreeRTOSConfig=//tplp:FreeRTOSConfig
-common --@lvgl//:lv_conf=//tplp:lv_conf
+build --@FreeRTOS//:FreeRTOSConfig=//tplp:FreeRTOSConfig
+build --@lvgl//:lv_conf=//tplp:lv_conf
 
 ## Configuration of various libraries
+build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,HX8357=1\""
+
 # TODO: can we put these defines in a header somewhere?
 # Wait for someone to monitor serial output
-common --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
-common --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
+build --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
+build --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
 
 # We don't use pico-sdk sleep functions, and would like to
 # disable the default alarm pool they use. But @rules_pico
@@ -34,11 +39,11 @@ common --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
 #common --copt="-DPICO_TIME_DEFAULT_ALARM_POOL_DISABLED=1"
 
 # Disable CR/LF conversion on stdout. This is useless overhead.
-common --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
+build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
 
 # Flags needed for //picolog:backtrace
-common:debug --copt="-mpoke-function-name"
-common:iterate --copt="-mpoke-function-name"
+build:debug --copt="-mpoke-function-name"
+build:iterate --copt="-mpoke-function-name"
 # Not clear if we also need the following. Are they implied? Already set?
 # Backtrace seems to work fine without them for now.
 #     -fno-omit-frame-pointer -funwind-tables

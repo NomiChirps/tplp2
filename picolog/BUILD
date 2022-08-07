@@ -5,13 +5,25 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":backtrace",
+        ":vlog_is_on",
         "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
 )
 
 cc_library(
+    name = "vlog_is_on",
+    hdrs = ["vlog_is_on.h"],
+)
+
+cc_library(
     name = "backtrace",
     srcs = ["backtrace.cc"],
     hdrs = ["backtrace.h"],
+)
+
+cc_test(
+    name = "vlog_is_on_test",
+    srcs = ["vlog_is_on_test.cc"],
+    deps = [":vlog_is_on"],
 )

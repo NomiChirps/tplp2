@@ -1,10 +1,28 @@
 #ifndef PICOLOG_LOGGING_H_
 #define PICOLOG_LOGGING_H_
 
+#include <array>
+#include <cmath>
 #include <cstdlib>
 #include <ctime>
 #include <ostream>
 #include <sstream>
+
+#include "picolog/vlog_is_on.h"
+
+// PICOLOG_VMODULE allows selectively enabling VLOG(n) lines at compile time.
+// The format is "module=n" pairs, where module is the bare name of the .cc/.h
+// file to enable verbose logging for, and n is the verbose log level to enable.
+// This configuration string must be double-quoted.
+//
+// For example:
+//   -DPICOLOG_VMODULE=\"foo=4,bar=0\"
+// will cause foo.h and foo.cc to include all VLOG(n) lines where n is 4 or
+// less. bar.h and bar.cc will not compile any VLOG statements at all (which is
+// the default).
+#ifndef PICOLOG_VMODULE
+#define PICOLOG_VMODULE ""
+#endif
 
 // Yes, large parts of this library have been ripped off verbatim from glog.
 namespace picolog {
@@ -410,12 +428,7 @@ DECLARE_CHECK_STROP_IMPL(strcasecmp, false)
 #define CHECK_INDEX(I, A) CHECK(I < (sizeof(A) / sizeof(A[0])))
 #define CHECK_BOUND(B, A) CHECK(B <= (sizeof(A) / sizeof(A[0])))
 
-// TODO: VLOG stuff. haven't defined VLOG_IS_ON yet.
 #define VLOG(verboselevel) LOG_IF(INFO, VLOG_IS_ON(verboselevel))
-
-// TODO: make this configurable per-module at compile time.
-// and optionally at runtime?
-#define VLOG_IS_ON(verboselevel) 1
 
 }  // namespace picolog
 
