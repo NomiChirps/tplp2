@@ -1,10 +1,11 @@
 # Yeah this is a bunch of cobbled-together nonsense.
 # Hardcoded to use the RP2040 port.
 #
-# REQUIRED flags in .bazelrc:
+# Required flags in .bazelrc:
 #     build --@rules_pico//pico/config:rtos_adapter_enable=True
 #     build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//:freertos_sdk_config
 #     build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
+# Alternatively, use pico_build_with_config() to supply these parameters to your binary instead.
 #
 # TODO: watch https://github.com/bazelbuild/bazel/issues/14950. when that's sorted out,
 #       break the dependency cycles using implementation_deps and reorganize this entire thing.
@@ -83,9 +84,6 @@ cc_library(
         "FreeRTOS/idle_task_static_memory.c",
         "FreeRTOS/port.c",
     ],
-    # See: https://github.com/bazelbuild/bazel/issues/14950
-    # This WILL break very soon. Probably they'll decide to keep implementation_deps around, in which case we can remove the tag and switch to that.
-    tags = ["__INTERFACE_DEPS__"],
     deps = [
         ":FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
