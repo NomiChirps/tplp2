@@ -56,6 +56,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 - [ ] next up: VLOG to reduce noise, then HX8357 self test :)
 - [ ] fix compile_commands extraction, again (problem with lvgl build? maybe strip_include_prefix works correctly on Linux?)
 - [ ] bazel build for OpenOCD binary!
+- [ ] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
