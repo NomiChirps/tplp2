@@ -16,6 +16,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] it is time to reorganize the directory structure again
+  - we've got /openocd, /lib, /picolog, /tplp... too many different kinds of things at the top level
 - [ ] HX8357 self test :)
 - [ ] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [ ] Create a front panel UI
@@ -43,6 +45,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
 - Nice-to-haves
+  - [ ] split out lvgl-bazel as its own library? eh, maybe later. it's already pretty much prepped though
   - [ ] move/redirect config headers to a config/ dir
   - [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.
   - [ ] generate & examine .map file for the firmware blob

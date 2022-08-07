@@ -2,7 +2,7 @@ workspace(name = "tplp2")
 
 local_repository(
     name = "lvgl",
-    path = "lvgl",
+    path = "lvgl-bazel",
 )
 
 load("@lvgl//:repositories.bzl", "lvgl_dependencies")
