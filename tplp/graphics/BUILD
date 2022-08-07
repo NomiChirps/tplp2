@@ -5,6 +5,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":lvgl_mutex",
+        "//lib:lvgl",
         "//picolog",
         "//tplp:tplp_config",
         "//tplp/HX8357",
@@ -12,7 +13,6 @@ cc_library(
         "//tplp/SharpLCD",
         "//tplp/SharpLCD:lvgl_driver",
         "@FreeRTOS",
-        "@lvgl",
     ],
 )
 

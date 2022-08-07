@@ -22,7 +22,6 @@ build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 
 # FIXME: we really don't need this. just have the rules refer to tplp directly.
 build --@FreeRTOS//:FreeRTOSConfig=//tplp:FreeRTOSConfig
-build --@lvgl//:lv_conf=//tplp:lv_conf
 
 ## Configuration of various libraries
 build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,HX8357=1\""

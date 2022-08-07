@@ -12,6 +12,7 @@ cc_library(
     hdrs = ["lv_conf.h"],
     strip_include_prefix = "/tplp",
     deps = [":lv_tick_custom"],
+    visibility = ["//lib:__pkg__"],
 )
 
 cc_library(
@@ -96,7 +97,7 @@ cc_library(
         ":tplp_config",
         "//picolog",
         "@FreeRTOS",
-        "@lvgl",
+        "//lib:lvgl",
     ],
 )
 

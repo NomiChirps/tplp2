@@ -1,12 +1,21 @@
 workspace(name = "tplp2")
 
+local_repository(
+    name = "lvgl",
+    path = "lvgl",
+)
+
+load("@lvgl//:repositories.bzl", "lvgl_dependencies")
+
+lvgl_dependencies()
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 RULES_PICO_COMMIT = "build-with-more-configs"
 
 http_archive(
     name = "rules_pico",
-    #sha256 = "5d33e7d989252807a87dc57608da1b649c576a22bdbe1a8ec2fc781433fa10ac",
+    sha256 = "7676a5066449461ab61762cc4a660d4b3f6f1bff9219977cae08374bd20c1f88",
     strip_prefix = "rules_pico-" + RULES_PICO_COMMIT,
     url = "https://github.com/NomiChirps/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
 )
@@ -56,16 +65,6 @@ http_archive(
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 
 hedron_compile_commands_setup()
-
-LVGL_VERSION = "8.3.1"
-
-http_archive(
-    name = "lvgl",
-    build_file = "//:BUILD.lvgl",
-    sha256 = "5600ac2f6a724788b46aea4ba3776e444cf3c2a11272c5b202c78c19d0000bd5",
-    strip_prefix = "lvgl-" + LVGL_VERSION,
-    url = "https://github.com/lvgl/lvgl/archive/v" + LVGL_VERSION + ".zip",
-)
 
 NAMEDTYPE_COMMIT = "77a95c8002a28f5cb48d2d0cd985904d66912af3"
 

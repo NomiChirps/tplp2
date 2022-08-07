@@ -4,8 +4,8 @@ cc_library(
     name = "lvgl_top_headers",
     hdrs = [
         "lvgl.h",
-        "src/lvgl.h",
         "src/lv_api_map.h",
+        "src/lvgl.h",
     ],
 )
 
@@ -42,5 +42,5 @@ cc_library(
 
 label_flag(
     name = "lv_conf",
-    build_setting_default = "@//:lv_conf",
+    build_setting_default = "@lvgl//:lv_conf_none",
 )
