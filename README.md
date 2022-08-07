@@ -54,7 +54,6 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 ## TODO / Notes
 
 - [ ] next up: VLOG to reduce noise, then HX8357 self test :)
-- [ ] fix compile_commands extraction, again (problem with lvgl build? maybe strip_include_prefix works correctly on Linux?)
 - [ ] bazel build for OpenOCD binary!
 - [ ] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [ ] Create a front panel UI
@@ -134,6 +133,7 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
 
 ## todos whomst done
 
+- [x] fix compile_commands extraction, again (problem with lvgl build? maybe strip_include_prefix works correctly on Linux?)
 - [x] Why are we spending so much time in Tmr Svc?
   - it's actually not that much time now, without SMP.
 - [x] please let's replace tplp_assert() with CHECK(), CHECK_NOTNULL(), etc. likewise DebugLog() -> LOG(INFO), VLOG(1), etc.

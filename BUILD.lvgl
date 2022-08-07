@@ -1,39 +1,42 @@
 package(default_visibility = ["//visibility:private"])
 
-RAW_HEADERS = glob(["src/**/*.h"])
-
-RAW_SOURCES = glob(["src/**/*.c"])
-
-HEADERS = ["newroot/lvgl/" + i.replace("src/", "", 1) for i in RAW_HEADERS]
-
-SOURCES = ["newroot/lvgl/" + i.replace("src/", "", 1) for i in RAW_SOURCES]
-
-genrule(
-    name = "_construct_source_tree",
-    srcs = RAW_HEADERS + RAW_SOURCES + ["lvgl.h"],
-    outs = HEADERS + SOURCES + ["newroot/lvgl.h"],
-    cmd_bash = """
-        mkdir -p $(RULEDIR)/newroot/lvgl
-        cp -rf external/lvgl/src/* $(RULEDIR)/newroot/lvgl
-        sed 's@#include "src/@#include "lvgl/@' $(location lvgl.h) > $(location newroot/lvgl.h)
-    """.format(",".join(["lvgl.h"])),
-    cmd_ps = """
-        Copy-Item -Recurse -Force -Path "external/lvgl/src/*" -Destination $(RULEDIR)/newroot/lvgl
-        (Get-Content -ReadCount 0 $(location lvgl.h)) -replace '^#include "src/', '#include "lvgl/' | Set-Content $(location newroot/lvgl.h)
-    """,
+cc_library(
+    name = "lvgl_top_headers",
+    hdrs = [
+        "lvgl.h",
+        "src/lvgl.h",
+        "src/lv_api_map.h",
+    ],
 )
 
 cc_library(
     name = "lvgl",
-    srcs = SOURCES,
-    hdrs = HEADERS + ["newroot/lvgl.h"],
-    defines = {
-        "LV_CONF_INCLUDE_SIMPLE": "1",
-    },
-    strip_include_prefix = "newroot",
+    hdrs = [
+        "lvgl.h",
+    ],
+    include_prefix = "lvgl",
     visibility = ["//visibility:public"],
     deps = [
-        ":lv_conf",
+        ":all_modules",
+    ],
+)
+
+cc_library(
+    name = "lv_conf_internal",
+    srcs = ["src/lv_conf_kconfig.h"],
+    hdrs = ["src/lv_conf_internal.h"],
+    deps = [":lv_conf"],
+)
+
+cc_library(
+    name = "all_modules",
+    srcs = glob([
+        "src/*/**/*.c",
+        "src/*/**/*.h",
+    ]),
+    deps = [
+        ":lv_conf_internal",
+        ":lvgl_top_headers",
     ],
 )
 
