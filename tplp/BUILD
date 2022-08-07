@@ -1,4 +1,4 @@
-load("@rules_pico//pico:defs.bzl", "pico_add_map_output", "pico_add_uf2_output", "pico_binary", "pico_pio_header")
+load("@rules_pico//pico:defs.bzl", "pico_add_map_output", "pico_add_uf2_output", "pico_binary", "pico_build_with_config", "pico_pio_header")
 
 cc_library(
     name = "FreeRTOSConfig",
@@ -23,12 +23,33 @@ cc_library(
     ],
 )
 
-pico_binary(
+pico_build_with_config(
     name = "firmware.elf",
+
+    # Thanks Adafruit I love you <3
+    #board = "adafruit_feather_rp2040",
+    # Using a basic Pico for now, until the debug headers come in for the Feather
+    board = "pico",
+    double_impl = "none",
+    float_impl = "none",
+    input = ":firmware_unconfigured",
+    rtos_adapter_enable = True,
+    rtos_adapter_header = "@FreeRTOS//:freertos_sdk_config",
+    rtos_adapter_header_name = "FreeRTOS/freertos_sdk_config.h",
+    stdio_semihosting = False,
+    stdio_uart = False,
+    # TODO: we might want to disable stdio_usb later; it uses an interrupt every 1ms
+    # FIXME: need to disable this for debug
+    stdio_usb = True,
+    visibility = ["//visibility:public"],
+)
+
+pico_binary(
+    name = "firmware_unconfigured",
     srcs = [
         "main.cc",
     ],
-    visibility = ["//visibility:public"],
+    visibility = ["//visibility:private"],
     deps = [
         ":RuntimeStats",
         ":SpiManager",
@@ -49,9 +70,9 @@ cc_library(
     name = "hook_impl",
     srcs = ["hook_impl.cc"],
     deps = [
+        "//picolog",
         "@FreeRTOS",
         "@rules_pico//pico:pico_time",
-        "//picolog",
     ],
     alwayslink = 1,
 )

@@ -17,22 +17,6 @@ common:debug --@rules_pico//pico/config:stdio_usb=False
 common:iterate -c opt
 common:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 
-# Thanks Adafruit I love you <3
-#common --@rules_pico//pico/config:board=adafruit_feather_rp2040
-# Using a basic Pico for now, until the debug headers come in for the Feather
-common --@rules_pico//pico/config:board=pico
-
-# TODO: we might want to disable stdio_usb later; it uses an interrupt every 1ms
-common --@rules_pico//pico/config:stdio_uart=False
-common --@rules_pico//pico/config:stdio_usb=True
-# We don't need no steenking floating point
-common --@rules_pico//pico/config:float_impl=@pico-sdk//:pico_float_none
-common --@rules_pico//pico/config:double_impl=@pico-sdk//:pico_double_none
-
-common --@rules_pico//pico/config:rtos_adapter_enable=True
-common --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//:freertos_sdk_config
-common --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
-
 # FIXME: we really don't need this. just have the rules refer to tplp directly.
 common --@FreeRTOS//:FreeRTOSConfig=//tplp:FreeRTOSConfig
 common --@lvgl//:lv_conf=//tplp:lv_conf
