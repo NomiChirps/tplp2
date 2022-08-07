@@ -30,23 +30,31 @@ struct SpiManager::ReceiveEvent {
   //
 };
 
-struct SpiManager::EndTransactionEvent {
+struct SpiManager::TransactionSyncEvent {
+  enum class Type { INVALID = 0, FLUSH, END_TRANSACTION } type;
   SpiDevice* device;
+  // Semaphore used in the END_TRANSACTION flow to signal the user's
+  // transaction task that it can now give up SpiManager::transaction_mutex_.
+  // We could use this field for FLUSH too, but it's okay for flush to
+  // use the single shared binary semaphore SpiManager::flush_sem_ (because
+  // flush does not require priority inheritance on top of that provided by
+  // transaction_mutex_).
+  SemaphoreHandle_t end_transaction_sem;
 };
 
 struct SpiManager::Event {
   Event() : tag(Tag::NOT_INITIALIZED), body() {}
   Event(const SpiManager::TransmitEvent& e) : tag(Tag::TRANSMIT), body(e) {}
   Event(const SpiManager::ReceiveEvent& e) : tag(Tag::RECEIVE), body(e) {}
-  Event(const SpiManager::EndTransactionEvent& e)
-      : tag(Tag::END_TRANSACTION), body(e) {}
+  Event(const SpiManager::TransactionSyncEvent& e)
+      : tag(Tag::TRANSACTION_SYNC), body(e) {}
   ~Event();
 
   enum class Tag {
     NOT_INITIALIZED = 0,
     TRANSMIT,
     RECEIVE,
-    END_TRANSACTION
+    TRANSACTION_SYNC
   } tag;
 
   union Body {
@@ -54,13 +62,13 @@ struct SpiManager::Event {
     } not_initialized;
     SpiManager::TransmitEvent transmit;
     SpiManager::ReceiveEvent receive;
-    SpiManager::EndTransactionEvent end_transaction;
+    SpiManager::TransactionSyncEvent transaction_sync;
 
    private:
     Body() : not_initialized() {}
     Body(const SpiManager::TransmitEvent& e) : transmit(e) {}
     Body(const SpiManager::ReceiveEvent& e) : receive(e) {}
-    Body(const SpiManager::EndTransactionEvent& e) : end_transaction(e) {}
+    Body(const SpiManager::TransactionSyncEvent& e) : transaction_sync(e) {}
     ~Body() {}  // handled by ~Event
     friend Event;
   } body;
@@ -77,8 +85,8 @@ SpiManager::Event::~Event() {
     case Tag::RECEIVE:
       body.receive.~ReceiveEvent();
       return;
-    case Tag::END_TRANSACTION:
-      body.end_transaction.~EndTransactionEvent();
+    case Tag::TRANSACTION_SYNC:
+      body.transaction_sync.~TransactionSyncEvent();
       return;
   }
   LOG(FATAL) << "Unexpected/corrupt Event tag " << static_cast<int>(tag);
@@ -210,9 +218,10 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   // There is no particularly strong reason to do it there instead of here.
 
   SemaphoreHandle_t transaction_mutex = CHECK_NOTNULL(xSemaphoreCreateMutex());
+  SemaphoreHandle_t flush_sem = CHECK_NOTNULL(xSemaphoreCreateBinary());
   SpiManager* that =
       new SpiManager(spi, irq_index, irq_number, dma_tx, actual_freq_hz,
-                     transaction_mutex, event_queue);
+                     transaction_mutex, event_queue, flush_sem);
 
   // task_name remains allocated forever
   char* task_name = new char[16];
@@ -228,14 +237,15 @@ SpiManager::SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
                        std::optional<dma_channel_t> dma_tx,
                        int actual_frequency,
                        SemaphoreHandle_t transaction_mutex,
-                       QueueHandle_t event_queue)
+                       QueueHandle_t event_queue, SemaphoreHandle_t flush_sem)
     : spi_(spi),
       dma_irq_index_(dma_irq_index),
       dma_irq_number_(dma_irq_number),
       dma_tx_(dma_tx),
       actual_frequency_(actual_frequency),
-      transaction_mutex_(transaction_mutex),
       event_queue_(event_queue),
+      transaction_mutex_(transaction_mutex),
+      flush_sem_(flush_sem),
       active_device_(nullptr) {}
 
 SpiDevice* SpiManager::AddDevice(gpio_pin_t cs, std::string_view name) {
@@ -252,7 +262,6 @@ SpiDevice::SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name)
 SpiTransaction SpiDevice::StartTransaction() {
   auto tx = StartTransaction(portMAX_DELAY);
   LOG_IF(FATAL, !tx) << "Unable to get SpiTransaction after waiting forever?";
-  VLOG(1) << "StartTransaction() wrapper returning";
   return std::move(*tx);
 }
 
@@ -284,8 +293,8 @@ void SpiManager::TaskFn(void* task_param) {
       case Event::Tag::RECEIVE:
         self->HandleEvent(event.body.receive);
         break;
-      case Event::Tag::END_TRANSACTION:
-        self->HandleEvent(event.body.end_transaction);
+      case Event::Tag::TRANSACTION_SYNC:
+        self->HandleEvent(event.body.transaction_sync);
         break;
       default:
         LOG(ERROR) << "Uninitialized/corrupt event discarded. tag="
@@ -320,7 +329,8 @@ void SpiManager::HandleEvent(const TransmitEvent& event) {
   if (event.run_before) event.run_before();
 
   VLOG(1) << "Start DMA transfer channel=" << *event.device->spi_->dma_tx_
-          << " buf=" << event.buf << " len=" << event.len;
+          << " buf=" << static_cast<const void*>(event.buf)
+          << " len=" << event.len;
   dma_channel_transfer_from_buffer_now(*event.device->spi_->dma_tx_, event.buf,
                                        event.len);
   // Wait for the DMA to complete before processing any more events.
@@ -343,23 +353,36 @@ void SpiManager::HandleEvent(const ReceiveEvent& event) {
   LOG(FATAL) << "not implemented";
 }
 
-void SpiManager::HandleEvent(const EndTransactionEvent& event) {
-  VLOG(1) << "EndTransactionEvent device=" << event.device->name_;
+void SpiManager::HandleEvent(const TransactionSyncEvent& event) {
+  VLOG(1) << "TransactionSyncEvent device=" << event.device->name_
+          << " type=" << static_cast<int>(event.type);
   CHECK_EQ(active_device_, event.device)
       << "active_device_->name_=" << active_device_->name_
       << "; event.device->name_=" << event.device->name_;
-
-  // Deselect the device.
-  gpio_put(active_device_->cs_, 1);
-  active_device_ = nullptr;
-
-  // At this point the SpiTransaction will likely already have exited its
-  // destructor, abandoning ownership of `transaction_mutex_` to us. We can
-  // release it now, since all events related to this device should have
-  // finished being processed.
   CHECK_EQ(uxQueueMessagesWaiting(event_queue_), 0u)
       << "Transaction finished but there are still events in the queue.";
-  xSemaphoreGive(transaction_mutex_);
+
+  switch (event.type) {
+    case TransactionSyncEvent::Type::END_TRANSACTION: {
+      // Deselect the device.
+      gpio_put(active_device_->cs_, 1);
+      active_device_ = nullptr;
+
+      // Signal the originating task to continue, so it can release
+      // transaction_mutex_.
+      CHECK(xSemaphoreGive(event.end_transaction_sem));
+      VLOG(1) << "END_TRANSACTION done.";
+    } break;
+    case TransactionSyncEvent::Type::FLUSH: {
+      // Allow Flush() to proceed.
+      CHECK_EQ(uxSemaphoreGetCount(flush_sem_), 0u);
+      CHECK(xSemaphoreGive(flush_sem_));
+      VLOG(1) << "FLUSH done.";
+    } break;
+    default:
+      LOG(FATAL) << "Invalid TransactionSyncEvent type "
+                 << static_cast<int>(event.type);
+  }
 }
 
 std::optional<SpiTransaction> SpiDevice::StartTransaction(
@@ -378,23 +401,30 @@ std::optional<SpiTransaction> SpiDevice::StartTransaction(
 SpiTransaction::SpiTransaction(SpiDevice* device)
     : moved_from_(false),
       device_(device),
-      blocking_mutex_(CHECK_NOTNULL(
-          new SemaphoreHandle_t(CHECK_NOTNULL(xSemaphoreCreateBinary())))) {}
+      flush_pending_(false),
+      blocking_sem_(CHECK_NOTNULL(
+          new SemaphoreHandle_t(CHECK_NOTNULL(xSemaphoreCreateBinary())))),
+      end_transaction_sem_(CHECK_NOTNULL(
+          new SemaphoreHandle_t(CHECK_NOTNULL(xSemaphoreCreateBinary())))),
+      originating_task_(CHECK_NOTNULL(xTaskGetCurrentTaskHandle())) {}
 
 SpiTransaction::SpiTransaction(SpiTransaction&& other)
     : moved_from_(false),
       device_(other.device_),
-      blocking_mutex_(std::move(other.blocking_mutex_)) {
+      flush_pending_(other.flush_pending_),
+      blocking_sem_(std::move(other.blocking_sem_)),
+      end_transaction_sem_(std::move(other.end_transaction_sem_)),
+      originating_task_(other.originating_task_) {
   other.moved_from_ = true;
 }
 
 void SpiTransaction::SemaphoreDeleter::operator()(SemaphoreHandle_t* sem) {
   if (sem && *sem) vSemaphoreDelete(*sem);
-  VLOG(1) << "SemaphoreDeleter OK " << sem;
 }
 
 SpiTransaction::Result SpiTransaction::Transmit(const TxMessage& msg,
                                                 TickType_t ticks_to_wait) {
+  CHECK(!moved_from_);
   VLOG(1) << "Transmit() device=" << device_->name_ << " len=" << msg.len;
   CHECK_EQ(device_->spi_->active_device_, device_);
   SpiManager::Event event(SpiManager::TransmitEvent{
@@ -413,10 +443,11 @@ SpiTransaction::Result SpiTransaction::Transmit(const TxMessage& msg,
 SpiTransaction::Result SpiTransaction::TransmitBlocking(
     const TxMessage& msg, TickType_t ticks_to_wait_enqueue,
     TickType_t ticks_to_wait_transmit) {
+  CHECK(!moved_from_);
   VLOG(1) << "TransmitBlocking() start device=" << device_->name_
           << " len=" << msg.len;
   CHECK_EQ(device_->spi_->active_device_, device_);
-  SemaphoreHandle_t sem = *blocking_mutex_;
+  SemaphoreHandle_t sem = *blocking_sem_;
   SpiManager::Event event(SpiManager::TransmitEvent{
       .device = device_,
       .buf = msg.buf,
@@ -425,7 +456,7 @@ SpiTransaction::Result SpiTransaction::TransmitBlocking(
       .run_after =
           [sem, orig_run_after = msg.run_after]() {
             if (orig_run_after) orig_run_after();
-            xSemaphoreGive(sem);
+            CHECK(xSemaphoreGive(sem));
           },
   });
   if (!xQueueSendToBack(device_->spi_->event_queue_, &event,
@@ -435,7 +466,7 @@ SpiTransaction::Result SpiTransaction::TransmitBlocking(
   VLOG(1) << "TransmitBlocking() enqueued device=" << device_->name_
           << " len=" << msg.len;
   if (!xSemaphoreTake(sem, ticks_to_wait_transmit)) {
-    return Result::TRANSMIT_TIMEOUT;
+    return Result::EXEC_TIMEOUT;
   }
   VLOG(1) << "TransmitBlocking() complete device=" << device_->name_
           << " len=" << msg.len;
@@ -444,17 +475,62 @@ SpiTransaction::Result SpiTransaction::TransmitBlocking(
 
 SpiTransaction::~SpiTransaction() {
   if (moved_from_) return;
-
   VLOG(1) << "~SpiTransaction device=" << device_->name_;
-  LOG(FATAL) << "~SpiTransaction not implemented";
+  CHECK_EQ(originating_task_, xTaskGetCurrentTaskHandle())
+      << "An SpiTransaction must be deleted by the same task that created it!";
 
-  // TODO: need to handle both cases: when transmits are pending and when
-  // they're not. either way we need to deselect the device and release the
-  // lock as soon as the queue empties.
+  SpiManager::Event event(SpiManager::TransactionSyncEvent{
+      .type = SpiManager::TransactionSyncEvent::Type::END_TRANSACTION,
+      .device = device_,
+      .end_transaction_sem = *end_transaction_sem_,
+  });
+  CHECK(xQueueSendToBack(device_->spi_->event_queue_, &event, portMAX_DELAY));
 
-  // XXX: idea: use QueueSets in TaskFn to wait on {transmit, receive, done}.
-  // From here, send `done`. TaskFn checks all queues at the end of each
-  // processing loop and does end-of-tx stuff when
+  if (flush_pending_) {
+    // We need to consume any pending flush signal, otherwise SpiManager will
+    // eventually get stuck.
+    CHECK(xSemaphoreTake(device_->spi_->flush_sem_, portMAX_DELAY));
+  }
+
+  // Wait for SpiManager to reach the end of the queue and deselect this device's CS line, before allowing another transaction to begin.
+  CHECK(xSemaphoreTake(*end_transaction_sem_, portMAX_DELAY));
+  CHECK(xSemaphoreGive(device_->spi_->transaction_mutex_));
+}
+
+SpiTransaction::Result SpiTransaction::Flush(TickType_t ticks_to_wait_enqueue,
+                                             TickType_t ticks_to_wait_flush) {
+  CHECK(!moved_from_);
+  if (!flush_pending_) {
+    SpiManager::Event event(SpiManager::TransactionSyncEvent{
+        .type = SpiManager::TransactionSyncEvent::Type::FLUSH,
+        .device = device_,
+    });
+    if (xQueueSendToBack(device_->spi_->event_queue_, &event,
+                         ticks_to_wait_enqueue)) {
+      flush_pending_ = true;
+      if (xSemaphoreTake(device_->spi_->flush_sem_, ticks_to_wait_flush)) {
+        return Result::OK;
+      } else {
+        return Result::EXEC_TIMEOUT;
+      }
+    } else {
+      return Result::ENQUEUE_TIMEOUT;
+    }
+  } else {
+    // A previously timed-out flush is still pending; wait for it to complete
+    // first.
+    TickType_t start = xTaskGetTickCount();
+    if (!xSemaphoreTake(device_->spi_->flush_sem_, ticks_to_wait_flush)) {
+      return Result::EXEC_TIMEOUT;
+    }
+    flush_pending_ = false;
+    // We'll now need to catch up in case any transmits or receives were queued
+    // up since the last Flush call. This isn't strictly necessary, but
+    // preserves a kind of linearity guarantee for the user: after *any*
+    // successful call to Flush(), all queued operations are finished.
+    TickType_t end = xTaskGetTickCount();
+    return Flush(ticks_to_wait_enqueue, ticks_to_wait_flush - (end - start));
+  }
 }
 
 }  // namespace tplp

@@ -42,7 +42,7 @@ class SpiManager {
                       dma_irq_number_t dma_irq_number,
                       std::optional<dma_channel_t> dma_tx, int actual_frequency,
                       SemaphoreHandle_t transaction_mutex,
-                      QueueHandle_t event_queue);
+                      QueueHandle_t event_queue, SemaphoreHandle_t flush_sem);
   static void TaskFn(void*);
 
   // Caller must hold transaction_mutex_
@@ -53,8 +53,8 @@ class SpiManager {
   void HandleEvent(const TransmitEvent&);
   struct ReceiveEvent;
   void HandleEvent(const ReceiveEvent&);
-  struct EndTransactionEvent;
-  void HandleEvent(const EndTransactionEvent&);
+  struct TransactionSyncEvent;
+  void HandleEvent(const TransactionSyncEvent&);
 
  private:
   spi_inst_t* const spi_;
@@ -64,13 +64,20 @@ class SpiManager {
   const int actual_frequency_;
   TaskHandle_t task_;
 
-  // Held for the duration of an `SpiTransaction`.
-  SemaphoreHandle_t transaction_mutex_;
+  // Primary event queue.
   QueueHandle_t event_queue_;
-  // Only used for consistency checks.
+  // Held for the duration of an `SpiTransaction`. Note that as it's a mutex
+  // with priority inheritance (which is important in this case!), it must be
+  // returned by the same task that took it.
+  SemaphoreHandle_t transaction_mutex_;
+  // Synchronizes with SpiTransaction::Flush().
+  SemaphoreHandle_t flush_sem_;
+
+  // Used for consistency checks.
   SpiDevice* active_device_;
 };
 
+// See comments on the destructor for important usage notes.
 class SpiTransaction {
   friend class SpiDevice;
 
@@ -93,16 +100,14 @@ class SpiTransaction {
     ENQUEUE_TIMEOUT,
     // Timed out waiting for the operation to finish. It will still be executed
     // at some point in the future.
-    TRANSMIT_TIMEOUT,
+    EXEC_TIMEOUT,
   };
 
  public:
-  // Ends the transaction and allows the lock on the bus to be released when all
-  // pending operations have completed. If you want to wait for them to finish,
-  // use `Flush()`.
+  // Wait for all pending operations to complete and releases the transaction's
+  // lock on the SPI bus.
   ~SpiTransaction();
   // Moveable, but not copyable.
-  // FIXME: shouldn't the default impl be good enough?
   SpiTransaction(SpiTransaction&&);
 
   // Attempts to queue the given message for transmission, then returns without
@@ -125,7 +130,16 @@ class SpiTransaction {
                           TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
                           TickType_t ticks_to_wait_transmit = portMAX_DELAY);
 
-  // TODO: Flush()
+  // Returns OK if operations so far have been committed.
+  // Returns ENQUEUE_TIMEOUT if the event queue was too full. In this case, the
+  // flush will not be executed.
+  // Otherwise returns EXEC_TIMEOUT. In this case, the flush remains pending and
+  // you may attempt to wait for it again. Any additional operations queued up
+  // in the interim will also be flushed by this second (3rd, 4th, etc) Flush
+  // call. Note that any pending flushes will be completed in the destructor
+  // regardless.
+  Result Flush(TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
+               TickType_t ticks_to_wait_flush = portMAX_DELAY);
 
  private:
   SpiTransaction(const SpiTransaction&) = delete;
@@ -136,12 +150,19 @@ class SpiTransaction {
  private:
   bool moved_from_;
   SpiDevice* const device_;
+  bool flush_pending_;
 
   struct SemaphoreDeleter {
     void operator()(SemaphoreHandle_t*);
   };
   // A semaphore used in the implementation of TransmitBlocking.
-  std::unique_ptr<SemaphoreHandle_t, SemaphoreDeleter> blocking_mutex_;
+  // TODO: It would be more efficient to use a direct-to-task notification!
+  std::unique_ptr<SemaphoreHandle_t, SemaphoreDeleter> blocking_sem_;
+  // TODO: It would be more efficient to use a direct-to-task notification!
+  std::unique_ptr<SemaphoreHandle_t, SemaphoreDeleter> end_transaction_sem_;
+
+  // Used for consistency checks.
+  TaskHandle_t originating_task_;
 };
 
 class SpiDevice {
@@ -152,7 +173,8 @@ class SpiDevice {
   // Locks the SPI bus to this device and returns a transaction handle that can
   // be used to send and receive messages. Returns `std::nullopt` if a lock on
   // the bus could not be obtained before `timeout` (due to other transactions
-  // in progress).
+  // in progress). The returned SpiTransaction object MUST be deleted by the
+  // same task that created it.
   std::optional<SpiTransaction> StartTransaction(TickType_t timeout);
 
   // As `StartTransaction(timeout)`, but waits forever.

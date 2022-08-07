@@ -6,12 +6,12 @@
 #include "FreeRTOS/task.h"
 #include "pico/platform.h"
 #include "pico/time.h"
+#include "picolog/picolog.h"
 
 extern "C" {
 // FreeRTOS assertion failure handler
 void FreeRTOS_AssertionFailed(const char* const file, unsigned long line) {
-  printf("FreeRTOS assertion failed at: %s:%lu\n", file, line);
-  panic("FreeRTOS assertion failed");
+  LOG(FATAL) << "FreeRTOS assertion failed at " << file << ":" << line;
 }
 
 void FreeRTOS_ConfigureTimeForRunTimeStats() {
@@ -25,10 +25,12 @@ unsigned long FreeRTOS_GetRunTimeCounterValue() {
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t task, char* name) {
-  panic("Stack overflow in task: %s\n", name);
+  LOG(FATAL) << "Stack overflow in task " << name;
 }
 
-void lvgl_assertion_failed() { panic("lvgl assertion failed"); }
+void lvgl_assertion_failed() {
+  LOG(FATAL) << "lvgl assertion failed (no further information)";
+}
 
 // configSUPPORT_STATIC_ALLOCATION and configUSE_TIMERS are both set to 1, so
 // the application must provide an implementation of

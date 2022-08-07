@@ -51,6 +51,7 @@ cc_library(
     deps = [
         "@FreeRTOS",
         "@rules_pico//pico:pico_time",
+        "//picolog",
     ],
     alwayslink = 1,
 )

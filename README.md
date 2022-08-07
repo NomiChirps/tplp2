@@ -29,6 +29,7 @@ Note that USB serial stdio is not available while debugging because pico-debug u
 
 See also: https://github.com/majbthrd/pico-debug/blob/master/howto/vscode1.md
 
+1. (temporarily) Update `searchDir` in vscode/launch.json to point to your own OpenOCD installation.
 1. Put Pico into bootloader mode (reset while holding BOOTSEL).
 1. Run the `flash pico-debug` task in VSCode. This downloads a prebuilt pico-debug image and copies it to the device. Pico is now running the debugger on core 1.
 1. Build tplp in debug mode by running the `[debug] build` task.
@@ -52,6 +53,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## TODO / Notes
 
+- [ ] next up: VLOG to reduce noise, then HX8357 self test :)
 - [ ] fix compile_commands extraction, again (problem with lvgl build? maybe strip_include_prefix works correctly on Linux?)
 - [ ] bazel build for OpenOCD binary!
 - [ ] Create a front panel UI
