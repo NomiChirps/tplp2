@@ -10,6 +10,7 @@
 #include "FreeRTOS/semphr.h"
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
+#include "hardware/irq.h"
 #include "picolog/picolog.h"
 #include "tplp/time.h"
 #include "tplp/tplp_config.h"
@@ -492,7 +493,8 @@ SpiTransaction::~SpiTransaction() {
     CHECK(xSemaphoreTake(device_->spi_->flush_sem_, portMAX_DELAY));
   }
 
-  // Wait for SpiManager to reach the end of the queue and deselect this device's CS line, before allowing another transaction to begin.
+  // Wait for SpiManager to reach the end of the queue and deselect this
+  // device's CS line, before allowing another transaction to begin.
   CHECK(xSemaphoreTake(*end_transaction_sem_, portMAX_DELAY));
   CHECK(xSemaphoreGive(device_->spi_->transaction_mutex_));
 }
