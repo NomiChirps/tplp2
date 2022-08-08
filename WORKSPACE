@@ -30,16 +30,14 @@ rules_pico_dependencies()
 
 rules_pico_toolchains()
 
-# Latest on the main branch.
-FREERTOS_COMMIT = "c22f40d9a5e239fdfd98bfc210a33c26a627b9f6"
-
-http_archive(
+local_repository(
     name = "FreeRTOS",
-    build_file = "//third_party:BUILD.FreeRTOS",
-    sha256 = "4b6b28745cb1f1755596b12bb04549a1dc0eacdbcb16facd8754a6f7cfb72546",
-    strip_prefix = "FreeRTOS-Kernel-" + FREERTOS_COMMIT,
-    url = "https://github.com/FreeRTOS/FreeRTOS-Kernel/archive/" + FREERTOS_COMMIT + ".zip",
+    path = "third_party/FreeRTOS",
 )
+
+load("@FreeRTOS//:repositories.bzl", "freertos_dependencies")
+
+freertos_dependencies()
 
 ETL_COMMIT = "20.31.2"
 

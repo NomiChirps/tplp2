@@ -12,7 +12,7 @@
 
 load("@//:defs.bzl", "join_lists")
 
-package(default_visibility = ["//visibility:private"])
+package(default_visibility = ["@FreeRTOS//:__subpackages__"])
 
 INCLUDE_DIRS = [
     "include",
@@ -46,14 +46,13 @@ genrule(
 cc_library(
     name = "FreeRTOS-headers",
     hdrs = HEADERS,
-    deps = [":FreeRTOSConfig"],
+    deps = ["@FreeRTOS//config:FreeRTOSConfig"],
 )
 
 cc_library(
     name = "FreeRTOS",
     srcs = SOURCES,
     hdrs = ["FreeRTOS/FreeRTOS.h"],
-    visibility = ["//visibility:public"],
     deps = [
         ":FreeRTOS-headers",
         "@rules_pico//pico:hardware_clocks",
@@ -70,10 +69,9 @@ cc_library(
 cc_library(
     name = "freertos_sdk_config",
     hdrs = ["FreeRTOS/freertos_sdk_config.h"],
-    visibility = ["//visibility:public"],
     deps = [
-        ":FreeRTOSConfig",
         ":rp2040_config",
+        "@FreeRTOS//config:FreeRTOSConfig",
     ],
 )
 
@@ -96,10 +94,4 @@ cc_library(
     # Should be included at the end of user FreeRTOSConfig.h
     name = "rp2040_config",
     hdrs = ["FreeRTOS/rp2040_config.h"],
-    visibility = ["//visibility:public"],
-)
-
-label_flag(
-    name = "FreeRTOSConfig",
-    build_setting_default = "@//:FreeRTOSConfig.h",
 )
