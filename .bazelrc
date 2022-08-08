@@ -1,6 +1,9 @@
 build --verbose_failures
 build --cxxopt=-std=c++17
 
+# Needed for FreeRTOS
+build --experimental_cc_implementation_deps
+
 # Enable new-style C++ toolchain resolution and set the target platform
 # These could be "common" options, but 'bazel dump' (among others) doesn't recognize them; see https://github.com/bazelbuild/bazel/issues/3054
 build --incompatible_enable_cc_toolchain_resolution

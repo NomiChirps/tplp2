@@ -1,4 +1,3 @@
-# Yeah this is a bunch of cobbled-together nonsense.
 # Hardcoded to use the RP2040 port.
 #
 # Required flags in .bazelrc:
@@ -6,55 +5,120 @@
 #     build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//:freertos_sdk_config
 #     build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
 # Alternatively, use pico_build_with_config() to supply these parameters to your binary instead.
-#
-# TODO: watch https://github.com/bazelbuild/bazel/issues/14950. when that's sorted out,
-#       break the dependency cycles using implementation_deps and reorganize this entire thing.
-
-load("@FreeRTOS//:defs.bzl", "join_lists")
+# TODO: write a little .c file with a #error in it to test that these flags are set
 
 package(default_visibility = ["@FreeRTOS//:__subpackages__"])
 
-INCLUDE_DIRS = [
-    "include",
-    "portable/ThirdParty/GCC/RP2040/include",
+cc_library(
+    name = "FreeRTOS",
+    deps = [
+        ":FreeRTOS-Kernel",
+        ":heap_4",
+        ":port_impl",
+    ],
+)
+
+KERNEL_HDRS = [
+    "include/FreeRTOS.h",
+    "include/StackMacros.h",
+    "include/atomic.h",
+    "include/croutine.h",
+    "include/deprecated_definitions.h",
+    "include/event_groups.h",
+    "include/list.h",
+    "include/message_buffer.h",
+    "include/mpu_prototypes.h",
+    "include/mpu_wrappers.h",
+    "include/portable.h",
+    "include/projdefs.h",
+    "include/queue.h",
+    "include/semphr.h",
+    "include/stack_macros.h",
+    "include/stream_buffer.h",
+    "include/task.h",
+    "include/timers.h",
+    # Copied by genrule to allow these other headers to bare-include it, without polluting the search path for dependents
+    "include/portmacro.h",
 ]
 
-HEADERS = join_lists([[i.replace(d, "FreeRTOS", 1) for i in glob([d + "/*.h"])] for d in INCLUDE_DIRS])
+cc_library(
+    name = "FreeRTOS-Kernel",
+    srcs = [
+        "croutine.c",
+        "event_groups.c",
+        "list.c",
+        "queue.c",
+        "stream_buffer.c",
+        "tasks.c",
+        "timers.c",
+    ],
+    hdrs = KERNEL_HDRS,
+    implementation_deps = [
+        ":FreeRTOS-Kernel-headers-bareinclude",
+    ],
+    include_prefix = "FreeRTOS",
+    strip_include_prefix = "include",
+    deps = [
+        "@FreeRTOS//config:FreeRTOSConfig",
+        # Provide portmacro as a prefixed include to dependents
+        ":portmacro",
+    ],
+)
 
-# i.e., in addition to "."
-EXTRA_SOURCE_DIRS = [
-    "portable/ThirdParty/GCC/RP2040",
-]
+cc_library(
+    name = "FreeRTOS-Kernel-headers-bareinclude",
+    hdrs = KERNEL_HDRS,
+    strip_include_prefix = "include",
+)
+
+genrule(
+    name = "copy_portmacro_for_bareinclude",
+    srcs = [
+        "portable/ThirdParty/GCC/RP2040/include/portmacro.h",
+    ],
+    outs = [
+        "include/portmacro.h",
+    ],
+    cmd_bash = "cp $< $@",
+)
 
 # heap_1 does not permit deletion
 # heap_2 permits deletion but does not coalesce
 # heap_3 wraps malloc/free (avoid)
 # heap_4 coalesces
-HEAP_IMPL = "heap_4.c"
-
-SOURCES = join_lists([[i.replace(d, "FreeRTOS", 1) for i in glob([d + "/*.c"])] for d in EXTRA_SOURCE_DIRS]) + ["FreeRTOS/" + s for s in glob(["*.c"]) + [HEAP_IMPL]]
-
-# There are some gnarly dependency cycles in FreeRTOS, and no include-prefix discipline. To cope with this we simply dump everything into a directory named "FreeRTOS" and compile it all together at once.
-genrule(
-    name = "_construct_source_tree",
-    srcs = glob([d + "/*.h" for d in INCLUDE_DIRS] + [d + "/*.c" for d in EXTRA_SOURCE_DIRS] + ["*.c"]) + ["portable/MemMang/" + HEAP_IMPL],
-    outs = HEADERS + SOURCES,
-    cmd_bash = "mkdir -p $(RULEDIR)/FreeRTOS; cp $(SRCS) $(RULEDIR)/FreeRTOS",
-    cmd_ps = "New-Item -Path $(RULEDIR) -Name FreeRTOS -ItemType directory -Force | Out-Null; Copy-Item -Path \"$(SRCS)\".Split() -Destination $(RULEDIR)/FreeRTOS/",
-)
-
 cc_library(
-    name = "FreeRTOS-headers",
-    hdrs = HEADERS,
-    deps = ["@FreeRTOS//config:FreeRTOSConfig"],
-)
-
-cc_library(
-    name = "FreeRTOS",
-    srcs = SOURCES,
-    hdrs = ["FreeRTOS/FreeRTOS.h"],
+    name = "heap_4",
+    srcs = ["portable/MemMang/heap_4.c"],
+    implementation_deps = [
+        ":FreeRTOS-Kernel-headers-bareinclude",
+    ],
     deps = [
-        ":FreeRTOS-headers",
+        ":FreeRTOS-Kernel",
+    ],
+)
+
+cc_library(
+    name = "freertos_sdk_config",
+    hdrs = ["portable/ThirdParty/GCC/RP2040/include/freertos_sdk_config.h"],
+    include_prefix = "FreeRTOS",
+    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
+    deps = [
+        ":rp2040_config_bareinclude",
+        "@FreeRTOS//config:FreeRTOSConfig",
+    ],
+)
+
+cc_library(
+    name = "port_impl",
+    srcs = [
+        "portable/ThirdParty/GCC/RP2040/idle_task_static_memory.c",
+        "portable/ThirdParty/GCC/RP2040/port.c",
+    ],
+    implementation_deps = [
+        ":FreeRTOS-Kernel-headers-bareinclude",
+    ],
+    deps = [
+        ":FreeRTOS-Kernel",
         "@rules_pico//pico:hardware_clocks",
         "@rules_pico//pico:hardware_exception",
         "@rules_pico//pico:hardware_irq",
@@ -67,31 +131,28 @@ cc_library(
 )
 
 cc_library(
-    name = "freertos_sdk_config",
-    hdrs = ["FreeRTOS/freertos_sdk_config.h"],
-    deps = [
-        ":rp2040_config",
-        "@FreeRTOS//config:FreeRTOSConfig",
+    name = "portmacro",
+    hdrs = [
+        "portable/ThirdParty/GCC/RP2040/include/portmacro.h",
     ],
-)
-
-cc_library(
-    name = "port_impl",
-    # Source files from the RP2040 port that were copied by _construct_source_tree
-    srcs = [
-        "FreeRTOS/idle_task_static_memory.c",
-        "FreeRTOS/port.c",
-    ],
+    include_prefix = "FreeRTOS",
+    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
     deps = [
-        ":FreeRTOS",
+        # This dependency could be narrower, but rules_pico doesn't expose anything smaller at the time of writing. It's not that important anyway.
         "@rules_pico//pico:pico_stdlib",
     ],
-    # Needed for when @rules_pico depends on :freertos_sdk_config.
-    alwayslink = 1,
 )
 
 cc_library(
     # Should be included at the end of user FreeRTOSConfig.h
     name = "rp2040_config",
-    hdrs = ["FreeRTOS/rp2040_config.h"],
+    hdrs = ["portable/ThirdParty/GCC/RP2040/include/rp2040_config.h"],
+    include_prefix = "FreeRTOS",
+    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
+)
+
+cc_library(
+    name = "rp2040_config_bareinclude",
+    hdrs = ["portable/ThirdParty/GCC/RP2040/include/rp2040_config.h"],
+    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
 )
