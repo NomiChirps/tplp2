@@ -65,12 +65,12 @@ cc_library(
     ],
 )
 
-label_flag(
+label_setting(
     name = "lv_conf",
     build_setting_default = ":lv_conf_none",
 )
 
-label_flag(
+label_setting(
     name = "lv_drv_conf",
     build_setting_default = ":lv_drv_conf_none",
     visibility = ["@lv_drivers//:__subpackages__"],
