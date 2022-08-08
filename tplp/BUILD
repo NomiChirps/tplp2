@@ -11,7 +11,7 @@ cc_library(
     name = "FreeRTOSConfig",
     hdrs = ["FreeRTOSConfig.h"],
     strip_include_prefix = "/tplp",
-    deps = ["@FreeRTOS//:rp2040_config"],
+    deps = ["@FreeRTOS//ports/GCC_RP2040:rp2040_config"],
 )
 
 cc_library(
@@ -42,7 +42,7 @@ pico_build_with_config(
     float_impl = "none",
     input = ":firmware_unconfigured",
     rtos_adapter_enable = True,
-    rtos_adapter_header = "@FreeRTOS//:freertos_sdk_config",
+    rtos_adapter_header = "@FreeRTOS//ports/GCC_RP2040:freertos_sdk_config",
     rtos_adapter_header_name = "FreeRTOS/freertos_sdk_config.h",
     stdio_semihosting = False,
     stdio_uart = False,

@@ -1,11 +1,4 @@
-# Hardcoded to use the RP2040 port.
-#
-# Required flags in .bazelrc:
-#     build --@rules_pico//pico/config:rtos_adapter_enable=True
-#     build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//:freertos_sdk_config
-#     build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
-# Alternatively, use pico_build_with_config() to supply these parameters to your binary instead.
-# TODO: write a little .c file with a #error in it to test that these flags are set
+load("@FreeRTOS//:defs.bzl", "PORT_PATHS")
 
 package(default_visibility = ["@FreeRTOS//:__subpackages__"])
 
@@ -14,8 +7,9 @@ cc_library(
     deps = [
         ":FreeRTOS-Kernel",
         ":heap_4",
-        ":port_impl",
-    ],
+    ] + select({
+        "@FreeRTOS//config/ports:GCC_RP2040": ["@FreeRTOS//ports/GCC_RP2040:port_impl"],
+    }),
 )
 
 KERNEL_HDRS = [
@@ -61,8 +55,9 @@ cc_library(
     deps = [
         "@FreeRTOS//config:FreeRTOSConfig",
         # Provide portmacro as a prefixed include to dependents
-        ":portmacro",
-    ],
+    ] + select({
+        "@FreeRTOS//config/ports:GCC_RP2040": ["@FreeRTOS//ports/GCC_RP2040:portmacro"],
+    }),
 )
 
 cc_library(
@@ -73,9 +68,9 @@ cc_library(
 
 genrule(
     name = "copy_portmacro_for_bareinclude",
-    srcs = [
-        "portable/ThirdParty/GCC/RP2040/include/portmacro.h",
-    ],
+    srcs = select({
+        "@FreeRTOS//config/ports:GCC_RP2040": ["portable/ThirdParty/GCC/RP2040/include/portmacro.h"],
+    }),
     outs = [
         "include/portmacro.h",
     ],
@@ -97,62 +92,7 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "freertos_sdk_config",
-    hdrs = ["portable/ThirdParty/GCC/RP2040/include/freertos_sdk_config.h"],
-    include_prefix = "FreeRTOS",
-    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
-    deps = [
-        ":rp2040_config_bareinclude",
-        "@FreeRTOS//config:FreeRTOSConfig",
-    ],
-)
-
-cc_library(
-    name = "port_impl",
-    srcs = [
-        "portable/ThirdParty/GCC/RP2040/idle_task_static_memory.c",
-        "portable/ThirdParty/GCC/RP2040/port.c",
-    ],
-    implementation_deps = [
-        ":FreeRTOS-Kernel-headers-bareinclude",
-    ],
-    deps = [
-        ":FreeRTOS-Kernel",
-        "@rules_pico//pico:hardware_clocks",
-        "@rules_pico//pico:hardware_exception",
-        "@rules_pico//pico:hardware_irq",
-        "@rules_pico//pico:pico_multicore",
-        "@rules_pico//pico:pico_stdlib",
-        "@rules_pico//pico:pico_sync",
-    ],
-    # Needed for when @rules_pico depends on :freertos_sdk_config.
-    alwayslink = 1,
-)
-
-cc_library(
-    name = "portmacro",
-    hdrs = [
-        "portable/ThirdParty/GCC/RP2040/include/portmacro.h",
-    ],
-    include_prefix = "FreeRTOS",
-    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
-    deps = [
-        # This dependency could be narrower, but rules_pico doesn't expose anything smaller at the time of writing. It's not that important anyway.
-        "@rules_pico//pico:pico_stdlib",
-    ],
-)
-
-cc_library(
-    # Should be included at the end of user FreeRTOSConfig.h
-    name = "rp2040_config",
-    hdrs = ["portable/ThirdParty/GCC/RP2040/include/rp2040_config.h"],
-    include_prefix = "FreeRTOS",
-    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
-)
-
-cc_library(
-    name = "rp2040_config_bareinclude",
-    hdrs = ["portable/ThirdParty/GCC/RP2040/include/rp2040_config.h"],
-    strip_include_prefix = "portable/ThirdParty/GCC/RP2040/include",
-)
+[filegroup(
+    name = name + "_all_srcs",
+    srcs = glob([path + "/**"]),
+) for name, path in PORT_PATHS.items()]

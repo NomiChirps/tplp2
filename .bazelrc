@@ -26,6 +26,8 @@ build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 
 # TODO: add a freertos config for the simulator
 build --@FreeRTOS//config:FreeRTOSConfig=//tplp:FreeRTOSConfig
+build --@FreeRTOS//config:port=GCC_RP2040
+build:simulate --@FreeRTOS//config:port=GCC_POSIX
 
 ## Configuration of various libraries
 build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,HX8357=1\""

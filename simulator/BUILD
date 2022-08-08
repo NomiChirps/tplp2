@@ -11,10 +11,10 @@ cc_binary(
     name = "main",
     srcs = ["main.c"],
     deps = [
+        ":mouse_cursor_icon",
         "//simulator:lvgl",
         "//simulator/ui:main",
         "@SDL2",
-        ":mouse_cursor_icon",
     ],
 )
 
