@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking.
 - [ ] fix lvgl+simulator so it doesn't build SDL2 twice
 - [ ] it is time to reorganize the directory structure again
   - we've got /openocd, /lib, /picolog, /tplp... too many different kinds of things at the top level
