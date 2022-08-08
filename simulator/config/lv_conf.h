@@ -12,7 +12,7 @@
  */
 
 /* clang-format off */
-#if 0 /*Set it to "1" to enable content*/
+#if 1 /*Set it to "1" to enable content*/
 
 #ifndef LV_CONF_H
 #define LV_CONF_H
@@ -576,10 +576,10 @@
 #endif /*LV_USE_THEME_DEFAULT*/
 
 /*A very simple theme that is a good starting point for a custom theme*/
-#define LV_USE_THEME_BASIC 1
+#define LV_USE_THEME_BASIC 0
 
 /*A theme designed for monochrome displays*/
-#define LV_USE_THEME_MONO 1
+#define LV_USE_THEME_MONO 0
 
 /*-----------
  * Layouts
@@ -686,7 +686,7 @@
 #define LV_USE_GRIDNAV 0
 
 /*1: Enable lv_obj fragment*/
-#define LV_USE_FRAGMENT 0
+#define LV_USE_FRAGMENT 1
 
 /*1: Support using images as font in label or span widgets */
 #define LV_USE_IMGFONT 0
