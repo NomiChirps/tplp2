@@ -1,4 +1,11 @@
 load("@rules_pico//pico:defs.bzl", "pico_add_map_output", "pico_add_uf2_output", "pico_binary", "pico_build_with_config", "pico_pio_header")
+load("@lvgl//:defs.bzl", "lvgl_configured_library")
+
+lvgl_configured_library(
+    name = "lvgl",
+    lv_conf = ":lv_conf",
+    visibility = ["//visibility:public"],
+)
 
 cc_library(
     name = "FreeRTOSConfig",
@@ -11,8 +18,8 @@ cc_library(
     name = "lv_conf",
     hdrs = ["lv_conf.h"],
     strip_include_prefix = "/tplp",
-    deps = [":lv_tick_custom"],
     visibility = ["//lib:__pkg__"],
+    deps = [":lv_tick_custom"],
 )
 
 cc_library(
@@ -96,8 +103,8 @@ cc_library(
         ":time",
         ":tplp_config",
         "//picolog",
+        "//tplp:lvgl",
         "@FreeRTOS",
-        "//lib:lvgl",
     ],
 )
 

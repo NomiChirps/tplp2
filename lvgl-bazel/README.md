@@ -23,6 +23,7 @@ cc_library(
     hdrs = ["lv_conf.h"],  # filename must match
     # it must be #include-able with no prefix, i.e.
     #    #include "lv_conf.h"
+    strip_include_prefix = "/this/package",
 )
 
 lvgl_configured_library(

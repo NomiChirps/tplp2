@@ -5,7 +5,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":lvgl_mutex",
-        "//lib:lvgl",
+        "//tplp:lvgl",
         "//picolog",
         "//tplp:tplp_config",
         "//tplp/HX8357",

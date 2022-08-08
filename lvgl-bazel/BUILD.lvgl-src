@@ -23,9 +23,15 @@ cc_library(
 
 cc_library(
     name = "lv_conf_internal",
-    srcs = ["src/lv_conf_kconfig.h"],
-    hdrs = ["src/lv_conf_internal.h"],
-    deps = [":lv_conf"],
+    srcs = [
+        "src/lv_conf_kconfig.h",
+    ],
+    hdrs = [
+        "src/lv_conf_internal.h",
+    ],
+    deps = [
+        ":lv_conf",
+    ],
 )
 
 cc_library(

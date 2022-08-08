@@ -81,3 +81,11 @@ http_file(
     sha256 = "4c232340c7e0a276e0ea94d54c5de7d05e18500a1b5b3984b6dcb67617e9df55",
     urls = ["https://github.com/majbthrd/pico-debug/releases/download/v10.05/pico-debug-gimmecache.uf2"],
 )
+
+# Workaround for Bazel not ignoring subdirectories with a WORKSPACE file in them.
+# openocd isn't part of our build, we just have it here so vscode can use it.
+# See https://github.com/bazelbuild/bazel/issues/2460
+local_repository(
+    name = "do_not_use_ignore_openocd",
+    path = "openocd",
+)
