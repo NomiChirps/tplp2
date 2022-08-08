@@ -13,7 +13,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "serverpath": "${workspaceFolder}/openocd/bazel-bin/external/openocd/openocd/bin/openocd",
+            "serverpath": "${workspaceFolder}/third_party/openocd/bazel-bin/external/openocd/openocd/bin/openocd",
             "configFiles": [
                 "interface/cmsis-dap.cfg",
                 "target/rp2040-core0.cfg",
@@ -29,7 +29,7 @@
                 "continue",
             ],
             "searchDir": [
-                "${workspaceFolder}/openocd/bazel-bin/external/openocd/openocd/share/openocd/scripts",
+                "${workspaceFolder}/third_party/openocd/bazel-bin/external/openocd/openocd/share/openocd/scripts",
             ],
             "preLaunchTask": "debugger-prelaunch",
             // TODO: what does this do and why doesn't it work?

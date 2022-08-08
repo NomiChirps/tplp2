@@ -78,7 +78,7 @@
             "label": "build openocd",
             "command": "bazel",
             "options": {
-                "cwd": "${workspaceFolder}/openocd"
+                "cwd": "${workspaceFolder}/third_party/openocd"
             },
             "args": [
                 "build",

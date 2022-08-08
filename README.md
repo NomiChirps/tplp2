@@ -18,8 +18,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 - 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking.
 - [ ] fix lvgl+simulator so it doesn't build SDL2 twice
-- [ ] it is time to reorganize the directory structure again
-  - we've got /openocd, /lib, /picolog, /tplp... too many different kinds of things at the top level
 - [ ] HX8357 self test :)
 - [ ] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [ ] Create a front panel UI
@@ -91,7 +89,7 @@ Note that USB serial stdio is not available while debugging because pico-debug u
 1. You will need to have the standard GNU autotools/configure/make toolchain installed on your system, for building OpenOCD.
 1. Make sure you'll have the appropriate permissions to access the pico-debug CMSIS-DAP USB device; this can be accomplished by adding a [udev rule](https://github.com/openocd-org/openocd/blob/master/contrib/60-openocd.rules) and adding yourself to the `plugdev` group mentioned in that rule (or edit the rule to use a different group).
 1. If using Visual Studio Code, install the "Cortex-Debug" extension.
-1. If not using Visual Studio Code, build OpenOCD: `cd openocd; bazel build //:openocd`. This will download and compile the appropriate version of OpenOCD within the Bazel sandbox, leaving the binaries in `openocd/bazel-bin/external/openocd/openocd/bin/openocd` and the scripts dir in `openocd/bazel-bin/external/openocd/openocd/share/openocd/scripts`. Isn't it funny how if you say openocd enough times it doesn't sound like a real word anymore?
+1. If not using Visual Studio Code, build OpenOCD: `cd third_party/openocd; bazel build //:openocd`. This will download and compile the appropriate version of OpenOCD within the Bazel sandbox, leaving the binaries in `third_party/openocd/bazel-bin/external/openocd/openocd/bin/openocd` and the scripts dir in `third_party/openocd/bazel-bin/external/openocd/openocd/share/openocd/scripts`. Isn't it funny how if you say openocd enough times it doesn't sound like a real word anymore?
 
 ### To debug under VSCode
 
@@ -111,7 +109,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 1. Put Pico into bootloader mode (reset while holding BOOTSEL).
 1. Run `bazel run //tools:flash-pico-debug`, which downloads a prebuilt [pico-debug](https://github.com/majbthrd/pico-debug) binary and copies it to the device. Pico is now running the debugger on core 1.
-1. Start the OpenOCD server: `openocd/bazel-bin/external/openocd/openocd/bin/openocd -s openocd/bazel-bin/external/openocd/openocd/bin/openocd -f interface/cmsis-dap.cfg -f target/rp2040-core0.cfg -c "transport select swd" -c "adapter speed 4000"`. It should connect to the Pico and wait for commands.
+1. Start the OpenOCD server: `third_party/openocd/bazel-bin/external/openocd/openocd/bin/openocd -s third_party/openocd/bazel-bin/external/openocd/openocd/bin/openocd -f interface/cmsis-dap.cfg -f target/rp2040-core0.cfg -c "transport select swd" -c "adapter speed 4000"`. It should connect to the Pico and wait for commands.
 1. Build tplp in debug mode: `bazel build --config=debug //tplp:firmware.elf`
 1. Start GDB: `arm-none-eabi-gdb bazel-bin/tplp/firmware.elf`.
 1. Connect GDB to OpenOCD: `(gdb) target remote localhost:3333`.
@@ -135,6 +133,8 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] it is time to reorganize the directory structure again
+  - we've got /openocd, /lib, /picolog, /tplp... too many different kinds of things at the top level
 - [x] bazel build for OpenOCD binary!
 - [x] WONTFIX: run blaze with layering_check; but need to do it on Linux because it requires CC=clang. might also need to add clang support to rules_pico.
   - this definitely isn't gonna happen. it needs support from the toolchain definition and i don't want to research how to implement that.

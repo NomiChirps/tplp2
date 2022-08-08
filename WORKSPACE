@@ -2,7 +2,7 @@ workspace(name = "tplp2")
 
 local_repository(
     name = "lvgl",
-    path = "lvgl-bazel",
+    path = "third_party/lvgl",
 )
 
 load("@lvgl//:repositories.bzl", "lvgl_dependencies")
@@ -35,7 +35,7 @@ FREERTOS_COMMIT = "c22f40d9a5e239fdfd98bfc210a33c26a627b9f6"
 
 http_archive(
     name = "FreeRTOS",
-    build_file = "//:BUILD.FreeRTOS",
+    build_file = "//third_party:BUILD.FreeRTOS",
     sha256 = "4b6b28745cb1f1755596b12bb04549a1dc0eacdbcb16facd8754a6f7cfb72546",
     strip_prefix = "FreeRTOS-Kernel-" + FREERTOS_COMMIT,
     url = "https://github.com/FreeRTOS/FreeRTOS-Kernel/archive/" + FREERTOS_COMMIT + ".zip",
@@ -45,7 +45,7 @@ ETL_COMMIT = "20.31.2"
 
 http_archive(
     name = "etl",
-    build_file = "//:BUILD.etl.include",
+    build_file = "//third_party:BUILD.etl.include",
     sha256 = "8e290aabf5f3bf69a94ddce174d96b4fb21a3bde372fb64f80cf29e6f4e32c85",
     strip_prefix = "etl-" + ETL_COMMIT + "/include",
     url = "https://github.com/ETLCPP/etl/archive/" + ETL_COMMIT + ".zip",
@@ -70,7 +70,7 @@ NAMEDTYPE_COMMIT = "77a95c8002a28f5cb48d2d0cd985904d66912af3"
 
 http_archive(
     name = "NamedType",
-    build_file = "//:BUILD.NamedType",
+    build_file = "//third_party:BUILD.NamedType",
     sha256 = "708f0dcbc2d6321a9b696212e1f33dc0286ff942f93b09039884739f37050268",
     strip_prefix = "NamedType-" + NAMEDTYPE_COMMIT + "/include",
     url = "https://github.com/joboccara/NamedType/archive/" + NAMEDTYPE_COMMIT + ".zip",
@@ -87,14 +87,14 @@ http_file(
 # See https://github.com/bazelbuild/bazel/issues/2460
 local_repository(
     name = "do_not_use_ignore_openocd",
-    path = "openocd",
+    path = "third_party/openocd",
 )
 
 SDL2_VERSION = "2.0.22"
 
 http_archive(
     name = "SDL2",
-    build_file = "//:BUILD.SDL2",
+    build_file = "//third_party:BUILD.SDL2",
     sha256 = "9a81ab724e6dcef96c61a4a2ebe7758e5b8bb191794650d276a20d5148fbd50c",
     strip_prefix = "SDL2-" + SDL2_VERSION,
     url = "https://github.com/libsdl-org/SDL/releases/download/release-" + SDL2_VERSION + "/SDL2-" + SDL2_VERSION + ".zip",
