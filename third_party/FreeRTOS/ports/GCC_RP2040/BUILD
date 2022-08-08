@@ -1,3 +1,5 @@
+load("//:defs.bzl", "copy_port_srcs")
+
 package(default_visibility = ["@FreeRTOS-Kernel//:__subpackages__"])
 
 cc_library(
@@ -34,6 +36,10 @@ cc_library(
         ":config_check_1",
         ":config_check_2",
     ],
+    target_compatible_with = [
+        "@platforms//os:none",
+        "@platforms//cpu:armv6-m",
+    ],
     deps = [
         "@FreeRTOS-Kernel",
         "@rules_pico//pico:hardware_clocks",
@@ -42,10 +48,6 @@ cc_library(
         "@rules_pico//pico:pico_multicore",
         "@rules_pico//pico:pico_stdlib",
         "@rules_pico//pico:pico_sync",
-    ],
-    target_compatible_with = [
-        "@platforms//os:none",
-        "@platforms//cpu:armv6-m",
     ],
     # Needed for idle_task_static_memory.c
     alwayslink = 1,
@@ -70,25 +72,16 @@ cc_library(
     strip_include_prefix = "include",
 )
 
-genrule(
-    name = "port_srcs",
-    srcs = ["@FreeRTOS-Kernel//:GCC_RP2040_all_srcs"],
-    outs = [
+copy_port_srcs(
+    name = "copy_srcs",
+    srcs = [
         "idle_task_static_memory.c",
-        "port.c",
-    ],
-    cmd_bash = "mkdir -p $(RULEDIR) && cp $(SRCS) $(RULEDIR)",
-)
-
-genrule(
-    name = "port_hdrs",
-    srcs = ["@FreeRTOS-Kernel//:GCC_RP2040_all_srcs"],
-    outs = [
         "include/freertos_sdk_config.h",
         "include/portmacro.h",
         "include/rp2040_config.h",
+        "port.c",
     ],
-    cmd_bash = "mkdir -p $(RULEDIR)/include && cp $(SRCS) $(RULEDIR)/include",
+    portdir = "portable/ThirdParty/GCC/RP2040",
 )
 
 cc_library(

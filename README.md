@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] get a compile_commands going for //simulator
 - 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking.
 - [ ] HX8357 self test :)
 - [ ] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)

@@ -4,6 +4,8 @@ Experimental Bazel build for FreeRTOS-Kernel.
 
 All headers exported by this library are placed under the "FreeRTOS/" prefix to avoid polluting the search path.
 
+TODO: make the heap implementation configurable. currently it's always heap_4
+
 ## Usage example
 
 You will of course also need to configure Bazel for cross-compilation, if you're targeting a port other than `GCC_POSIX`.

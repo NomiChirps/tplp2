@@ -1,4 +1,17 @@
-load("@FreeRTOS//:defs.bzl", "PORT_PATHS")
+#
+# BUILD files for ports should declare:
+#   :portmacro
+#       cc_library providing "FreeRTOS/portmacro.h" header, with that prefix
+#   :port_impl
+#       cc_library for the port implementation.
+#
+# Port implementations probably want:
+#    implementation_deps = ["@FreeRTOS-Kernel//:FreeRTOS-Kernel-headers-bareinclude", ...]
+#    deps = ["@FreeRTOS-Kernel", ...]
+#    target_compatible_with = [...]
+#
+
+load("@FreeRTOS//:defs.bzl", "PORT_NAMES")
 
 package(default_visibility = ["@FreeRTOS//:__subpackages__"])
 
@@ -6,9 +19,9 @@ cc_library(
     name = "FreeRTOS",
     deps = [
         ":FreeRTOS-Kernel",
-        ":heap_4",
     ] + select({
-        "@FreeRTOS//config/ports:GCC_RP2040": ["@FreeRTOS//ports/GCC_RP2040:port_impl"],
+        "@FreeRTOS//config/ports:" + name: ["@FreeRTOS//ports/" + name + ":port_impl"]
+        for name in PORT_NAMES
     }),
 )
 
@@ -45,6 +58,13 @@ cc_library(
         "stream_buffer.c",
         "tasks.c",
         "timers.c",
+        # TODO: make heap impl configurable
+        # heap_1 does not permit deletion
+        # heap_2 permits deletion but does not coalesce
+        # heap_3 wraps malloc/free (avoid)
+        # heap_4 coalesces
+        # This is included in srcs and not a separate cc_library because OF COURSE there would be a dependency cycle.
+        "portable/MemMang/heap_4.c",
     ],
     hdrs = KERNEL_HDRS,
     implementation_deps = [
@@ -56,7 +76,8 @@ cc_library(
         "@FreeRTOS//config:FreeRTOSConfig",
         # Provide portmacro as a prefixed include to dependents
     ] + select({
-        "@FreeRTOS//config/ports:GCC_RP2040": ["@FreeRTOS//ports/GCC_RP2040:portmacro"],
+        "@FreeRTOS//config/ports:" + name: ["@FreeRTOS//ports/" + name + ":portmacro"]
+        for name in PORT_NAMES
     }),
 )
 
@@ -66,10 +87,13 @@ cc_library(
     strip_include_prefix = "include",
 )
 
+# FreeRTOS-Kernel code wants to include "portmacro.h" without a prefix.
+# This accomplishes that without polluting the search path upstream.
 genrule(
     name = "copy_portmacro_for_bareinclude",
     srcs = select({
         "@FreeRTOS//config/ports:GCC_RP2040": ["portable/ThirdParty/GCC/RP2040/include/portmacro.h"],
+        "@FreeRTOS//config/ports:GCC_POSIX": ["portable/ThirdParty/GCC/Posix/portmacro.h"],
     }),
     outs = [
         "include/portmacro.h",
@@ -77,22 +101,5 @@ genrule(
     cmd_bash = "cp $< $@",
 )
 
-# heap_1 does not permit deletion
-# heap_2 permits deletion but does not coalesce
-# heap_3 wraps malloc/free (avoid)
-# heap_4 coalesces
-cc_library(
-    name = "heap_4",
-    srcs = ["portable/MemMang/heap_4.c"],
-    implementation_deps = [
-        ":FreeRTOS-Kernel-headers-bareinclude",
-    ],
-    deps = [
-        ":FreeRTOS-Kernel",
-    ],
-)
-
-[filegroup(
-    name = name + "_all_srcs",
-    srcs = glob([path + "/**"]),
-) for name, path in PORT_PATHS.items()]
+# For the port implementations
+exports_files(glob(["portable/**"]))
