@@ -7,8 +7,6 @@ filegroup(
 
 configure_make(
     name = "SDL2",
-    autogen = False,
-    configure_in_place = True,
     env = {
         # Parallelize
         "MAKEFLAGS": "-j6",
