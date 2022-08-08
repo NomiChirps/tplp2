@@ -1,7 +1,7 @@
 build --verbose_failures
 build --cxxopt=-std=c++17
 
-# Needed for FreeRTOS
+# Needed by FreeRTOS
 build --experimental_cc_implementation_deps
 
 # Enable new-style C++ toolchain resolution and set the target platform
@@ -17,6 +17,18 @@ test --platforms=
 # We can't build with just "-c dbg" because there's not enough flash on the board to store ALL the debug symbols.
 # Select this with "--config=debug".
 build:debug -c opt --per_file_copt=//.*\.cc@-O1,-g
+build:debug --@rules_pico//pico/config:stdio_usb=False
+
+# pico-sdk config
+build --@rules_pico//pico/config:board=pico
+build --@rules_pico//pico/config:float_impl=@pico-sdk//:pico_float_none
+build --@rules_pico//pico/config:double_impl=@pico-sdk//:pico_double_none
+build --@rules_pico//pico/config:rtos_adapter_enable=True
+build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//ports/GCC_RP2040:freertos_sdk_config
+build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
+build --@rules_pico//pico/config:stdio_semihosting=False
+build --@rules_pico//pico/config:stdio_uart=False
+build --@rules_pico//pico/config:stdio_usb=True
 build:debug --@rules_pico//pico/config:stdio_usb=False
 
 # For regular old development without a debugger.

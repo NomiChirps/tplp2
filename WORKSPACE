@@ -11,11 +11,11 @@ lvgl_dependencies()
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
-RULES_PICO_COMMIT = "build-with-more-configs"
+RULES_PICO_COMMIT = "07b495846b50442183dcdd722561f10f37810339"
 
 http_archive(
     name = "rules_pico",
-    sha256 = "7676a5066449461ab61762cc4a660d4b3f6f1bff9219977cae08374bd20c1f88",
+    sha256 = "1cb1a22ad6707a78006a8b9a2ca5ff5e67c83591e28c5c68b5658bca096d3fda",
     strip_prefix = "rules_pico-" + RULES_PICO_COMMIT,
     url = "https://github.com/NomiChirps/rules_pico/archive/" + RULES_PICO_COMMIT + ".zip",
 )

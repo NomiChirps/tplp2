@@ -1,10 +1,4 @@
 package(default_visibility = ["@FreeRTOS-Kernel//:__subpackages__"])
-# Required flags in .bazelrc:
-#     build --@rules_pico//pico/config:rtos_adapter_enable=True
-#     build --@rules_pico//pico/config:rtos_adapter_header=@FreeRTOS//ports/GCC_RP2040:freertos_sdk_config
-#     build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_config.h
-# Alternatively, use pico_build_with_config() to supply these parameters to your binary instead.
-# TODO: write a little .c file with a #error in it to test that these flags are set
 
 cc_library(
     # Must be included at the end of the user's FreeRTOSConfig.h
@@ -16,6 +10,7 @@ cc_library(
 )
 
 cc_library(
+    # Must be specified as PICO_CONFIG_RTOS_ADAPTER_HEADER to pico-sdk.
     name = "freertos_sdk_config",
     hdrs = ["include/freertos_sdk_config.h"],
     include_prefix = "FreeRTOS",
@@ -36,6 +31,8 @@ cc_library(
     implementation_deps = [
         "@FreeRTOS-Kernel//:FreeRTOS-Kernel-headers-bareinclude",
         ":rp2040_config_bareinclude",
+        ":config_check_1",
+        ":config_check_2",
     ],
     deps = [
         "@FreeRTOS-Kernel",
@@ -92,4 +89,16 @@ genrule(
         "include/rp2040_config.h",
     ],
     cmd_bash = "mkdir -p $(RULEDIR)/include && cp $(SRCS) $(RULEDIR)/include",
+)
+
+cc_library(
+    name = "config_check_1",
+    srcs = ["config_check_1.c"],
+    implementation_deps = ["@FreeRTOS//config:FreeRTOSConfig"],
+)
+
+cc_library(
+    name = "config_check_2",
+    srcs = ["config_check_2.c"],
+    implementation_deps = ["@rules_pico//pico:pico_stdlib"],
 )
