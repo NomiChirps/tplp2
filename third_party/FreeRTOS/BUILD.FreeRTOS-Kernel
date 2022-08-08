@@ -10,7 +10,7 @@
 # TODO: watch https://github.com/bazelbuild/bazel/issues/14950. when that's sorted out,
 #       break the dependency cycles using implementation_deps and reorganize this entire thing.
 
-load("@//:defs.bzl", "join_lists")
+load("@FreeRTOS//:defs.bzl", "join_lists")
 
 package(default_visibility = ["@FreeRTOS//:__subpackages__"])
 
