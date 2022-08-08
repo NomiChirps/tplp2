@@ -12,7 +12,7 @@ cc_binary(
     deps = [
         "//simulator:lvgl",
         "//simulator/ui:main",
-        # TODO: sdl2
+        "@SDL2",
         # TODO: lv_drivers
     ],
 )

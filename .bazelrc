@@ -5,6 +5,7 @@ build --cxxopt=-std=c++17
 # These could be "common" options, but 'bazel dump' (among others) doesn't recognize them; see https://github.com/bazelbuild/bazel/issues/3054
 build --incompatible_enable_cc_toolchain_resolution
 build --platforms=@rules_pico//platforms:pico
+build:simulate --platforms=
 # Target platform when running tools is the host or exec platform (referred to by the empty string)
 run --platforms=
 test --platforms=
@@ -20,7 +21,7 @@ build:debug --@rules_pico//pico/config:stdio_usb=False
 build:iterate -c opt
 build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 
-# FIXME: we really don't need this. just have the rules refer to tplp directly.
+# TODO: add a freertos config for the simulator
 build --@FreeRTOS//:FreeRTOSConfig=//tplp:FreeRTOSConfig
 
 ## Configuration of various libraries
@@ -43,6 +44,9 @@ build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
 # Flags needed for //picolog:backtrace
 build:debug --copt="-mpoke-function-name"
 build:iterate --copt="-mpoke-function-name"
-# Not clear if we also need the following. Are they implied? Already set?
+# No -mpoke-function-name for the simulate config because it's
+# an ARM-only feature.
+
+# Not clear if we also need the following for backtrace. Are they implied? Already set?
 # Backtrace seems to work fine without them for now.
 #     -fno-omit-frame-pointer -funwind-tables

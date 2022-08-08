@@ -89,3 +89,24 @@ local_repository(
     name = "do_not_use_ignore_openocd",
     path = "openocd",
 )
+
+SDL2_VERSION = "2.0.22"
+
+http_archive(
+    name = "SDL2",
+    build_file = "//:BUILD.SDL2",
+    sha256 = "9a81ab724e6dcef96c61a4a2ebe7758e5b8bb191794650d276a20d5148fbd50c",
+    strip_prefix = "SDL2-" + SDL2_VERSION,
+    url = "https://github.com/libsdl-org/SDL/releases/download/release-" + SDL2_VERSION + "/SDL2-" + SDL2_VERSION + ".zip",
+)
+
+http_archive(
+    name = "rules_foreign_cc",
+    sha256 = "2a4d07cd64b0719b39a7c12218a3e507672b82a97b98c6a89d38565894cf7c51",
+    strip_prefix = "rules_foreign_cc-0.9.0",
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.9.0.tar.gz",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()

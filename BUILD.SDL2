@@ -6,20 +6,19 @@ filegroup(
 )
 
 configure_make(
-    name = "openocd",
-    autogen = True,
-    autogen_command = "bootstrap",
+    name = "SDL2",
+    autogen = False,
     configure_in_place = True,
     env = {
-        # Submodules already initialized by Bazel (see WORKSPACE)
-        "SKIP_SUBMODULE": "1",
         # Parallelize
-        "MAKEFLAGS": "-j8",
+        "MAKEFLAGS": "-j6",
     },
     lib_source = ":all_srcs",
-    out_binaries = ["openocd"],
-    out_data_dirs = ["share/openocd/scripts"],
     target_compatible_with = [
         "@platforms//os:linux",
     ],
+    out_static_libs = [
+        "libSDL2.a",
+    ],
+    visibility = ["//visibility:public"],
 )
