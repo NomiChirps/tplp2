@@ -15,7 +15,6 @@ cc_binary(
         "//simulator/ui:main",
         "@SDL2",
         ":mouse_cursor_icon",
-        # TODO: lv_drivers
     ],
 )
 
