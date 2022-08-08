@@ -13,7 +13,14 @@ cc_library(
     ],
     include_prefix = "lv_drivers",
     deps = [
-        "@SDL2",
+        # End user must link SDL2 with their binary later; otherwise, we'll
+        # end up building SDL2 twice due to it being depended-on from two
+        # different configurations: (1) the user's, (2) this one, which is
+        # across the lvgl_configured_library transition we use to inject
+        # lv_conf.h. This wouldn't necessarily be a problem, just inefficient,
+        # except that Bazel will not allow a shared library (SDL2) to be
+        # linked more than once from different configurations.
+        "@SDL2//:headers_only",
         "@lvgl-src//:lv_drv_conf",
         "@lvgl-src//:lvgl_no_drivers",
     ],

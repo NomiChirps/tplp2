@@ -12,8 +12,17 @@ cmake(
         "-j6",
     ],
     lib_source = ":all_srcs",
-    out_static_libs = [
-        "libSDL2.a",
-    ],
+    out_shared_libs = select({
+        "@platforms//os:linux": ["libSDL2.so"],
+        "@platforms//os:macos": ["libSDL2-2.0.dylib"],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "headers_only",
+    hdrs = glob(["include/*.h"]),
+    include_prefix = "SDL2",
+    strip_include_prefix = "include",
     visibility = ["//visibility:public"],
 )
