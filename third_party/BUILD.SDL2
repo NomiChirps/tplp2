@@ -13,7 +13,7 @@ cmake(
     ],
     lib_source = ":all_srcs",
     out_shared_libs = select({
-        "@platforms//os:linux": ["libSDL2.so"],
+        "@platforms//os:linux": ["libSDL2-2.0.so.0"],
         "@platforms//os:macos": ["libSDL2-2.0.dylib"],
     }),
     visibility = ["//visibility:public"],
