@@ -1,6 +1,7 @@
 def _config_override_impl(settings, attr):
     return {
         "@lvgl-src//:lv_conf": attr.lv_conf,
+        "@lvgl-src//:lv_drv_conf": attr.lv_drv_conf,
     }
 
 config_override = transition(
@@ -8,6 +9,7 @@ config_override = transition(
     inputs = [],
     outputs = [
         "@lvgl-src//:lv_conf",
+        "@lvgl-src//:lv_drv_conf",
     ],
 )
 
@@ -32,6 +34,11 @@ lvgl_configured_library = rule(
         "lv_conf": attr.label(
             doc = "cc_library target that exposes your lv_conf.h header",
             mandatory = True,
+        ),
+        "lv_drv_conf": attr.label(
+            doc = "optional cc_library target that exposes your lv_drv_conf.h header. lv_drivers will not be compiled if this is not provided.",
+            mandatory = False,
+            default = "@lvgl-src//:lv_drv_conf_none",
         ),
     },
 )

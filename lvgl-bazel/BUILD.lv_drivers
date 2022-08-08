@@ -1,0 +1,33 @@
+package(default_visibility = ["@lvgl-src//:__subpackages__"])
+
+cc_library(
+    name = "sdl",
+    srcs = glob([
+        "sdl/*.c",
+        "sdl/*.h",
+    ]),
+    hdrs = [
+        "sdl/sdl.h",
+        "sdl/sdl_common.h",
+        "sdl/sdl_gpu.h",
+    ],
+    include_prefix = "lv_drivers",
+    deps = [
+        "@lvgl-src//:lv_drv_conf",
+        "@lvgl-src//:lvgl_no_drivers",
+    ],
+)
+
+cc_library(
+    name = "indev",
+    srcs = glob([
+        "indev/*.c",
+        "indev/*.h",
+    ]),
+    hdrs = glob(["indev/*.h"]),
+    include_prefix = "lv_drivers",
+    deps = [
+        "@lvgl-src//:lv_drv_conf",
+        "@lvgl-src//:lvgl_no_drivers",
+    ],
+)

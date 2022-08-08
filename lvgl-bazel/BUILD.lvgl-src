@@ -11,11 +11,26 @@ cc_library(
 
 cc_library(
     name = "lvgl",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":lvgl_no_drivers",
+    ] + select({
+        ":disable_lv_drivers": [],
+        "//conditions:default": [
+            # TODO: maybe allow selecting which drivers to include
+            "@lv_drivers//:sdl",
+            "@lv_drivers//:indev",
+        ],
+    }),
+)
+
+cc_library(
+    name = "lvgl_no_drivers",
     hdrs = [
         "lvgl.h",
     ],
     include_prefix = "lvgl",
-    visibility = ["//visibility:public"],
+    visibility = ["@lv_drivers//:__subpackages__"],
     deps = [
         ":all_modules",
     ],
@@ -40,6 +55,10 @@ cc_library(
         "src/*/**/*.c",
         "src/*/**/*.h",
     ]),
+    defines = {
+        "LV_CONF_INCLUDE_SIMPLE": "1",
+    },
+    visibility = ["@lv_drivers//:__subpackages__"],
     deps = [
         ":lv_conf_internal",
         ":lvgl_top_headers",
@@ -48,5 +67,29 @@ cc_library(
 
 label_flag(
     name = "lv_conf",
-    build_setting_default = "@lvgl//:lv_conf_none",
+    build_setting_default = ":lv_conf_none",
+)
+
+label_flag(
+    name = "lv_drv_conf",
+    build_setting_default = ":lv_drv_conf_none",
+    visibility = ["@lv_drivers//:__subpackages__"],
+)
+
+config_setting(
+    name = "disable_lv_drivers",
+    flag_values = {
+        ":lv_drv_conf": ":lv_drv_conf_none",
+    },
+)
+
+cc_library(
+    name = "lv_conf_none",
+    # TODO: maybe provide a dummy config just so this stuff compiles without configuration?
+)
+
+cc_library(
+    name = "lv_drv_conf_none",
+    visibility = ["//visibility:public"],
+    # TODO: maybe provide a dummy config just so this stuff compiles without configuration?
 )
