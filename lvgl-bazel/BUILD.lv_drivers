@@ -13,6 +13,7 @@ cc_library(
     ],
     include_prefix = "lv_drivers",
     deps = [
+        "@SDL2",
         "@lvgl-src//:lv_drv_conf",
         "@lvgl-src//:lvgl_no_drivers",
     ],

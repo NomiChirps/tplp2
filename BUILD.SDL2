@@ -14,9 +14,6 @@ configure_make(
         "MAKEFLAGS": "-j6",
     },
     lib_source = ":all_srcs",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
     out_static_libs = [
         "libSDL2.a",
     ],
