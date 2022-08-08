@@ -1,16 +1,16 @@
-load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
 
 filegroup(
     name = "all_srcs",
     srcs = glob(["**"]),
 )
 
-configure_make(
+cmake(
     name = "SDL2",
-    env = {
-        # Parallelize
-        "MAKEFLAGS": "-j6",
-    },
+    build_args = [
+        # parallelize
+        "-j6",
+    ],
     lib_source = ":all_srcs",
     out_static_libs = [
         "libSDL2.a",
