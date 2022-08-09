@@ -14,6 +14,7 @@ cmake(
     lib_source = ":all_srcs",
     out_shared_libs = select({
         "@platforms//os:linux": ["libSDL2-2.0.so.0"],
+        ":linux_debug_build": ["libSDL2-2.0d.so.0"],
         "@platforms//os:macos": ["libSDL2-2.0.dylib"],
     }),
     visibility = ["//visibility:public"],
@@ -25,4 +26,10 @@ cc_library(
     include_prefix = "SDL2",
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "linux_debug_build",
+    constraint_values = ["@platforms//os:linux"],
+    values = {"compilation_mode": "dbg"},
 )
