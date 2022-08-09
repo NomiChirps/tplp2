@@ -16,10 +16,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] get a compile_commands going for //simulator
 - 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking.
 - [ ] HX8357 self test :)
-- [ ] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [ ] Create a front panel UI
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
@@ -133,6 +131,8 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] get a compile_commands going for //simulator
+- [x] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [x] fix lvgl+simulator so it doesn't build SDL2 twice
 - [x] it is time to reorganize the directory structure again
   - we've got /openocd, /lib, /picolog, /tplp... too many different kinds of things at the top level
