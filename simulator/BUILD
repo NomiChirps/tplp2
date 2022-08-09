@@ -11,10 +11,32 @@ cc_binary(
     name = "main",
     srcs = ["main.c"],
     deps = [
+        ":console",
+        ":hooks",
         ":mouse_cursor_icon",
         "//simulator:lvgl",
         "//simulator/ui:main",
+        "@FreeRTOS",
         "@SDL2",
+    ],
+)
+
+cc_library(
+    name = "hooks",
+    srcs = ["hooks.c"],
+    hdrs = ["hooks.h"],
+    deps = [
+        ":console",
+        "@FreeRTOS",
+    ],
+)
+
+cc_library(
+    name = "console",
+    srcs = ["console.c"],
+    hdrs = ["console.h"],
+    deps = [
+        "@FreeRTOS",
     ],
 )
 
@@ -24,4 +46,11 @@ cc_library(
     deps = [
         "//simulator:lvgl",
     ],
+)
+
+cc_library(
+    name = "FreeRTOSConfig",
+    hdrs = ["FreeRTOSConfig.h"],
+    strip_include_prefix = "/simulator",
+    visibility = ["//visibility:public"],
 )

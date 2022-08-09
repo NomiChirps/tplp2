@@ -7,10 +7,11 @@
 /*********************
  *      INCLUDES
  *********************/
-#define _DEFAULT_SOURCE /* needed for usleep() */
 #include <stdlib.h>
 #include <unistd.h>
-#define SDL_MAIN_HANDLED /*To fix SDL's "undefined reference to WinMain" issue*/
+#include <signal.h>
+#include <assert.h>
+#include <stdio.h>
 #include <SDL2/SDL.h>
 #include "lvgl/lvgl.h"
 #include "lv_drivers/sdl/sdl.h"
@@ -18,6 +19,11 @@
 #include "lv_drivers/indev/keyboard.h"
 #include "lv_drivers/indev/mousewheel.h"
 #include "ui/main.h"
+#include "FreeRTOS/FreeRTOS.h"
+#include "FreeRTOS/task.h"
+#include "FreeRTOS/semphr.h"
+#include "simulator/hooks.h"
+#include "simulator/console.h"
 
 /*********************
  *      DEFINES
@@ -31,7 +37,8 @@
  *  STATIC PROTOTYPES
  **********************/
 static void hal_init(void);
-static int tick_thread(void *data);
+static void tick_task(void *data);
+static void timer_task(void *data);
 
 /**********************
  *  STATIC VARIABLES
@@ -65,56 +72,62 @@ static int tick_thread(void *data);
  *   GLOBAL FUNCTIONS
  **********************/
 
+SemaphoreHandle_t GLOBAL_LVGL_MUTEX;
+StaticSemaphore_t GLOBAL_LVGL_MUTEX_BUFFER;
+
+ void StartWithFreeRTOS() {
+  const int kDefaultTaskStack = 2048;
+
+  GLOBAL_LVGL_MUTEX = xSemaphoreCreateMutexStatic( &GLOBAL_LVGL_MUTEX_BUFFER );
+
+  int ok;
+  ok = xTaskCreate(&tick_task, "tick", kDefaultTaskStack, NULL, /*priority=*/1, NULL);
+  assert(ok);
+
+  /* Periodically call the lv_task handler. */
+  ok = xTaskCreate(&timer_task, "timer", kDefaultTaskStack, NULL, /*priority=*/1, NULL);
+  assert(ok);
+
+  vTaskStartScheduler();
+ }
+
+ void StartWithoutThreads() {
+  for(;;) {
+    lv_timer_handler();
+    usleep(5000);
+    lv_tick_inc(5);
+  }
+ }
+
 int main(int argc, char **argv)
 {
   (void)argc; /*Unused*/
   (void)argv; /*Unused*/
 
+  /* SIGINT is not blocked by the posix port */
+  signal( SIGINT, handle_sigint );
+  console_init();
+
   /*Initialize LVGL*/
   lv_init();
+  lv_log_register_print_cb(&lvgl_log_callback);
 
   /*Initialize the HAL (display, input devices, tick) for LVGL*/
   hal_init();
 
   ui_main();
 
-// lv_example_keyboard_2();
-  // lv_example_menu_5();
-  // lv_example_fragment_2();
-
-//  lv_example_switch_1();
-//  lv_example_calendar_1();
-//  lv_example_btnmatrix_2();
-//  lv_example_checkbox_1();
-//  lv_example_colorwheel_1();
-//  lv_example_chart_6();
-//  lv_example_table_2();
-//  lv_example_scroll_2();
-//  lv_example_textarea_1();
-//  lv_example_msgbox_1();
-//  lv_example_dropdown_2();
-//  lv_example_btn_1();
-//  lv_example_scroll_1();
-//  lv_example_tabview_1();
-//  lv_example_tabview_1();
-//  lv_example_flex_3();
-//  lv_example_label_1();
-
-    // lv_demo_widgets();
-//  lv_demo_keypad_encoder();
-//  lv_demo_benchmark();
-//  lv_demo_stress();
-//  lv_demo_music();
-
-  while(1) {
-    /* Periodically call the lv_task handler.
-     * It could be done in a timer interrupt or an OS task too.*/
-    lv_timer_handler();
-    usleep(5 * 1000);
-  }
+  //
+  //
+  // FIXME: StartWithoutThreads works. StartWithFreeRTOS doesn't...
+  //
+  //
+  StartWithFreeRTOS();
+  //StartWithoutThreads();
 
   return 0;
 }
+
 
 /**********************
  *   STATIC FUNCTIONS
@@ -126,12 +139,9 @@ int main(int argc, char **argv)
  */
 static void hal_init(void)
 {
+  SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
   /* Use the 'monitor' driver which creates window on PC's monitor to simulate a display*/
   sdl_init();
-  /* Tick init.
-   * You have to call 'lv_tick_inc()' in periodically to inform LittelvGL about
-   * how much time were elapsed Create an SDL thread to do this*/
-  SDL_CreateThread(tick_thread, "tick", NULL);
 
   /*Create a display buffer*/
   static lv_disp_draw_buf_t disp_buf1;
@@ -189,15 +199,38 @@ static void hal_init(void)
 /**
  * A task to measure the elapsed time for LVGL
  * @param data unused
- * @return never return
  */
-static int tick_thread(void *data) {
+static void tick_task(void *data) {
   (void)data;
+  console_print("tick task started\n");
 
+  long n = 0;
   while(1) {
-    SDL_Delay(5);
-    lv_tick_inc(5); /*Tell LittelvGL that 5 milliseconds were elapsed*/
-  }
+    xSemaphoreTake(GLOBAL_LVGL_MUTEX, portMAX_DELAY);
+    // not accurate if this task was delayed
+    lv_tick_inc(5);
+    xSemaphoreGive(GLOBAL_LVGL_MUTEX);
 
-  return 0;
+    vTaskDelay(pdMS_TO_TICKS(5));
+    if (++n % 500 == 0){
+      console_print("lvgl tick %ld\n", n);
+    }
+  }
+}
+
+static void timer_task(void* data) {
+  (void)data;
+  console_print("timer task started\n");
+
+  long n = 0;
+  while(1) {
+    xSemaphoreTake(GLOBAL_LVGL_MUTEX, portMAX_DELAY);
+    lv_timer_handler();
+    xSemaphoreGive(GLOBAL_LVGL_MUTEX);
+
+    vTaskDelay(pdMS_TO_TICKS(5));
+    if (++n % 500 == 0) {
+      console_print("lvgl timer handler call count %ld\n", n);
+    }
+  }
 }

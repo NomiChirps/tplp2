@@ -5,6 +5,9 @@ cc_library(
     ],
     strip_include_prefix = "/simulator/config",
     visibility = ["//simulator:__subpackages__"],
+    deps = [
+        "@SDL2//:headers_only",
+    ],
 )
 
 cc_library(
@@ -14,4 +17,7 @@ cc_library(
     ],
     strip_include_prefix = "/simulator/config",
     visibility = ["//simulator:__subpackages__"],
+    deps = [
+        "@SDL2//:headers_only",
+    ],
 )
