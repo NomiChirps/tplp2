@@ -1,137 +1,26 @@
+#include "ui/main.h"
 
-/**
- * @file main
- *
- */
-
-/*********************
- *      INCLUDES
- *********************/
+#include <SDL2/SDL.h>
+#include <assert.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <signal.h>
-#include <assert.h>
-#include <stdio.h>
-#include <SDL2/SDL.h>
-#include "lvgl/lvgl.h"
-#include "lv_drivers/sdl/sdl.h"
-#include "lv_drivers/indev/mouse.h"
-#include "lv_drivers/indev/keyboard.h"
-#include "lv_drivers/indev/mousewheel.h"
-#include "ui/main.h"
+
 #include "FreeRTOS/FreeRTOS.h"
-#include "FreeRTOS/task.h"
 #include "FreeRTOS/semphr.h"
-#include "simulator/hooks.h"
+#include "FreeRTOS/task.h"
+#include "lv_drivers/indev/keyboard.h"
+#include "lv_drivers/indev/mouse.h"
+#include "lv_drivers/indev/mousewheel.h"
+#include "lv_drivers/sdl/sdl.h"
+#include "lvgl/lvgl.h"
 #include "simulator/console.h"
+#include "simulator/hooks.h"
 
-/*********************
- *      DEFINES
- *********************/
-
-/**********************
- *      TYPEDEFS
- **********************/
-
-/**********************
- *  STATIC PROTOTYPES
- **********************/
-static void hal_init(void);
-static void tick_task(void *data);
-static void timer_task(void *data);
-
-/**********************
- *  STATIC VARIABLES
- **********************/
-
-/**********************
- *      MACROS
- **********************/
-
-/**********************
- *   GLOBAL FUNCTIONS
- **********************/
-
-/*********************
- *      DEFINES
- *********************/
-
-/**********************
- *      TYPEDEFS
- **********************/
-
-/**********************
- *      VARIABLES
- **********************/
-
-/**********************
- *  STATIC PROTOTYPES
- **********************/
-
-/**********************
- *   GLOBAL FUNCTIONS
- **********************/
-
-SemaphoreHandle_t GLOBAL_LVGL_MUTEX;
-StaticSemaphore_t GLOBAL_LVGL_MUTEX_BUFFER;
-
- void StartWithFreeRTOS() {
-  const int kDefaultTaskStack = 2048;
-
-  GLOBAL_LVGL_MUTEX = xSemaphoreCreateMutexStatic( &GLOBAL_LVGL_MUTEX_BUFFER );
-
-  int ok;
-  ok = xTaskCreate(&tick_task, "tick", kDefaultTaskStack, NULL, /*priority=*/1, NULL);
-  assert(ok);
-
-  /* Periodically call the lv_task handler. */
-  ok = xTaskCreate(&timer_task, "timer", kDefaultTaskStack, NULL, /*priority=*/1, NULL);
-  assert(ok);
-
-  vTaskStartScheduler();
- }
-
- void StartWithoutThreads() {
-  for(;;) {
-    lv_timer_handler();
-    usleep(5000);
-    lv_tick_inc(5);
-  }
- }
-
-int main(int argc, char **argv)
-{
-  (void)argc; /*Unused*/
-  (void)argv; /*Unused*/
-
-  /* SIGINT is not blocked by the posix port */
-  signal( SIGINT, handle_sigint );
-  console_init();
-
-  //
-  //
-  // FIXME: StartWithoutThreads works. StartWithFreeRTOS doesn't...
-  //
-  //
-  StartWithFreeRTOS();
-  //StartWithoutThreads();
-
-  return 0;
-}
-
-
-/**********************
- *   STATIC FUNCTIONS
- **********************/
-
-/**
- * Initialize the Hardware Abstraction Layer (HAL) for the LVGL graphics
- * library
- */
-static void hal_init(void)
-{
+// Initialize the Hardware Abstraction Layer (HAL) for LVGL
+static void hal_init(void) {
   SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
-  /* Use the 'monitor' driver which creates window on PC's monitor to simulate a display*/
   sdl_init();
 
   /*Create a display buffer*/
@@ -149,27 +38,30 @@ static void hal_init(void)
   disp_drv.ver_res = SDL_VER_RES;
   disp_drv.antialiasing = 1;
 
-  lv_disp_t * disp = lv_disp_drv_register(&disp_drv);
+  lv_disp_t* disp = lv_disp_drv_register(&disp_drv);
 
-  lv_theme_t * th = lv_theme_default_init(disp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), LV_THEME_DEFAULT_DARK, LV_FONT_DEFAULT);
+  lv_theme_t* th = lv_theme_default_init(
+      disp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
+      LV_THEME_DEFAULT_DARK, LV_FONT_DEFAULT);
   lv_disp_set_theme(disp, th);
 
-  lv_group_t * g = lv_group_create();
+  lv_group_t* g = lv_group_create();
   lv_group_set_default(g);
 
   static lv_indev_drv_t indev_drv_1;
   lv_indev_drv_init(&indev_drv_1); /*Basic initialization*/
   indev_drv_1.type = LV_INDEV_TYPE_POINTER;
 
-  /*This function will be called periodically (by the library) to get the mouse position and state*/
+  /*This function will be called periodically (by the library) to get the mouse
+   * position and state*/
   indev_drv_1.read_cb = sdl_mouse_read;
-  lv_indev_t *mouse_indev = lv_indev_drv_register(&indev_drv_1);
+  lv_indev_t* mouse_indev = lv_indev_drv_register(&indev_drv_1);
 
   static lv_indev_drv_t indev_drv_2;
   lv_indev_drv_init(&indev_drv_2); /*Basic initialization*/
   indev_drv_2.type = LV_INDEV_TYPE_KEYPAD;
   indev_drv_2.read_cb = sdl_keyboard_read;
-  lv_indev_t *kb_indev = lv_indev_drv_register(&indev_drv_2);
+  lv_indev_t* kb_indev = lv_indev_drv_register(&indev_drv_2);
   lv_indev_set_group(kb_indev, g);
 
   static lv_indev_drv_t indev_drv_3;
@@ -177,60 +69,89 @@ static void hal_init(void)
   indev_drv_3.type = LV_INDEV_TYPE_ENCODER;
   indev_drv_3.read_cb = sdl_mousewheel_read;
 
-  lv_indev_t * enc_indev = lv_indev_drv_register(&indev_drv_3);
+  lv_indev_t* enc_indev = lv_indev_drv_register(&indev_drv_3);
   lv_indev_set_group(enc_indev, g);
 
   /*Set a cursor for the mouse*/
   LV_IMG_DECLARE(mouse_cursor_icon); /*Declare the image file.*/
-  lv_obj_t * cursor_obj = lv_img_create(lv_scr_act()); /*Create an image object for the cursor */
-  lv_img_set_src(cursor_obj, &mouse_cursor_icon);           /*Set the image source*/
-  lv_indev_set_cursor(mouse_indev, cursor_obj);             /*Connect the image  object to the driver*/
+  lv_obj_t* cursor_obj =
+      lv_img_create(lv_scr_act()); /*Create an image object for the cursor */
+  lv_img_set_src(cursor_obj, &mouse_cursor_icon); /*Set the image source*/
+  lv_indev_set_cursor(mouse_indev,
+                      cursor_obj); /*Connect the image  object to the driver*/
 }
 
-/**
- * A task to measure the elapsed time for LVGL
- * @param data unused
- */
-static void tick_task(void *data) {
-  (void)data;
+// A task to measure the elapsed time for LVGL
+static void tick_task(void* unused) {
   console_print("tick task started\n");
 
   long n = 0;
-  while(1) {
-    xSemaphoreTake(GLOBAL_LVGL_MUTEX, portMAX_DELAY);
+  while (1) {
     // not accurate if this task was delayed
     lv_tick_inc(5);
-    xSemaphoreGive(GLOBAL_LVGL_MUTEX);
 
     vTaskDelay(pdMS_TO_TICKS(5));
-    if (++n % 500 == 0){
+    if (++n % 500 == 0) {
       console_print("lvgl tick %ld\n", n);
     }
   }
 }
 
-static void timer_task(void* data) {
-  (void)data;
-  console_print("init/timer task started\n");
+// Initializes everything we need for FreeRTOS and starts the scheduler.
+// This function will be run as an ordinary pthread.
+static int FreeRTOSStartupPthread(void*) {
+  const int kDefaultTaskStack = 2048;
 
-  /*Initialize LVGL*/
+  int ok;
+  ok = xTaskCreate(&tick_task, "tick", kDefaultTaskStack, NULL, /*priority=*/1,
+                   NULL);
+  assert(ok);
+
+  vTaskStartScheduler();
+  // should never reach here
+  assert(0);
+}
+
+int main() {
+  // SIGINT is not blocked by the FreeRTOS posix port
+  signal(SIGINT, handle_sigint);
+  // Set up the global mutex for stdio. printf is not thread-safe, so we need to
+  // print everything through the console_print() wrapper.
+  console_init();
+
+  // Initialize LVGL
   lv_init();
   lv_log_register_print_cb(&lvgl_log_callback);
 
-  /*Initialize the HAL (display, input devices, tick) for LVGL*/
+  // Initialize the HAL (display, input devices, tick) for LVGL
   hal_init();
 
+  // Create all the UI widgets
   ui_main();
 
-  long n = 0;
-  while(1) {
-    xSemaphoreTake(GLOBAL_LVGL_MUTEX, portMAX_DELAY);
-    lv_timer_handler();
-    xSemaphoreGive(GLOBAL_LVGL_MUTEX);
+  // Fork off a thread to run the FreeRTOS scheduler.
+  SDL_CreateThread(&FreeRTOSStartupPthread, "FreeRTOS Scheduler", NULL);
 
-    vTaskDelay(pdMS_TO_TICKS(5));
+  // Run the combined LVGL/SDL event loop.
+  // It's necessary to do this in the main thread, and not in a FreeRTOS task,
+  // because of *waves hands* something about MacOS. It's also necessary to do
+  // this in the same thread that SDL was initialized in, due to *waves hands*
+  // GL context owner reasons.
+  long n = 0;
+  for (;;) {
+    // No mutex needed because the only other thread calling LVGL functions is
+    // tick_task, and lv_tick_inc() is already thread-safe.
+    lv_timer_handler();
+
+    usleep(5000);
     if (++n % 500 == 0) {
       console_print("lvgl timer handler call count %ld\n", n);
     }
   }
+
+  return 0;
 }
+
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
