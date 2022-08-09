@@ -61,17 +61,22 @@
             }
         },
         {
-            "label": "refresh compile_commands.json",
-            "command": "./tools/refresh_compile_commands.sh",
-            "type": "shell",
-        },
-        {
             "label": "flash pico-debug",
             "command": "bazel",
             "args": [
                 "run",
                 "//tools:flash-pico-debug",
             ],
+            "type": "shell",
+        },
+        {
+            "label": "[pico] refresh compile_commands",
+            "command": "./tools/refresh_compile_commands_pico.sh",
+            "type": "shell",
+        },
+        {
+            "label": "[simulator] refresh compile_commands",
+            "command": "./tools/refresh_compile_commands_simulator.sh",
             "type": "shell",
         },
         {
