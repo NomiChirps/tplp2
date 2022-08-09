@@ -2,14 +2,14 @@ package(default_visibility = ["@lvgl-src//:__subpackages__"])
 
 cc_library(
     name = "sdl",
-    srcs = glob([
-        "sdl/*.c",
-        "sdl/*.h",
-    ]),
+    srcs = [
+        "sdl/sdl.c",
+        "sdl/sdl.h",
+        "sdl/sdl_common.c",
+    ],
     hdrs = [
         "sdl/sdl.h",
         "sdl/sdl_common.h",
-        "sdl/sdl_gpu.h",
     ],
     include_prefix = "lv_drivers",
     deps = [
@@ -20,6 +20,25 @@ cc_library(
         # lv_conf.h. This wouldn't necessarily be a problem, just inefficient,
         # except that Bazel will not allow a shared library (SDL2) to be
         # linked more than once from different configurations.
+        "@SDL2//:headers_only",
+        "@lvgl-src//:lv_drv_conf",
+        "@lvgl-src//:lvgl_no_drivers",
+    ],
+)
+
+cc_library(
+    name = "sdl_gpu",
+    srcs = [
+        "sdl/sdl_common.c",
+        "sdl/sdl_gpu.c",
+        "sdl/sdl_gpu.h",
+    ],
+    hdrs = [
+        "sdl/sdl_common.h",
+        "sdl/sdl_gpu.h",
+    ],
+    include_prefix = "lv_drivers",
+    deps = [
         "@SDL2//:headers_only",
         "@lvgl-src//:lv_drv_conf",
         "@lvgl-src//:lvgl_no_drivers",

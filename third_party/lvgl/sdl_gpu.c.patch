@@ -1,0 +1,11 @@
+--- sdl/sdl_gpu.c	2022-08-08 18:58:37.296716203 -0700
++++ sd/sdl_gpu.c	2022-08-08 18:58:57.733382127 -0700
+@@ -32,7 +32,7 @@
+ #include <stdlib.h>
+ #include <stdbool.h>
+ #include <string.h>
+-#include <lvgl/src/draw/sdl/lv_draw_sdl.h>
++#include "lvgl/draw/sdl/lv_draw_sdl.h"
+ #include SDL_INCLUDE_PATH
+ 
+ /*********************

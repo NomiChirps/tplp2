@@ -1,0 +1,11 @@
+--- src/draw/sdl/lv_draw_sdl.h	2022-08-08 19:22:24.699997359 -0700
++++ src/draw/sdl/lv_draw_sdl.h	2022-08-08 19:22:38.153330211 -0700
+@@ -14,7 +14,7 @@
+ /*********************
+  *      INCLUDES
+  *********************/
+-#include "../../lv_conf_internal.h"
++#include "lv_conf.h"
+ 
+ #if LV_USE_GPU_SDL
+ 

@@ -17,8 +17,11 @@ cc_library(
     ] + select({
         ":disable_lv_drivers": [],
         "//conditions:default": [
-            # TODO: maybe allow selecting which drivers to include
+            # TODO: allow selecting which drivers to include
+            # that's important because sdl and sdl_gpu cannot be compiled at the same time
+            # (they check config values and #error out in their headers)
             "@lv_drivers//:sdl",
+            #"@lv_drivers//:sdl_gpu",
             "@lv_drivers//:indev",
         ],
     }),
@@ -55,6 +58,9 @@ cc_library(
         "src/*/**/*.c",
         "src/*/**/*.h",
     ]),
+    hdrs = glob([
+        "src/*/**/*.h",
+    ]),
     defines = {
         "LV_CONF_INCLUDE_SIMPLE": "1",
     },
@@ -63,6 +69,8 @@ cc_library(
         ":lv_conf_internal",
         ":lvgl_top_headers",
     ],
+    strip_include_prefix = "/src",
+    include_prefix = "lvgl",
 )
 
 label_setting(
