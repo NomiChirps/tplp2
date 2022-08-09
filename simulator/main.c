@@ -108,15 +108,6 @@ int main(int argc, char **argv)
   signal( SIGINT, handle_sigint );
   console_init();
 
-  /*Initialize LVGL*/
-  lv_init();
-  lv_log_register_print_cb(&lvgl_log_callback);
-
-  /*Initialize the HAL (display, input devices, tick) for LVGL*/
-  hal_init();
-
-  ui_main();
-
   //
   //
   // FIXME: StartWithoutThreads works. StartWithFreeRTOS doesn't...
@@ -220,7 +211,16 @@ static void tick_task(void *data) {
 
 static void timer_task(void* data) {
   (void)data;
-  console_print("timer task started\n");
+  console_print("init/timer task started\n");
+
+  /*Initialize LVGL*/
+  lv_init();
+  lv_log_register_print_cb(&lvgl_log_callback);
+
+  /*Initialize the HAL (display, input devices, tick) for LVGL*/
+  hal_init();
+
+  ui_main();
 
   long n = 0;
   while(1) {
