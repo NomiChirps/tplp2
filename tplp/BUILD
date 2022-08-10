@@ -1,20 +1,5 @@
 load("@rules_pico//pico:defs.bzl", "pico_add_map_output", "pico_add_uf2_output", "pico_binary", "pico_pio_header")
 
-cc_library(
-    name = "FreeRTOSConfig",
-    hdrs = ["FreeRTOSConfig.h"],
-    strip_include_prefix = "/tplp",
-    deps = ["@FreeRTOS//ports/GCC_RP2040:rp2040_config"],
-)
-
-cc_library(
-    name = "lv_conf",
-    hdrs = ["lv_conf.h"],
-    strip_include_prefix = "/tplp",
-    visibility = ["//lib:__pkg__"],
-    deps = ["@rules_pico//pico:pico_time"],
-)
-
 pico_binary(
     name = "firmware.elf",
     srcs = [
@@ -26,7 +11,7 @@ pico_binary(
         ":SpiManager",
         ":hook_impl",
         ":time",
-        ":tplp_config",
+        "//tplp/config:tplp_config",
         ":types",
         ":ws2812",
         "//tplp/HX8357",
@@ -54,7 +39,7 @@ cc_library(
         "time.h",
     ],
     deps = [
-        ":FreeRTOSConfig",
+        "@FreeRTOS//config:FreeRTOSConfig",
     ],
 )
 
@@ -64,20 +49,10 @@ cc_library(
     hdrs = ["RuntimeStats.h"],
     deps = [
         ":time",
-        ":tplp_config",
+        "//tplp/config:tplp_config",
         "//picolog",
         "@lvgl",
         "@FreeRTOS",
-    ],
-)
-
-cc_library(
-    name = "tplp_config",
-    hdrs = ["tplp_config.h"],
-    visibility = [":__subpackages__"],
-    deps = [
-        ":FreeRTOSConfig",
-        ":types",
     ],
 )
 
@@ -106,7 +81,7 @@ cc_library(
     visibility = [":__subpackages__"],
     deps = [
         ":time",
-        ":tplp_config",
+        "//tplp/config:tplp_config",
         ":types",
         "//picolog",
         "@FreeRTOS",

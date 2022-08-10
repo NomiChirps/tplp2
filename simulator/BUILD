@@ -41,13 +41,6 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "FreeRTOSConfig",
-    hdrs = ["FreeRTOSConfig.h"],
-    strip_include_prefix = "/simulator",
-    visibility = ["//visibility:public"],
-)
-
 # For VSCode
 refresh_compile_commands(
     name = "refresh_compile_commands",

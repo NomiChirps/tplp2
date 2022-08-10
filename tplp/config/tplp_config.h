@@ -1,9 +1,9 @@
 #ifndef TPLP_TPLP_CONFIG_H_
 #define TPLP_TPLP_CONFIG_H_
 
-#include "tplp/FreeRTOSConfig.h"
-#include "tplp/types.h"
+#include "FreeRTOSConfig.h"
 #include "pico/config_autogen.h"  // for board identifier
+#include "tplp/types.h"
 
 namespace tplp {
 

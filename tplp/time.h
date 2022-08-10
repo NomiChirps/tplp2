@@ -3,7 +3,7 @@
 
 #include <chrono>
 
-#include "tplp/FreeRTOSConfig.h"
+#include "FreeRTOSConfig.h"
 
 namespace tplp {
 namespace duration {

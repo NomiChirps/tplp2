@@ -13,8 +13,8 @@
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
 #include "picolog/picolog.h"
+#include "tplp/config/tplp_config.h"
 #include "tplp/time.h"
-#include "tplp/tplp_config.h"
 
 using std::chrono_literals::operator""ms;
 

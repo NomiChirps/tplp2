@@ -10,9 +10,9 @@
 #include "tplp/HX8357/HX8357.h"
 #include "tplp/RuntimeStats.h"
 #include "tplp/SpiManager.h"
+#include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_init.h"
 #include "tplp/time.h"
-#include "tplp/tplp_config.h"
 #include "tplp/types.h"
 #include "tplp/ws2812.h"
 
@@ -72,8 +72,8 @@ void StartupTask(void*) {
   display->Begin();
   LOG(INFO) << "HX8357->Begin() OK";
 
-  CHECK(xTaskCreate(&tft_test_task, "TFT Test", TaskStacks::kDefault,
-                    display, 1, nullptr));
+  CHECK(xTaskCreate(&tft_test_task, "TFT Test", TaskStacks::kDefault, display,
+                    1, nullptr));
 
   // InitLvgl(display);
   // LOG(INFO) << "InitLvgl() OK);

@@ -6,7 +6,7 @@ cc_library(
     deps = [
         ":lvgl_mutex",
         "//picolog",
-        "//tplp:tplp_config",
+        "//tplp/config:tplp_config",
         "//tplp/HX8357",
         "//tplp/HX8357:lvgl_driver",
         "//tplp/SharpLCD",

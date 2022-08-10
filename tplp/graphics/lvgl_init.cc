@@ -9,10 +9,9 @@
 #include "picolog/picolog.h"
 #include "tplp/HX8357/lvgl_driver.h"
 #include "tplp/SharpLCD/lvgl_driver.h"
+#include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/time.h"
-#include "tplp/tplp_config.h"
-
 
 using std::chrono_literals::operator""ms;
 

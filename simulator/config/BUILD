@@ -21,3 +21,10 @@ cc_library(
         "@SDL2//:headers_only",
     ],
 )
+
+cc_library(
+    name = "FreeRTOSConfig",
+    hdrs = ["FreeRTOSConfig.h"],
+    strip_include_prefix = "/simulator/config",
+    visibility = ["//visibility:public"],
+)

@@ -1,10 +1,25 @@
+#
+# Configs of interest:
+#
+#   --config=
+#       Default config is fastbuild targeting the Pico.
+#   --config=iterate
+#       For a quick compile / flash / manually-test cycle.
+#   --config=debug
+#       For running under pico-debug.
+#   --config=simulate
+#       Targets POSIX instead of Pico.
+#
+
+# Show full compiler/etc command line when the build fails.
 build --verbose_failures
+# Set the C++ standard we're using.
 build --cxxopt=-std=c++17
 
-# Needed by FreeRTOS
+# A new Bazel feature required by the FreeRTOS build
 build --experimental_cc_implementation_deps
 
-# Enable new-style C++ toolchain resolution and set the target platform
+# Enable new-style C++ toolchain resolution and set the target platform for pico-sdk.
 # These could be "common" options, but 'bazel dump' (among others) doesn't recognize them; see https://github.com/bazelbuild/bazel/issues/3054
 build --incompatible_enable_cc_toolchain_resolution
 build --platforms=@rules_pico//platforms:pico
@@ -17,7 +32,8 @@ test --platforms=
 # We can't build with just "-c dbg" because there's not enough flash on the board to store ALL the debug symbols.
 # Select this with "--config=debug".
 build:debug -c opt --per_file_copt=//.*\.cc@-O1,-g
-build:debug --@rules_pico//pico/config:stdio_usb=False
+# For regular old development without a debugger, optimize everything to keep the image small.
+build:iterate -c opt
 
 # pico-sdk config
 build --@rules_pico//pico/config:board=pico
@@ -29,40 +45,28 @@ build --@rules_pico//pico/config:rtos_adapter_header_name=FreeRTOS/freertos_sdk_
 build --@rules_pico//pico/config:stdio_semihosting=False
 build --@rules_pico//pico/config:stdio_uart=False
 build --@rules_pico//pico/config:stdio_usb=True
+# USB is used by pico-debug, so we cannot use it for stdio.
 build:debug --@rules_pico//pico/config:stdio_usb=False
+# TODO: can we put these defines in a header somewhere?
+build --copt="-DPICOLOG_VMODULE=\"SpiManager=2,HX8357=1\""
+# Disable CR/LF conversion on stdout. This is useless overhead.
+build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
+# Wait for someone to monitor serial output
+build:iterate --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
+build:iterate --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
+# For faster turnaround after a fatal error! :)
+build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 
 # lvgl config
-build --@lvgl//:lv_conf=//tplp:lv_conf
+build --@lvgl//:lv_conf=//tplp/config:lv_conf
 build:simulate --@lvgl//:lv_conf=//simulator/config:lv_conf
 build:simulate --@lvgl//:lv_drv_conf=//simulator/config:lv_drv_conf
 
-# For regular old development without a debugger.
-# Still "-c opt" to keep the image size to a reasonable level.
-build:iterate -c opt
-build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
-
-# TODO: add a freertos config for the simulator
-build --@FreeRTOS//config:FreeRTOSConfig=//tplp:FreeRTOSConfig
+# FreeRTOS config
+build --@FreeRTOS//config:FreeRTOSConfig=//tplp/config:FreeRTOSConfig
 build --@FreeRTOS//config:port=GCC_RP2040
-build:simulate --@FreeRTOS//config:FreeRTOSConfig=//simulator:FreeRTOSConfig
+build:simulate --@FreeRTOS//config:FreeRTOSConfig=//simulator/config:FreeRTOSConfig
 build:simulate --@FreeRTOS//config:port=GCC_POSIX
-
-## Configuration of various libraries
-build --copt="-DPICOLOG_VMODULE=\"SpiManager=2,HX8357=1\""
-
-# TODO: can we put these defines in a header somewhere?
-# Wait for someone to monitor serial output
-build --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
-build --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
-
-# We don't use pico-sdk sleep functions, and would like to
-# disable the default alarm pool they use. But @rules_pico
-# explicitly enables it. Why?
-# See https://github.com/raspberrypi/pico-sdk/issues/873
-#common --copt="-DPICO_TIME_DEFAULT_ALARM_POOL_DISABLED=1"
-
-# Disable CR/LF conversion on stdout. This is useless overhead.
-build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
 
 # Flags needed for //picolog:backtrace
 build:debug --copt="-mpoke-function-name"
