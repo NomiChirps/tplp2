@@ -39,8 +39,9 @@ struct TaskPriorities {
   // We want to run the timer service daemon at a very high priority.
   static_assert(configTIMER_TASK_PRIORITY == 7);
 
-  // Logging is high priority. This essentially means that *all* LOG() calls
+  // Logging is high priority. This means that *all* LOG() calls
   // from lower-priority tasks will block until the message is flushed.
+  // Maybe later we can reduce this, but for debugging it's essential.
   static constexpr int kLogging = 6;
   static constexpr int kStartup = 5;
 
