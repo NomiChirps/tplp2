@@ -43,7 +43,7 @@ build:simulate --@FreeRTOS//config:FreeRTOSConfig=//simulator:FreeRTOSConfig
 build:simulate --@FreeRTOS//config:port=GCC_POSIX
 
 ## Configuration of various libraries
-build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,HX8357=1\""
+build --copt="-DPICOLOG_VMODULE=\"SpiManager=2,HX8357=1\""
 
 # TODO: can we put these defines in a header somewhere?
 # Wait for someone to monitor serial output

@@ -9,6 +9,9 @@
 #include "picolog/picolog.h"
 #include "tplp/time.h"
 
+using std::chrono_literals::operator""ms;
+
+#define CHECK_OK(expr) CHECK_EQ((expr), SpiTransaction::Result::OK)
 
 // - see commands and init sequence at
 //   https://github.com/adafruit/Adafruit_HX8357_Library/blob/master/Adafruit_HX8357.h
@@ -333,38 +336,83 @@ void HX8357::SendInitSequence() {
       }
     }
     if (x & 0x80) {  // If high bit set...
-      VLOG(1) << "Sleep " << (numArgs * 5) << "ms";
-      vTaskDelay(as_ticks(std::chrono::milliseconds(
-          numArgs * 5)));  // numArgs is actually a delay time (5ms units)
+      // numArgs is actually a delay time (5ms units)
+      int t = as_ticks_ceil(std::chrono::milliseconds(numArgs * 5));
+      VLOG(1) << "Sleep at least " << (numArgs * 5)
+              << "ms <= " << t * portTICK_PERIOD_MS << "ms as ticks";
+      vTaskDelay(t);
     }
   }
 }
 
 void HX8357::SendCommand(uint8_t command, const uint8_t* data, uint8_t len) {
-  VLOG(1) << "SendCommand(0x" << std::hex << std::setw(2) << std::setfill('0')
+  VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "SendCommand(0x"
           << (int)command << ", [" << std::dec << (int)len << " bytes])";
   // DC is low for a command byte, then high for the data.
   SpiTransaction txn = spi_device_->StartTransaction();
-  VLOG(1) << "Entered transaction";
   gpio_put(dc_, 0);
-  VLOG(1) << "DC low";
-  txn.TransmitBlocking({
-      .buf = &command,
-      .len = sizeof(command),
-  });
+  CHECK_OK(txn.TransferBlocking({
+      .tx_buf = &command,
+      .len = 1,
+  }));
   if (data && len) {
     gpio_put(dc_, 1);
-    VLOG(1) << "DC high";
-    txn.TransmitBlocking({
-        .buf = data,
+    CHECK_OK(txn.Transfer({
+        .tx_buf = data,
         .len = len,
-    });
+    }));
   }
 }
 
-bool HX8357::SelfTest() {
-  // todo
-  return false;
+uint8_t HX8357::RDDSDR() {
+  SpiTransaction txn = spi_device_->StartTransaction();
+  VLOG(1) << "Issuing RDDSDR";
+  const uint8_t command = HX8357_RDDSDR;
+  // Datasheet claims that the first byte of the reply should be a "dummy read",
+  // with the actual result being in the 2nd byte. I have determined that that
+  // was a lie.
+  uint8_t result = 0;
+  gpio_put(dc_, 0);
+  CHECK_OK(txn.Transfer({
+      .tx_buf = &command,
+      .len = 1,
+  }));
+  CHECK_OK(txn.Transfer({
+      .rx_buf = &result,
+      .len = 1,
+  }));
+  gpio_put(dc_, 1);
+  txn.Flush();
+  VLOG(1) << std::hex << std::setw(2) << std::setfill('0')
+          << "RDDSDR response 0x" << (int)result;
+  return result;
 }
 
+bool HX8357::SelfTest() {
+  uint8_t dsdr1 = RDDSDR();
+  SendCommand(HX8357_SLPOUT);
+  vTaskDelay(as_ticks_ceil(120ms));
+  uint8_t dsdr2 = RDDSDR();
+
+  // DSDR register protocol is that a successful self-test of a module inverts
+  // the corresponding bit.
+  bool ok = true;
+  if ((dsdr1 & 0x80) == (dsdr2 & 0x80)) {
+    LOG(ERROR) << "Self-test: Register Loading FAIL";
+    ok = false;
+  }
+  if ((dsdr1 & 0x40) == (dsdr2 & 0x40)) {
+    LOG(ERROR) << "Self-test: TFT Functionality FAIL";
+    ok = false;
+  }
+  // For the checksum test, there's no inversion; 0 is success.
+  if (dsdr1 & 0x01) {
+    LOG(ERROR) << "Self-test: Checksum FAIL";
+    ok = false;
+  }
+  LOG(INFO) << std::hex << std::setw(2) << std::setfill('0')
+            << "Self-test overall result: 0x" << (int)dsdr1 << ", 0x"
+            << (int)dsdr2 << " -> " << (ok ? "OK" : "FAIL");
+  return ok;
+}
 }  // namespace tplp

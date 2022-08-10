@@ -131,6 +131,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] rework SpiManager again again; it should be able to suport full duplex. instead of sendevent/receiveevent, let's have transferevent(naming???) which specifies optionally both buffers. I GUESS???? if both are specified, they would necessarily have to be the same length!
 - [x] get a compile_commands going for //simulator
 - [x] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [x] fix lvgl+simulator so it doesn't build SDL2 twice

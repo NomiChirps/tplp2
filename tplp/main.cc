@@ -18,6 +18,8 @@
 
 using std::chrono_literals::operator""ms;
 
+#define CHECK_OK(expr) CHECK_EQ((expr), SpiTransaction::Result::OK)
+
 namespace tplp {
 
 void led_task(void*) {
@@ -40,9 +42,9 @@ void neopixel_task(void*) {
 }
 
 void tft_test_task(void* task_param) {
-  HX8357* display = static_cast<HX8357*>(task_param);
+  HX8357D* display = static_cast<HX8357D*>(task_param);
   for (;;) {
-    vTaskDelay(as_ticks(1'000ms));
+    vTaskDelay(as_ticks(4'000ms));
     display->SelfTest();
   }
 }
@@ -62,16 +64,16 @@ void StartupTask(void*) {
 
   // TODO: increase frequency
   SpiManager* spi1_manager =
-      SpiManager::Init(TaskPriorities::kSpiManager1, spi1, 2'000'000,
-                       Pins::SPI1_SCLK, Pins::SPI1_MOSI, /*miso=*/std::nullopt);
+      SpiManager::Init(TaskPriorities::kSpiManager1, spi1, 500'000,
+                       Pins::SPI1_SCLK, Pins::SPI1_MOSI, Pins::SPI1_MISO);
   LOG(INFO) << "SpiManager::Init() OK";
 
   HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
   display->Begin();
   LOG(INFO) << "HX8357->Begin() OK";
 
-  CHECK(xTaskCreate(&tft_test_task, "TFT Test", TaskStacks::kDefault, display,
-                    1, nullptr));
+  CHECK(xTaskCreate(&tft_test_task, "TFT Test", TaskStacks::kDefault,
+                    display, 1, nullptr));
 
   // InitLvgl(display);
   // LOG(INFO) << "InitLvgl() OK);
@@ -86,7 +88,8 @@ int main() {
   stdio_usb_init();
 #endif
 #if LIB_PICO_STDIO_UART
-  stdio_uart_init_full(uart_default, PICO_DEFAULT_UART_BAUD_RATE, Pins::UART_TX, -1);
+  stdio_uart_init_full(uart_default, PICO_DEFAULT_UART_BAUD_RATE, Pins::UART_TX,
+                       -1);
 #endif
 
   // TODO: add a build timestamp and version line at bootup

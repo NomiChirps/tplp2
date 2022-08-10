@@ -7,6 +7,7 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/semphr.h"
 #include "FreeRTOS/task.h"
+#include "hardware/dma.h"
 #include "hardware/spi.h"
 #include "tplp/types.h"
 
@@ -39,30 +40,36 @@ class SpiManager {
 
  private:
   explicit SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
-                      dma_irq_number_t dma_irq_number,
-                      std::optional<dma_channel_t> dma_tx, int actual_frequency,
+                      dma_irq_number_t dma_irq_number, dma_channel_t dma_tx,
+                      dma_channel_t dma_rx, int actual_frequency,
                       SemaphoreHandle_t transaction_mutex,
-                      QueueHandle_t event_queue, SemaphoreHandle_t flush_sem);
+                      QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
+                      std::optional<gpio_pin_t> mosi, std::optional<gpio_pin_t> miso);
   static void TaskFn(void*);
 
+  // Events that are handled in the event queue.
+  struct Event;
+  void DoTransfer(const Event&);
+  void DoFlush(const Event&);
+  void DoEndTransaction(const Event&);
+
+  // Transaction starts are handled outside the event queue.
   // Caller must hold transaction_mutex_
   void DoStartTransaction(SpiDevice* new_device);
-
-  struct Event;
-  struct TransmitEvent;
-  void HandleEvent(const TransmitEvent&);
-  struct ReceiveEvent;
-  void HandleEvent(const ReceiveEvent&);
-  struct TransactionSyncEvent;
-  void HandleEvent(const TransactionSyncEvent&);
 
  private:
   spi_inst_t* const spi_;
   const dma_irq_index_t dma_irq_index_;
   const dma_irq_number_t dma_irq_number_;
-  const std::optional<dma_channel_t> dma_tx_;
+  const dma_channel_t dma_tx_;
+  const dma_channel_t dma_rx_;
   const int actual_frequency_;
   TaskHandle_t task_;
+
+  const dma_channel_config dma_tx_config_;
+  const dma_channel_config dma_tx_null_config_;
+  const dma_channel_config dma_rx_config_;
+  const dma_channel_config dma_rx_null_config_;
 
   // Primary event queue.
   QueueHandle_t event_queue_;
@@ -75,17 +82,36 @@ class SpiManager {
 
   // Used for consistency checks.
   SpiDevice* active_device_;
+  std::optional<gpio_pin_t> mosi_;
+  std::optional<gpio_pin_t> miso_;
 };
 
-// See comments on the destructor for important usage notes.
+// Represents an exclusive lock on the SPI bus while it communicates with one
+// device, allowing full-duplex transfers to be queued up to be DMA'd in/out.
+//
+// Note that although Transfer() is nonblocking, the destructor of
+// SpiTransaction will wait until all pending transfers are complete before
+// returning. This is necessary because the task using an SpiTransaction holds a
+// mutex locking out the SPI bus in order to participate in priority inheritance
+// if other, higher priority tasks need to use it, and FreeRTOS requires that
+// the task releasing such a mutex be the same task that acquired it. Even if it
+// didn't, and enqueueing multiple transactions was allowed, SpiManager would
+// then have to implement its own priority inheritance or queue-jumping
+// mechanism in order to provide priority guarantees for access to the bus,
+// which, uh, no thank you. Signed, your humble editor.
 class SpiTransaction {
   friend class SpiDevice;
 
  public:
-  struct TxMessage {
-    // Data to transmit.
-    const uint8_t* buf;
-    // Number of bytes in the buffer to transmit.
+  // Represents a full-duplex transfer. The buffers, if provided, are read from
+  // and written to simultaneously. The SPI bus will toggle the clock signal
+  // exactly `len*8` times.
+  struct TransferConfig {
+    // Optional bytes to transmit.
+    const uint8_t* tx_buf;
+    // Optional buffer to hold received bytes.
+    uint8_t* rx_buf;
+    // Number of bytes to transfer.
     uint32_t len;
     // Optional callback to be run just before setting CS active.
     std::function<void()> run_before;
@@ -104,40 +130,47 @@ class SpiTransaction {
   };
 
  public:
-  // Wait for all pending operations to complete and releases the transaction's
+  // Wait for all pending transfers to complete and releases the transaction's
   // lock on the SPI bus.
   ~SpiTransaction();
   // Moveable, but not copyable.
   SpiTransaction(SpiTransaction&&);
 
-  // Attempts to queue the given message for transmission, then returns without
-  // waiting for it to complete. See `SpiDevice::TxMessage` for options.
+  // Attempts to queue the given transfer, then returns without
+  // waiting for it to complete. See `SpiDevice::Transfer` for options.
   // If `ticks_to_wait` is set to 0, does not block waiting for space in the
   // queue and returns immediately.
   //
-  // Returns `OK` if the event was enqueued, `ENQUEUE_TIMEOUT` otherwise.
-  Result Transmit(const TxMessage& msg,
+  // If set, `msg.tx_buf` and `msg.rx_buf` MUST remain valid until the transfer
+  // is complete.
+  //
+  // Returns `OK` if the message was enqueued, `ENQUEUE_TIMEOUT` otherwise.
+  Result Transfer(const TransferConfig& req,
                   TickType_t ticks_to_wait = portMAX_DELAY);
 
-  // Waits until there is space in the transmission queue, enqueues the given
-  // message, and waits until the transfer is complete. Yields to the scheduler
-  // while waiting. Note that if a nonblocking `Transmit` was previously queued,
+  // Waits until there is space in the queue, enqueues the given
+  // transfer, and waits until it completes. Yields to the scheduler
+  // while waiting. Note that if a nonblocking transfer was previously queued,
   // this one will be queued behind it and must wait for it to complete.
   // Not thread-safe.
   //
-  // Returns `OK` if the transmission was fully completed.
-  Result TransmitBlocking(const TxMessage& msg,
+  // Transfer() is more efficient than TransferBlocking(). If you don't need to
+  // do something after the transfer finishes but before ending the transaction,
+  // use Transfer() instead.
+  //
+  // Returns `OK` if the transfer was fully completed.
+  Result TransferBlocking(const TransferConfig& req,
                           TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
                           TickType_t ticks_to_wait_transmit = portMAX_DELAY);
 
-  // Returns OK if operations so far have been committed.
-  // Returns ENQUEUE_TIMEOUT if the event queue was too full. In this case, the
-  // flush will not be executed.
-  // Otherwise returns EXEC_TIMEOUT. In this case, the flush remains pending and
-  // you may attempt to wait for it again. Any additional operations queued up
-  // in the interim will also be flushed by this second (3rd, 4th, etc) Flush
-  // call. Note that any pending flushes will be completed in the destructor
-  // regardless.
+  // Returns OK if transfers so far have been completed.
+  // Returns ENQUEUE_TIMEOUT if the event queue was too full to receive the
+  // flush event. In this case, the flush will not be executed. Otherwise
+  // returns EXEC_TIMEOUT. In this case, the flush remains pending and you may
+  // attempt to wait for it again. Any additional transfers queued up in the
+  // interim will also be flushed by this second (3rd, 4th, etc) Flush call.
+  // Note that any pending flushes will be completed in the destructor
+  // regardless. A transfer cannot outlive its containing transaction.
   Result Flush(TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
                TickType_t ticks_to_wait_flush = portMAX_DELAY);
 
@@ -191,6 +224,8 @@ class SpiDevice {
   const gpio_pin_t cs_;
   const std::string name_;
 };
+
+std::ostream& operator<<(std::ostream&, const SpiTransaction::Result&);
 
 }  // namespace tplp
 

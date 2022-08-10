@@ -300,8 +300,12 @@ void BackgroundTask(void*) {
       fflush(stdout);  // just in case
 #if PICOLOG_RESET_TO_BOOTLOADER_ON_FATAL
       // TODO maybe there's a better way to configure this
-      printf("\n*** Resetting to Pico bootloader!\n");
+      printf("\n*** Attempting to reset into Pico bootloader!\n");
+      vTaskSuspendAll();
+      // TODO: this fails sometimes. is there something else we should stop or
+      // reset first?
       reset_usb_boot(0, 0);
+      for(;;);
 #else
       panic("Aborted by fatal error handler");
 #endif

@@ -23,6 +23,12 @@ uint32_t as_ticks(Duration arg) {
   return std::chrono::duration_cast<duration::ticks>(arg).count();
 }
 
+// Always rounds up.
+template <typename Duration>
+uint32_t as_ticks_ceil(Duration arg) {
+  return std::chrono::ceil<duration::ticks>(arg).count();
+}
+
 }  // namespace tplp
 
 #endif  // TPLP_TIME_H_

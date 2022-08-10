@@ -13,7 +13,7 @@ class HX8357 {
  public:
   void Begin();
 
-  // Executes some self-test commands and prints the results to debug output.
+  // Executes a self-diagnostic and prints the results to the INFO log.
   // Returns true if everything looked okay.
   bool SelfTest();
 
@@ -22,9 +22,14 @@ class HX8357 {
   explicit HX8357(DisplayType type, SpiManager* spi, gpio_pin_t cs,
                   gpio_pin_t dc);
 
+  void SendCommand(uint8_t command, const uint8_t* data = nullptr,
+                   uint8_t len = 0);
+
+  // Read Display Self-Diagnostic Result
+  uint8_t RDDSDR();
+
  private:
   void SendInitSequence();
-  void SendCommand(uint8_t command, const uint8_t* data, uint8_t len);
 
  private:
   const DisplayType type_;

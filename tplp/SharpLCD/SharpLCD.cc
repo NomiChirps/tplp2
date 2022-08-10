@@ -211,9 +211,9 @@ SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
 void SharpLCD::WriteBufferBlocking(const uint8_t* buffer, unsigned len) {
   CHECK_NOTNULL(spi_device_);
   SpiTransaction txn = spi_device_->StartTransaction();
-  auto ret = txn.TransmitBlocking(
-      SpiTransaction::TxMessage{
-          .buf = buffer,
+  auto ret = txn.TransferBlocking(
+      {
+          .tx_buf = buffer,
           .len = len,
       },
       as_ticks(1000ms), as_ticks(1000ms));
@@ -232,7 +232,7 @@ void SharpLCD::Clear() {
 bool SharpLCD::DrawFrameBuffer(const FrameBuffer& fb,
                                const std::function<void()>& callback) {
   SpiTransaction txn = spi_device_->StartTransaction();
-  return txn.Transmit({.buf = fb.buffer_,
+  return txn.Transfer({.tx_buf = fb.buffer_,
                        .len = FrameBuffer::kSizeofFramebufferForAlloc,
                        .run_after = callback},
                       /*ticks_to_wait=*/0) == SpiTransaction::Result::OK;

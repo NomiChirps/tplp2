@@ -10,6 +10,7 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
 
 ## Wishlist
 
+- [ ] Status object and CHECK_OK
 - [ ] LOG level toggles at runtime
 - [ ] soften the hard dependency on pico-sdk, so we can run tests and use it in the simulator, with FreeRTOS's posix port
 - [ ] Trap hard faults so we can get stack traces for a nullptr dereference :)
