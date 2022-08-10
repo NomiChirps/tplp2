@@ -44,7 +44,8 @@ class SpiManager {
                       dma_channel_t dma_rx, int actual_frequency,
                       SemaphoreHandle_t transaction_mutex,
                       QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
-                      std::optional<gpio_pin_t> mosi, std::optional<gpio_pin_t> miso);
+                      std::optional<gpio_pin_t> mosi,
+                      std::optional<gpio_pin_t> miso);
   static void TaskFn(void*);
 
   // Events that are handled in the event queue.
@@ -99,13 +100,16 @@ class SpiManager {
 // then have to implement its own priority inheritance or queue-jumping
 // mechanism in order to provide priority guarantees for access to the bus,
 // which, uh, no thank you. Signed, your humble editor.
+//
+// This class is not thread-safe, and only the task that originally obtained an
+// SpiTransaction may Dispose() of or destroy it.
 class SpiTransaction {
   friend class SpiDevice;
 
  public:
   // Represents a full-duplex transfer. The buffers, if provided, are read from
   // and written to simultaneously. The SPI bus will toggle the clock signal
-  // exactly `len*8` times.
+  // exactly `len*8` times regardless of which buffers are provided.
   struct TransferConfig {
     // Optional bytes to transmit.
     const uint8_t* tx_buf;
@@ -173,6 +177,11 @@ class SpiTransaction {
   // regardless. A transfer cannot outlive its containing transaction.
   Result Flush(TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
                TickType_t ticks_to_wait_flush = portMAX_DELAY);
+
+  // Waits until all pending transfers are complete and ends the transaction,
+  // releasing its lock on the bus. Calling any other method on this object
+  // after Dispose() returns is an error.
+  void Dispose();
 
  private:
   SpiTransaction(const SpiTransaction&) = delete;

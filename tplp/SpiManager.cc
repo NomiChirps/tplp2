@@ -480,8 +480,12 @@ SpiTransaction::Result SpiTransaction::TransferBlocking(
 }
 
 SpiTransaction::~SpiTransaction() {
+  Dispose();
+}
+
+void SpiTransaction::Dispose() {
   if (moved_from_) return;
-  VLOG(1) << "~SpiTransaction device=" << device_->name_;
+  VLOG(1) << "Dispose() device=" << device_->name_;
   CHECK_EQ(originating_task_, xTaskGetCurrentTaskHandle())
       << "An SpiTransaction must be deleted by the same task that created it!";
 
@@ -490,23 +494,24 @@ SpiTransaction::~SpiTransaction() {
       .device = device_,
       .end_transaction_sem = *end_transaction_sem_,
   });
-  VLOG(1) << "~SpiTransaction enqueueing transaction end event";
+  VLOG(1) << "Dispose() enqueueing transaction end event";
   CHECK(xQueueSendToBack(device_->spi_->event_queue_, &event, portMAX_DELAY));
 
   if (flush_pending_) {
-    // We need to consume any pending flush signal, otherwise SpiManager will
-    // eventually get stuck.
-    VLOG(1) << "~SpiTransaction waiting to take flush_sem_ for pending flush";
+    // We need to consume any pending flush signal, otherwise the semaphore will
+    // go out of sync and SpiManager will eventually get stuck.
+    VLOG(1) << "Dispose() waiting to take flush_sem_ for pending flush";
     CHECK(xSemaphoreTake(device_->spi_->flush_sem_, portMAX_DELAY));
   }
 
   // Wait for SpiManager to reach the end of the queue and deselect this
   // device's CS line, before allowing another transaction to begin.
-  VLOG(1) << "~SpiTransaction waiting to take end_transaction_sem_";
+  VLOG(1) << "Dispose() waiting to take end_transaction_sem_";
   CHECK(xSemaphoreTake(*end_transaction_sem_, portMAX_DELAY));
-  VLOG(1) << "~SpiTransaction returning transaction_mutex_";
+  VLOG(1) << "Dispose() returning transaction_mutex_";
   CHECK(xSemaphoreGive(device_->spi_->transaction_mutex_));
-  VLOG(1) << "~SpiTransaction done";
+  VLOG(1) << "Dispose() done";
+  moved_from_ = true;
 }
 
 SpiTransaction::Result SpiTransaction::Flush(TickType_t ticks_to_wait_enqueue,
