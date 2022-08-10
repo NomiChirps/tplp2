@@ -16,7 +16,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking.
 - [ ] Create a front panel UI (assignee: wembly :)
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
@@ -48,6 +47,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
   - [ ] Vendor all 3rd party libraries
+- 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking where possible.
 
 ## Board configuration/pins
 

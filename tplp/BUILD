@@ -19,16 +19,7 @@ cc_library(
     hdrs = ["lv_conf.h"],
     strip_include_prefix = "/tplp",
     visibility = ["//lib:__pkg__"],
-    deps = [":lv_tick_custom"],
-)
-
-cc_library(
-    name = "lv_tick_custom",
-    srcs = ["lv_tick_custom.cc"],
-    hdrs = ["lv_tick_custom.h"],
-    deps = [
-        "@rules_pico//pico:pico_time",
-    ],
+    deps = ["@rules_pico//pico:pico_time"],
 )
 
 pico_binary(

@@ -82,12 +82,11 @@
  *It removes the need to manually update the tick with `lv_tick_inc()`)*/
 #define LV_TICK_CUSTOM 1
 #if LV_TICK_CUSTOM
-#define LV_TICK_CUSTOM_INCLUDE \
-  "tplp/lv_tick_custom.h" /*Header for the system time function*/
-#define LV_TICK_CUSTOM_SYS_TIME_EXPR                                        \
-  (lv_tick_custom_impl()) /*Expression evaluating to current system time in \
-                             ms*/
-#endif                    /*LV_TICK_CUSTOM*/
+/*Header for the system time function*/
+#define LV_TICK_CUSTOM_INCLUDE "pico/time.h"
+/*Expression evaluating to current system time in ms*/
+#define LV_TICK_CUSTOM_SYS_TIME_EXPR (to_ms_since_boot(get_absolute_time()))
+#endif /*LV_TICK_CUSTOM*/
 
 /*Default Dot Per Inch. Used to initialize default sizes such as widgets sized,
  *style paddings. (Not so important, you can adjust it to modify default sizes
