@@ -4,7 +4,7 @@ cc_library(
     hdrs = ["main.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//simulator:lvgl",
         "//simulator/ui/screens",
+        "@lvgl",
     ],
 )

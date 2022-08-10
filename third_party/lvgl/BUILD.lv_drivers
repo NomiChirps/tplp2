@@ -21,7 +21,7 @@ cc_library(
         # except that Bazel will not allow a shared library (SDL2) to be
         # linked more than once from different configurations.
         "@SDL2//:headers_only",
-        "@lvgl-src//:lv_drv_conf",
+        "@lvgl//:lv_drv_conf",
         "@lvgl-src//:lvgl_no_drivers",
     ],
 )
@@ -35,7 +35,7 @@ cc_library(
     hdrs = glob(["indev/*.h"]),
     include_prefix = "lv_drivers",
     deps = [
-        "@lvgl-src//:lv_drv_conf",
+        "@lvgl//:lv_drv_conf",
         "@lvgl-src//:lvgl_no_drivers",
     ],
 )

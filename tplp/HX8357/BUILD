@@ -18,6 +18,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":HX8357",
-        "//tplp:lvgl",
+        "@lvgl",
     ],
 )

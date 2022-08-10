@@ -31,6 +31,11 @@ build --@rules_pico//pico/config:stdio_uart=False
 build --@rules_pico//pico/config:stdio_usb=True
 build:debug --@rules_pico//pico/config:stdio_usb=False
 
+# lvgl config
+build --@lvgl//:lv_conf=//tplp:lv_conf
+build:simulate --@lvgl//:lv_conf=//simulator/config:lv_conf
+build:simulate --@lvgl//:lv_drv_conf=//simulator/config:lv_drv_conf
+
 # For regular old development without a debugger.
 # Still "-c opt" to keep the image size to a reasonable level.
 build:iterate -c opt

@@ -1,12 +1,4 @@
-load("@lvgl//:defs.bzl", "lvgl_configured_library")
 load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
-
-lvgl_configured_library(
-    name = "lvgl",
-    lv_conf = "//simulator/config:lv_conf",
-    lv_drv_conf = "//simulator/config:lv_drv_conf",
-    visibility = ["//simulator:__subpackages__"],
-)
 
 cc_binary(
     name = "main",
@@ -15,10 +7,10 @@ cc_binary(
         ":console",
         ":hooks",
         ":mouse_cursor_icon",
-        "//simulator:lvgl",
         "//simulator/ui:main",
         "@FreeRTOS",
         "@SDL2",
+        "@lvgl",
     ],
 )
 
@@ -45,7 +37,7 @@ cc_library(
     name = "mouse_cursor_icon",
     srcs = ["mouse_cursor_icon.c"],
     deps = [
-        "//simulator:lvgl",
+        "@lvgl",
     ],
 )
 

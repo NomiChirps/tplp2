@@ -11,6 +11,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//simulator:lvgl",
+        "@lvgl",
     ],
 )

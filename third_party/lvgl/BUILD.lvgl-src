@@ -11,7 +11,7 @@ cc_library(
 
 cc_library(
     name = "lvgl",
-    visibility = ["//visibility:public"],
+    visibility = ["@lvgl//:__subpackages__"],
     deps = [
         ":lvgl_no_drivers",
     ] + select({
@@ -45,7 +45,7 @@ cc_library(
         "src/lv_conf_internal.h",
     ],
     deps = [
-        ":lv_conf",
+        "@lvgl//:lv_conf",
     ],
 )
 
@@ -65,21 +65,10 @@ cc_library(
     ],
 )
 
-label_setting(
-    name = "lv_conf",
-    build_setting_default = ":lv_conf_none",
-)
-
-label_setting(
-    name = "lv_drv_conf",
-    build_setting_default = ":lv_drv_conf_none",
-    visibility = ["@lv_drivers//:__subpackages__"],
-)
-
 config_setting(
     name = "disable_lv_drivers",
     flag_values = {
-        ":lv_drv_conf": ":lv_drv_conf_none",
+        "@lvgl//:lv_drv_conf": ":lv_drv_conf_none",
     },
 )
 
@@ -90,6 +79,4 @@ cc_library(
 
 cc_library(
     name = "lv_drv_conf_none",
-    visibility = ["//visibility:public"],
-    # TODO: maybe provide a dummy config just so this stuff compiles without configuration?
 )
