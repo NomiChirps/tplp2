@@ -1,4 +1,4 @@
-#include "ui/main.h"
+#include "tplp/ui/main.h"
 
 #include <SDL2/SDL.h>
 #include <assert.h>

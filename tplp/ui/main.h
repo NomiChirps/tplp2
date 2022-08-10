@@ -1,5 +1,5 @@
-#ifndef UI_MAIN_H
-#define UI_MAIN_H
+#ifndef TPLP_UI_MAIN_H_
+#define TPLP_UI_MAIN_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,4 +11,4 @@ void ui_main(void);
 } /*extern "C"*/
 #endif
 
-#endif /*UI_MAIN_H*/
+#endif  // TPLP_UI_MAIN_H_

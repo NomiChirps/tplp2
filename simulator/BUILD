@@ -7,7 +7,7 @@ cc_binary(
         ":console",
         ":hooks",
         ":mouse_cursor_icon",
-        "//simulator/ui:main",
+        "//tplp/ui:main",
         "@FreeRTOS",
         "@SDL2",
         "@lvgl",

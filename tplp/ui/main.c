@@ -1,5 +1,5 @@
 #include "lvgl/lvgl.h"
-#include "screens/home_screen.h"
+#include "tplp/ui/screens/home_screen.h"
 
 void ui_main(void)
 {

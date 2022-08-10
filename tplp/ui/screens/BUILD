@@ -1,4 +1,6 @@
-# Argh! A dependency cycle in the headers!
+package(default_visibility = ["//tplp/ui:__subpackages__"])
+
+# TODO: Argh! A dependency cycle!
 cc_library(
     name = "screens",
     srcs = [
@@ -9,7 +11,6 @@ cc_library(
         "home_screen.h",
         "settings.h",
     ],
-    visibility = ["//visibility:public"],
     deps = [
         "@lvgl",
     ],

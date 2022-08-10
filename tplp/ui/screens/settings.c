@@ -1,5 +1,6 @@
 #include "lvgl/lvgl.h"
-#include "home_screen.h"
+#include "tplp/ui/screens/settings.h"
+#include "tplp/ui/screens/home_screen.h"
 
 
 static lv_obj_t * ui_test_content_create(lv_obj_t * parent);
