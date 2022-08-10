@@ -41,6 +41,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
 - Nice-to-haves
+  - [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
+    - this will also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
   - [ ] split out lvgl-bazel as its own library? eh, maybe later. it's already pretty much prepped though
   - [ ] move/redirect config headers to a config/ dir
   - [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.

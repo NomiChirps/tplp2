@@ -20,6 +20,9 @@ cc_library(
     name = "backtrace",
     srcs = ["backtrace.cc"],
     hdrs = ["backtrace.h"],
+    target_compatible_with = [
+        "@platforms//cpu:armv6-m",
+    ],
 )
 
 cc_test(
