@@ -19,9 +19,7 @@ void FreeRTOS_ConfigureTimeForRunTimeStats() {
 }
 
 unsigned long FreeRTOS_GetRunTimeCounterValue() {
-  // Divide by 16 just to get smaller numbers so they fit better visually in the
-  // summary table.
-  return to_us_since_boot(get_absolute_time()) >> 4;
+  return to_us_since_boot(get_absolute_time());
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t task, char* name) {
