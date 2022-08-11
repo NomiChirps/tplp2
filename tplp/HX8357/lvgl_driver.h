@@ -6,7 +6,10 @@
 
 namespace tplp {
 
-lv_disp_t* RegisterDisplayDriver_HX8357(HX8357* display);
+// This driver makes use of the 0th task notification index on the
+// lv_timer_handler task.
+lv_disp_t* RegisterDisplayDriver_HX8357(HX8357* display,
+                                        TaskHandle_t lv_timer_task);
 
 }  // namespace tplp
 

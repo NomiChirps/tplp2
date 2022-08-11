@@ -9,11 +9,11 @@
  *====================*/
 
 /*Color depth: 1 (1 byte per pixel), 8 (RGB332), 16 (RGB565), 32 (ARGB8888)*/
-#define LV_COLOR_DEPTH 1  // 1 for SharpLCD
+#define LV_COLOR_DEPTH 16  // 16 for HX8357
 
 /*Swap the 2 bytes of RGB565 color. Useful if the display has an 8-bit interface
  * (e.g. SPI)*/
-#define LV_COLOR_16_SWAP 0
+#define LV_COLOR_16_SWAP 1
 
 /*Enable features to draw on transparent background.
  *It's required if opa, and transform_* style properties are used.
@@ -65,7 +65,7 @@
 
 /*Use the standard `memcpy` and `memset` instead of LVGL's own functions. (Might
  * or might not be faster).*/
-#define LV_MEMCPY_MEMSET_STD 0
+#define LV_MEMCPY_MEMSET_STD 1
 
 /*====================
    HAL SETTINGS
@@ -91,7 +91,7 @@
 /*Default Dot Per Inch. Used to initialize default sizes such as widgets sized,
  *style paddings. (Not so important, you can adjust it to modify default sizes
  *and spaces)*/
-#define LV_DPI_DEF 130 /*[px/inch]*/
+#define LV_DPI_DEF 164  // HX8357
 
 /*=======================
  * FEATURE CONFIGURATION
@@ -235,7 +235,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h"*/
  *LV_LOG_LEVEL_TRACE       A lot of logs to give detailed information
  *LV_LOG_LEVEL_INFO        Log important events
  *LV_LOG_LEVEL_WARN        Log if something unwanted happened but didn't cause a
- *problem LV_LOG_LEVEL_ERROR       Only critical issue, when the system may fail
+ *                         problem
+ *LV_LOG_LEVEL_ERROR       Only critical issue, when the system may fail
  *LV_LOG_LEVEL_USER        Only logs added by the user
  *LV_LOG_LEVEL_NONE        Do not log anything*/
 #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
@@ -278,7 +279,7 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h"*/
 
 /*Add a custom handler when assert happens e.g. to restart the MCU*/
 #define LV_ASSERT_HANDLER_INCLUDE <stdint.h>
-// TODO: move this to a library and add a proper dependency?
+// Defined in tplp/hook_impl.cc
 extern void lvgl_assertion_failed();
 #define LV_ASSERT_HANDLER lvgl_assertion_failed();
 
@@ -340,11 +341,11 @@ extern void lvgl_assertion_failed();
 #define LV_ATTRIBUTE_FLUSH_READY
 
 /*Required alignment size for buffers*/
-#define LV_ATTRIBUTE_MEM_ALIGN_SIZE 1
+#define LV_ATTRIBUTE_MEM_ALIGN_SIZE 4
 
 /*Will be added where memories needs to be aligned (with -Os data might not be
  * aligned to boundary by default). E.g. __attribute__((aligned(4)))*/
-#define LV_ATTRIBUTE_MEM_ALIGN
+#define LV_ATTRIBUTE_MEM_ALIGN __attribute__((aligned(4)))
 
 /*Attribute to mark large constant arrays for example font's bitmaps*/
 #define LV_ATTRIBUTE_LARGE_CONST
@@ -542,7 +543,7 @@ extern void lvgl_assertion_failed();
  *----------*/
 #define LV_USE_ANIMIMG 1
 
-#define LV_USE_CALENDAR 1
+#define LV_USE_CALENDAR 0
 #if LV_USE_CALENDAR
 #define LV_CALENDAR_WEEK_STARTS_MONDAY 0
 #if LV_CALENDAR_WEEK_STARTS_MONDAY
@@ -600,10 +601,9 @@ extern void lvgl_assertion_failed();
  * Themes
  *----------*/
 
-// TODO: disable unused themes
 
 /*A simple, impressive and very complete theme*/
-#define LV_USE_THEME_DEFAULT 0
+#define LV_USE_THEME_DEFAULT 1
 #if LV_USE_THEME_DEFAULT
 
 /*0: Light mode; 1: Dark mode*/
@@ -620,7 +620,7 @@ extern void lvgl_assertion_failed();
 #define LV_USE_THEME_BASIC 0
 
 /*A theme designed for monochrome displays*/
-#define LV_USE_THEME_MONO 1
+#define LV_USE_THEME_MONO 0
 
 /*-----------
  * Layouts

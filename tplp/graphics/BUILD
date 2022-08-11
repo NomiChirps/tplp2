@@ -23,5 +23,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "@FreeRTOS",
+        "//picolog",
     ],
 )

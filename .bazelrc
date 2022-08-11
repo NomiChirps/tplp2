@@ -48,7 +48,6 @@ build --@rules_pico//pico/config:stdio_usb=True
 # USB is used by pico-debug, so we cannot use it for stdio.
 build:debug --@rules_pico//pico/config:stdio_usb=False
 # TODO: can we put these defines in a header somewhere?
-build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,HX8357=1\""
 # Disable CR/LF conversion on stdout. This is useless overhead.
 build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
 # Wait for someone to monitor serial output
@@ -56,6 +55,9 @@ build:iterate --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=5000"
 build:iterate --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
 # For faster turnaround after a fatal error! :)
 build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
+# Verbose logging
+build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,HX8357=0,lvgl_driver=0,lvgl_init=0,lvgl_mutex=0\""
+#build --copt="-DPICO_DEBUG_MALLOC=1"
 
 # lvgl config
 build --@lvgl//:lv_conf=//tplp/config:lv_conf

@@ -16,7 +16,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] rename HX8357 -> Adafruit_HX8357
 - [ ] Create a front panel UI (assignee: wembly :)
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
@@ -42,6 +41,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
 - Nice-to-haves
+  - [ ] write a stress test for SpiManager. lotsa tasks, lotsa devices, all hammering away
+  - [ ] hook up tft backlight pin and add an adjustable brightness setting (PWM)
   - [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
     - this will also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
   - [ ] split out lvgl-bazel as its own library? eh, maybe later. it's already pretty much prepped though
@@ -133,6 +134,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [ ] LVGL driver for HX8357
 - [x] HX8357 self test :)
 - [x] rework SpiManager again again; it should be able to suport full duplex. instead of sendevent/receiveevent, let's have transferevent(naming???) which specifies optionally both buffers. I GUESS???? if both are specified, they would necessarily have to be the same length!
 - [x] get a compile_commands going for //simulator

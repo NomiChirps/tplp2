@@ -100,8 +100,8 @@ lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display) {
       .display_ready = xSemaphoreCreateBinary(),
   };
   TaskHandle_t refresh_task;
-  CHECK(xTaskCreate(&DisplayRefreshTask, "lvgl_disp_drv", TaskStacks::kDefault,
-                    task_param, TaskPriorities::kLvglDisplayDriver,
+  CHECK(xTaskCreate(&DisplayRefreshTask, "SharpLCD", TaskStacks::kSharpLCD,
+                    task_param, TaskPriorities::kSharpLCD,
                     &refresh_task));
 
   lv_disp_drv_t* driver = new lv_disp_drv_t;

@@ -19,14 +19,22 @@ namespace tplp {
 namespace {
 
 void LvglTimerHandlerTask(void*) {
+  LOG(INFO) << "LVGL timer handler task pending.";
+  // Wait to begin until init is finished.
+  ulTaskNotifyTake(true, portMAX_DELAY);
   LOG(INFO) << "LVGL timer handler task started.";
   for (;;) {
     {
       LvglLock lock;
+      VLOG(2) << "calling lv_timer_handler";
       lv_timer_handler();
     }
     // TODO: should this be shorter?
-    vTaskDelay(as_ticks(100ms));
+    // Actually, come to think of it, if the timer task has the appropriate
+    // priority then it doesn't even matter. This can be a taskYIELD(), all
+    // that'd happen is this would replace the idle task. Which isn't
+    // necessarily what we want just for *waves hands* efficiency reasons.
+    vTaskDelay(as_ticks_ceil(100ms));
   }
 }
 
@@ -56,26 +64,41 @@ void InitLvglImpl(const std::function<lv_disp_t*()> init_display) {
 
   lv_disp_t* display = init_display();
   CHECK_NOTNULL(display);
-  lv_disp_set_theme(display, lv_theme_mono_init(display, 0, lv_font_default()));
-  // TODO: register input device drivers
+
+  lv_theme_t* theme = lv_theme_default_init(
+      display, lv_palette_main(LV_PALETTE_BLUE),
+      lv_palette_main(LV_PALETTE_RED), LV_THEME_DEFAULT_DARK, LV_FONT_DEFAULT);
+  lv_disp_set_theme(display, theme);
+
+  // TODO: register input device driver(s)
 
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.
   static_assert(LV_TICK_CUSTOM);
+}
+
+TaskHandle_t CreateTimerHandlerTask() {
+  TaskHandle_t result;
   CHECK(xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler",
                     TaskStacks::kLvglTimerHandler, nullptr,
-                    TaskPriorities::kLvglTimerHandler, nullptr));
+                    TaskPriorities::kLvglTimerHandler, &result));
+  return result;
 }
 
 }  // namespace
 
 void InitLvgl(SharpLCD* raw_display) {
+  TaskHandle_t lv_timer_task = CreateTimerHandlerTask();
   InitLvglImpl(
       [raw_display]() { return RegisterDisplayDriver_SharpLCD(raw_display); });
+  xTaskNotifyGive(lv_timer_task);
 }
 
 void InitLvgl(HX8357* raw_display) {
-  InitLvglImpl(
-      [raw_display]() { return RegisterDisplayDriver_HX8357(raw_display); });
+  TaskHandle_t lv_timer_task = CreateTimerHandlerTask();
+  InitLvglImpl([raw_display, lv_timer_task]() {
+    return RegisterDisplayDriver_HX8357(raw_display, lv_timer_task);
+  });
+  xTaskNotifyGive(lv_timer_task);
 }
 
 void RunLvglDemo(void*) {
@@ -90,15 +113,9 @@ void RunLvglDemo(void*) {
     lv_obj_set_width(label1, 120); /*Set smaller width to make the lines wrap*/
     lv_obj_set_style_text_align(label1, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(label1, LV_ALIGN_CENTER, 0, 0);
-    // lv_obj_t* label2 = lv_label_create(lv_scr_act());
-    // lv_label_set_long_mode(label2,
-    //                        LV_LABEL_LONG_SCROLL_CIRCULAR); /*Circular
-    //                        scroll*/
-    // lv_obj_set_width(label2, 150);
-    // lv_label_set_text(label2, "It is a circularly scrolling text. ");
-    // lv_obj_align(label2, LV_ALIGN_CENTER, 0, 40);
   }
   for (;;) {
+    VLOG(1) << "RunLvglDemo loop";
     vTaskDelay(as_ticks(400ms));
     {
       LvglLock lock;

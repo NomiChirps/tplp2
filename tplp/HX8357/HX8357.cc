@@ -398,28 +398,27 @@ uint8_t upper_half(int16_t n) { return (n & 0xff00) >> 8; }
 uint8_t lower_half(int16_t n) { return n & 0x00ff; }
 }  // namespace
 
-void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t width,
-                  int16_t height) {
+void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
+                  int16_t y2) {
   CHECK_NOTNULL(pixels);
   CHECK_GE(x1, 0);
   CHECK_GE(y1, 0);
-  if (!width || !height) return;
-  const int16_t x2 = (x1 + width - 1);
-  const int16_t y2 = (y1 + height - 1);
+  CHECK_GE(x2, 0);
+  CHECK_GE(y2, 0);
   CHECK_LT(x1, display_width_);
-  CHECK_LT(x1, display_width_);
+  CHECK_LT(x2, display_width_);
   CHECK_LT(y1, display_height_);
   CHECK_LT(y2, display_height_);
-  CHECK_LT(x1, x2);
-  CHECK_LT(y1, y2);
+  CHECK_LE(x1, x2);
+  CHECK_LE(y1, y2);
 
   uint64_t t1 = 0;
   if (VLOG_IS_ON(1)) t1 = to_us_since_boot(get_absolute_time());
 
-  const uint8_t xcoords[4] = {upper_half(x1), lower_half(x1), upper_half(x2),
-                              lower_half(x2)};
-  const uint8_t ycoords[4] = {upper_half(y1), lower_half(y1), upper_half(y2),
-                              lower_half(y2)};
+  const uint8_t xcoords[4] = {upper_half(x1), lower_half(x1),
+                              upper_half(x2), lower_half(x2)};
+  const uint8_t ycoords[4] = {upper_half(y1), lower_half(y1),
+                              upper_half(y2), lower_half(y2)};
   SendCommand(HX8357_CASET, xcoords, 4);
   SendCommand(HX8357_PASET, ycoords, 4);
   SpiTransaction txn = spi_device_->StartTransaction();
@@ -430,8 +429,8 @@ void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t width,
   });
   gpio_put(dc_, 1);
   // TODO: use 16-bit transfer width! :) but watch out for byte order
-  uint32_t len =
-      static_cast<uint32_t>(width) * static_cast<uint32_t>(height) * 2u;
+  uint32_t len = static_cast<uint32_t>(x2 - x1 + 1) *
+                 static_cast<uint32_t>(y2 - y1 + 1) * 2u;
   txn.Transfer({
       .tx_buf = reinterpret_cast<const uint8_t*>(pixels),
       .len = len,
@@ -440,7 +439,7 @@ void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t width,
 
   uint64_t t2 = 0;
   if (VLOG_IS_ON(1)) t2 = to_us_since_boot(get_absolute_time());
-  VLOG(1) << "Blit() finished in " << (t2 - t1) << "us ("
+  VLOG(1) << "Blit() finished in " << (t2 - t1) << "us ~"
           << ((1'000ll * len) / (t2 - t1)) << "kB/s";
 }
 }  // namespace tplp

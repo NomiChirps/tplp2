@@ -21,11 +21,13 @@ class HX8357 {
 
   // DMAs a rectangle of 16-bit 5-6-5 BGR format pixels to a location on the
   // display. Blocks until finished. `x1`, `y1` are the upper-left corner of the
-  // rectangle. Crashes if any of the arguments is out of range.
+  // rectangle; `x2`, `y2` are the bottom-right corner. The length of `pixels`
+  // should be `(x2-x1+1)*(y2-y1+1)`. Crashes if any of the arguments is out of
+  // range.
   //
   // `int16_t` was cleverly chosen to match LVGL's default coordinate type.
-  void Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t width,
-            int16_t height);
+  void Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
+            int16_t y2);
 
   // Returns current width of the display, as modified by the rotation setting.
   int16_t width() const { return display_width_; }

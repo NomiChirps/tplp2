@@ -48,7 +48,8 @@ struct TaskPriorities {
   static constexpr int kSpiManager0 = 3;
   static constexpr int kSpiManager1 = 3;
   static constexpr int kLvglTimerHandler = 1;
-  static constexpr int kLvglDisplayDriver = 1;
+  static constexpr int kSharpLCD = 1;
+  static constexpr int kHX8357 = 1;
 
   // FreeRTOS idle task runs at priority 0.
 };
@@ -57,6 +58,8 @@ struct TaskStacks {
   static constexpr int kDefault = 1024;  // TODO: deprecate
   static constexpr int kLvglTimerHandler = 2048;
   static constexpr int kLogging = 1024;
+  static constexpr int kSharpLCD = 1024;
+  static constexpr int kHX8357 = 1024;
 };
 
 }  // namespace tplp

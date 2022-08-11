@@ -29,9 +29,9 @@ void led_task(void*) {
   gpio_set_dir(LED_PIN, GPIO_OUT);
   while (true) {
     gpio_put(LED_PIN, 1);
-    vTaskDelay(as_ticks(200ms));
+    vTaskDelay(as_ticks_ceil(200ms));
     gpio_put(LED_PIN, 0);
-    vTaskDelay(as_ticks(200ms));
+    vTaskDelay(as_ticks_ceil(200ms));
   }
 }
 
@@ -41,43 +41,9 @@ void neopixel_task(void*) {
   // bool rgbw)
 }
 
-static const int16_t kW = 30;
-static const int16_t kH = 100;
-static std::array<uint16_t, kW*kH> kWhite;
-static std::array<uint16_t, kW*kH> kRed;
-static std::array<uint16_t, kW*kH> kGreen;
-static std::array<uint16_t, kW*kH> kBlue;
-
-void tft_test_task(void* task_param) {
-  kWhite.fill(0xffff);
-  kRed.fill(0x001f);
-  kGreen.fill(0x07e0);
-  kBlue.fill(0xf800);
-  std::array<uint16_t, kW*kH> *which[3] = {&kRed, &kGreen, &kBlue};
-
-  HX8357D* display = static_cast<HX8357D*>(task_param);
-  vTaskDelay(as_ticks(5'000ms));
-  LOG(INFO) << "Self test 1";
-  display->SelfTest();
-  vTaskDelay(as_ticks(5'000ms));
-  LOG(INFO) << "Self test 2";
-  display->SelfTest();
-  const int16_t x1 = 20;
-  const int16_t y1 = 20;
-  int n = 0;
-  for (;;) {
-    vTaskDelay(as_ticks(1'000ms));
-    display->Blit(which[n++%3]->begin(), x1, y1, kW, kH);
-    //display->Blit(kRed, x1, y1, kW, kH);
-    //display->Blit(kGreen, x1 + kW, y1, kW, kH);
-    //display->Blit(kBlue, x1 + 2 * kW, y1, kW, kH);
-  }
-}
-
-// TODO: move this to its own file.
 void StartupTask(void*) {
   picolog::InitLogging();
-  if (!xTaskCreate(&picolog::BackgroundTask, "LOGGER", TaskStacks::kLogging,
+  if (!xTaskCreate(&picolog::BackgroundTask, "picolog", TaskStacks::kLogging,
                    nullptr, TaskPriorities::kLogging, nullptr)) {
     panic("Failed to start log task");
   }
@@ -97,15 +63,17 @@ void StartupTask(void*) {
 
   HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
   display->Begin();
+  if (!display->SelfTest()) {
+    // TODO: flash out an error code on something? board LED?
+    LOG(ERROR) << "HX8357 self test failed! Continuing anyway...";
+  }
   LOG(INFO) << "HX8357->Begin() OK";
 
-  CHECK(xTaskCreate(&tft_test_task, "TFT Test", TaskStacks::kDefault, display,
-                    1, nullptr));
+  InitLvgl(display);
+  LOG(INFO) << "InitLvgl() OK";
+  CHECK(xTaskCreate(&RunLvglDemo, "LVGL Demo", TaskStacks::kDefault, nullptr, 1,
+                    nullptr));
 
-  // InitLvgl(display);
-  // LOG(INFO) << "InitLvgl() OK);
-  // CHECK(xTaskCreate(&RunLvglDemo, "LVGL Demo", TaskStacks::kDefault,
-  //                         nullptr, 1, nullptr));
   LOG(INFO) << "Startup complete.";
   vTaskDelete(nullptr);
 }
