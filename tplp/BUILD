@@ -11,12 +11,13 @@ pico_binary(
         ":SpiManager",
         ":hook_impl",
         ":time",
-        "//tplp/config:tplp_config",
         ":types",
         ":ws2812",
         "//tplp/HX8357",
         "//tplp/SharpLCD",
+        "//tplp/config:tplp_config",
         "//tplp/graphics:lvgl_init",
+        "//tplp/ui:main",
         "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
@@ -49,10 +50,10 @@ cc_library(
     hdrs = ["RuntimeStats.h"],
     deps = [
         ":time",
-        "//tplp/config:tplp_config",
         "//picolog",
-        "@lvgl",
+        "//tplp/config:tplp_config",
         "@FreeRTOS",
+        "@lvgl",
     ],
 )
 
@@ -81,9 +82,9 @@ cc_library(
     visibility = [":__subpackages__"],
     deps = [
         ":time",
-        "//tplp/config:tplp_config",
         ":types",
         "//picolog",
+        "//tplp/config:tplp_config",
         "@FreeRTOS",
         "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",

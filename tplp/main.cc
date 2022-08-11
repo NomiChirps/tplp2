@@ -12,9 +12,11 @@
 #include "tplp/SpiManager.h"
 #include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_init.h"
+#include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/time.h"
 #include "tplp/types.h"
 #include "tplp/ws2812.h"
+#include "tplp/ui/main.h"
 
 using std::chrono_literals::operator""ms;
 
@@ -71,8 +73,12 @@ void StartupTask(void*) {
 
   InitLvgl(display);
   LOG(INFO) << "InitLvgl() OK";
-  CHECK(xTaskCreate(&RunLvglDemo, "LVGL Demo", TaskStacks::kDefault, nullptr, 1,
-                    nullptr));
+
+  // Create GUI screens.
+  {
+    LvglMutex mutex;
+    ui_main();
+  }
 
   LOG(INFO) << "Startup complete.";
   vTaskDelete(nullptr);
