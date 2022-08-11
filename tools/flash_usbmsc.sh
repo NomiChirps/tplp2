@@ -34,6 +34,7 @@ if [[ ! -e ${mountpoint} ]]; then
 	udisksctl mount -b "/dev/disk/by-label/${label}"
 fi
 
+echo "Copying..."
 cp "${1}" "${mountpoint}"/
 echo "Waiting for reboot."
 # Wait a sec for the device to reboot and establish a USB connection for whatever we're doing next.
