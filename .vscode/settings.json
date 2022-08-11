@@ -1,6 +1,7 @@
 {
     "search.exclude": {
         "bazel-*/**": true,
-        "compile_commands.json": true
+        "compile_commands.json": true,
+        ".trunk/**": true,
     },
 }
