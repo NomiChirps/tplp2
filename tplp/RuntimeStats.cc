@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <iomanip>
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
@@ -21,10 +22,6 @@ class StatsTask {
   static constexpr int kMaxTasks = 32;
   static TaskStatus_t task_status[kMaxTasks];
   static uint32_t total_run_time;
-  static constexpr int kBufSize = 1024;
-  static char buf[kBufSize];
-  static char* buf_head;
-  static constexpr char* buf_tail = buf + kBufSize;
 
  public:
   static void stats_task(void*) {
@@ -59,7 +56,6 @@ class StatsTask {
                   << " max_used=" << lvgl_heap.max_used;
       }
       {
-        buf_head = buf;
         int column_width[] = {/*name=*/configMAX_TASK_NAME_LEN,
                               /*time total=*/7, /*time percent=*/4,
                               /*min free stack=*/6};
@@ -75,39 +71,29 @@ class StatsTask {
                     return a.xTaskNumber < b.xTaskNumber;
                   });
         total_run_time /= 100;
-        PrintToBuf(
-            "FreeRTOS Task Stats: Task name; Total runtime; Percent runtime; "
-            "Stack high-water mark\n");
+        LOG(INFO) << "FreeRTOS Task Stats: Task name; Total runtime; Percent "
+                     "runtime; Stack high-water mark";
         for (int i = 0; i < num_tasks; ++i) {
           TaskStatus_t& task = task_status[i];
-          PrintToBuf("%-*s%*dms%*d%%%*u bytes\n", column_width[0],
-                     task.pcTaskName, column_width[1],
-                     static_cast<int>(task.ulRunTimeCounter / 1000),
-                     column_width[2],
-                     static_cast<int>(task.ulRunTimeCounter / total_run_time),
-                     column_width[3],
-                     static_cast<unsigned int>(task.usStackHighWaterMark));
+          LOG(INFO) << std::setw(column_width[0]) << task.pcTaskName
+                    << std::right << std::setw(column_width[1])
+                    << static_cast<int>(task.ulRunTimeCounter / 1000)
+                    << std::setw(0) << "ms" << std::setw(column_width[2])
+                    << static_cast<int>(task.ulRunTimeCounter / total_run_time)
+                    << std::setw(0) << '%' << std::setw(column_width[3])
+                    << static_cast<unsigned int>(task.usStackHighWaterMark)
+                    << std::setw(0) << " bytes";
         }
-        LOG(INFO) << std::string_view(buf);
       }
-      vTaskDelay(as_ticks(30'000ms));
+      vTaskDelay(as_ticks(10'000ms));
     }
   }
 
  private:
-  [[gnu::format(printf, 1, 2)]] static void PrintToBuf(const char* format,
-                                                       ...) {
-    va_list arglist;
-    va_start(arglist, format);
-    buf_head += vsnprintf(buf_head, buf_tail - buf_head, format, arglist);
-    va_end(arglist);
-  }
 };
 
 TaskStatus_t StatsTask::task_status[];
-char StatsTask::buf[];
 uint32_t StatsTask::total_run_time;
-char* StatsTask::buf_head;
 
 void StartRuntimeStatsReportingTask(int priority) {
   CHECK(xTaskCreate(&StatsTask::stats_task, "print_stats", TaskStacks::kDefault,
