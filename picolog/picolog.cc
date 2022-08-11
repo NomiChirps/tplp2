@@ -280,10 +280,10 @@ static void PrintStackTrace(const backtrace_frame_t* frames, int count) {
 }
 
 void BackgroundTask(void*) {
-  static std::byte recv_buf[sizeof(LogMessage::LogMessageData)];
+  static LogMessage::LogMessageData data;
 
   for (;;) {
-    while (!xQueueReceive(queue, recv_buf, portMAX_DELAY)) {
+    while (!xQueueReceive(queue, &data, portMAX_DELAY)) {
       // TODO: it would be nice to count the number of dropped log messages if
       // the queue fills up. best way would be an atomic increment from tasks
       // (if we can?), then here change portMAX_DELAY to some small-ish value.
@@ -293,18 +293,16 @@ void BackgroundTask(void*) {
       // queue is empty, instead? maybe inefficient to check the queue's status
       // twice every loop.
     }
-    LogMessage::LogMessageData* data =
-        reinterpret_cast<LogMessage::LogMessageData*>(recv_buf);
     // We disabled stdout's buffering earlier, so this should go straight to the
     // pico-sdk _write() function, which always flushes.
-    fwrite(data->message_text_, data->num_chars_to_log_, 1, stdout);
+    fwrite(data.message_text_, data.num_chars_to_log_, 1, stdout);
 
-    if (data->severity_ == PICOLOG_FATAL) {
+    if (data.severity_ == PICOLOG_FATAL) {
       // TODO: suspend others? what about the printf/malloc mutex?
       // vTaskSuspendAll();
       printf("\n*** Aborted at %lluus since boot ***\n",
              to_us_since_boot(get_absolute_time()));
-      PrintStackTrace(data->backtrace_, data->backtrace_length_);
+      PrintStackTrace(data.backtrace_, data.backtrace_length_);
       fflush(stdout);  // just in case
 #if PICOLOG_RESET_TO_BOOTLOADER_ON_FATAL
       // TODO maybe there's a better way to configure this
