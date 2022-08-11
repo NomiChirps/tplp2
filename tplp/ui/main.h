@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+// Caller must be holding the LVGL mutex.
 void ui_main(void);
 
 #ifdef __cplusplus

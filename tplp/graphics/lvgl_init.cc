@@ -25,7 +25,7 @@ void LvglTimerHandlerTask(void*) {
   LOG(INFO) << "LVGL timer handler task started.";
   for (;;) {
     {
-      LvglLock lock;
+      LvglMutex lock;
       VLOG(2) << "calling lv_timer_handler";
       lv_timer_handler();
     }
@@ -49,8 +49,8 @@ void lvgl_print_cb_impl(const char* msg) {
 }
 
 void InitLvglImpl(const std::function<lv_disp_t*()> init_display) {
-  LvglLock::InitOnce();
-  LvglLock lock;
+  LvglMutex::InitOnce();
+  LvglMutex lock;
   // LVGL documentation says:
   // 1. Call lv_init().
   // 2. Initialize your drivers.
@@ -105,7 +105,7 @@ void RunLvglDemo(void*) {
   LOG(INFO) << "RunLvglDemo task started.";
   lv_obj_t* label1;
   {
-    LvglLock lock;
+    LvglMutex lock;
     label1 = lv_label_create(lv_scr_act());
     lv_label_set_long_mode(label1, LV_LABEL_LONG_WRAP); /*Break the long lines*/
     lv_label_set_text(label1,
@@ -118,12 +118,12 @@ void RunLvglDemo(void*) {
     VLOG(1) << "RunLvglDemo loop";
     vTaskDelay(as_ticks(400ms));
     {
-      LvglLock lock;
+      LvglMutex lock;
       lv_obj_align(label1, LV_ALIGN_CENTER, -10, 0);
     }
     vTaskDelay(as_ticks(400ms));
     {
-      LvglLock lock;
+      LvglMutex lock;
       lv_obj_align(label1, LV_ALIGN_CENTER, 10, 0);
     }
   }

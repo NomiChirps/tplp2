@@ -11,18 +11,18 @@ SemaphoreHandle_t global_lvgl_mutex_;
 
 }  // namespace
 
-LvglLock::LvglLock() {
+LvglMutex::LvglMutex() {
   xSemaphoreTakeRecursive(global_lvgl_mutex_, portMAX_DELAY);
   // TODO: it'd be nice to have the file & line number of the caller
   VLOG(1) << "-> TAKE";
 }
 
-LvglLock::~LvglLock() {
+LvglMutex::~LvglMutex() {
   VLOG(1) << "<- GIVE";
   xSemaphoreGiveRecursive(global_lvgl_mutex_);
 }
 
-void LvglLock::InitOnce() {
+void LvglMutex::InitOnce() {
   global_lvgl_mutex_ = xSemaphoreCreateRecursiveMutex();
 }
 

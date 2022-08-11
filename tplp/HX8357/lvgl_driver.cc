@@ -75,7 +75,7 @@ static void BlitTask(void* param) {
 
 lv_disp_t* RegisterDisplayDriver_HX8357(HX8357* display,
                                         TaskHandle_t lv_timer_task) {
-  LvglLock mutex;
+  LvglMutex mutex;
   // LVGL docs recommend 1/10 screen size as the maximum useful drawbuf size.
   // However, we're tight on memory already, so let's make it 1/20.
   const int kBufPixelCount = display->width() * display->height() / 20;

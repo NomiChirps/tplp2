@@ -39,7 +39,7 @@ void flush_cb_impl(lv_disp_drv_t* driver, const lv_area_t* area,
 
   // Ready for the next update from LVGL.
   {
-    LvglLock mutex;
+    LvglMutex mutex;
     lv_disp_flush_ready(driver);
   }
 }
@@ -88,7 +88,7 @@ lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display) {
   // Packed into bits.
   const uint32_t kBufSize = kBufPixelCount / 8;
 
-  LvglLock mutex;
+  LvglMutex mutex;
 
   lv_disp_draw_buf_t* draw_buf = new lv_disp_draw_buf_t;
   lv_color_t* buf1 = new lv_color_t[kBufSize];

@@ -5,13 +5,13 @@ namespace tplp {
 
 // This is a scoped mutex guard. It MUST be held while calling ANY lvgl
 // function. Do not use until after calling InitOnce().
-class LvglLock {
+class LvglMutex {
  public:
-  explicit LvglLock();
-  ~LvglLock();
+  explicit LvglMutex();
+  ~LvglMutex();
 
-  LvglLock(const LvglLock&) = delete;
-  LvglLock& operator=(const LvglLock&) = delete;
+  LvglMutex(const LvglMutex&) = delete;
+  LvglMutex& operator=(const LvglMutex&) = delete;
 
   static void InitOnce();
 };
