@@ -10,6 +10,7 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
 
 ## Wishlist
 
+- [ ] thread-local and/or arena storage for LogMessageData to avoid malloc
 - [ ] DCHECK
 - [ ] Status object and CHECK_OK
 - [ ] LOG level toggles at runtime

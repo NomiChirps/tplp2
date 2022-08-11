@@ -112,11 +112,19 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
   Init(file, line, severity);
 }
 
+static LogMessage::LogMessageData* NewLogMessageData() {
+#if PICOLOG_THREAD_LOCAL_STORAGE_INDEX
+  // TODO: implement thread local storage for LogMessageData
+  #error "not implemented"
+#else
+  // TODO: maybe use a statically allocated arena instead?
+  return new LogMessage::LogMessageData();
+#endif
+}
+
 void LogMessage::Init(const char* file, int line, LogSeverity severity) {
-  // TODO: consider using thread-local storage
-  // (this won't play nice with multicore without extra effort)
   absolute_time_t timestamp_now = get_absolute_time();
-  data_ = new LogMessageData();
+  data_ = NewLogMessageData();
   data_->logmsgtime_ = LogMessageTime(to_us_since_boot(timestamp_now));
   data_->severity_ = severity;
   data_->line_ = line;
