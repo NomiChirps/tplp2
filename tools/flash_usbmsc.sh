@@ -22,12 +22,20 @@ fi
 label="RPI-RP2"
 mountpoint="/run/media/${USER}/${label}"
 
+device=(/dev/serial/by-id/usb-Raspberry_Pi_Pico_*)
+if [[ -e ${device[0]} ]]; then
+	# Device is already running with stdio_usb, so we can reset it
+	echo "Attempting to reset ${device[0]}"
+	stty -F "${device[0]}" 1200
+	sleep 3
+fi
+
 if [[ ! -e ${mountpoint} ]]; then
 	udisksctl mount -b "/dev/disk/by-label/${label}"
 fi
 
 cp "${1}" "${mountpoint}"/
-echo
+echo "Waiting for reboot."
 # Wait a sec for the device to reboot and establish a USB connection for whatever we're doing next.
-sleep 1
+sleep 2
 echo "Success."
