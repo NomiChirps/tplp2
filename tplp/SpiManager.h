@@ -194,15 +194,6 @@ class SpiTransaction {
   SpiDevice* const device_;
   bool flush_pending_;
 
-  struct SemaphoreDeleter {
-    void operator()(SemaphoreHandle_t*);
-  };
-  // A semaphore used in the implementation of TransmitBlocking.
-  // TODO: It would be more efficient to use a direct-to-task notification!
-  std::unique_ptr<SemaphoreHandle_t, SemaphoreDeleter> blocking_sem_;
-  // TODO: It would be more efficient to use a direct-to-task notification!
-  std::unique_ptr<SemaphoreHandle_t, SemaphoreDeleter> end_transaction_sem_;
-
   // Used for consistency checks.
   TaskHandle_t originating_task_;
 };
@@ -232,6 +223,15 @@ class SpiDevice {
   SpiManager* const spi_;
   const gpio_pin_t cs_;
   const std::string name_;
+
+  std::optional<SpiTransaction> txn_;
+  // A semaphore used in the implementation of TransmitBlocking. SpiTransaction
+  // uses these, but since only one transaction can be active on a device at a
+  // time, that is fine.
+  // TODO: It would be more efficient to use a direct-to-task notification!
+  SemaphoreHandle_t blocking_sem_;
+  // TODO: It would be more efficient to use a direct-to-task notification!
+  SemaphoreHandle_t end_transaction_sem_;
 };
 
 std::ostream& operator<<(std::ostream&, const SpiTransaction::Result&);

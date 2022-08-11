@@ -29,6 +29,8 @@ struct SpiManager::Event {
   size_t len = 0;
   std::function<void()> run_before;
   std::function<void()> run_after;
+  // Waited on by SpiTransaction::TransferBlocking
+  SemaphoreHandle_t txn_unblock_sem = nullptr;
 
   // Semaphore used in the END_TRANSACTION flow to signal the user's
   // transaction task that it can now give up SpiManager::transaction_mutex_.
@@ -222,7 +224,10 @@ SpiDevice* SpiManager::AddDevice(gpio_pin_t cs, std::string_view name) {
 }
 
 SpiDevice::SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name)
-    : spi_(spi), cs_(cs), name_(name) {}
+    : spi_(spi), cs_(cs), name_(name) {
+  blocking_sem_ = xSemaphoreCreateBinary();
+  end_transaction_sem_ = xSemaphoreCreateBinary();
+}
 
 SpiTransaction SpiDevice::StartTransaction() {
   auto txn = StartTransaction(portMAX_DELAY);
@@ -304,7 +309,7 @@ void SpiManager::DoTransfer(const Event& event) {
   if (event.run_before) event.run_before();
 
   if (event.len == 0) {
-    VLOG(1)<< "Skipping zero-length transfer";
+    VLOG(1) << "Skipping zero-length transfer";
     if (event.run_after) event.run_after();
     return;
   }
@@ -316,8 +321,8 @@ void SpiManager::DoTransfer(const Event& event) {
           << " len=" << event.len;
 
   volatile io_rw_32* spi_dr = &spi_get_hw(spi_)->dr;
-  // TODO: increase transfer width (8b,16b,32b) if buf is big and the right size?
-  // alternatively, change tx_buf/rx_buf to void* and let caller choose.
+  // TODO: increase transfer width (8b,16b,32b) if buf is big and the right
+  // size? alternatively, change tx_buf/rx_buf to void* and let caller choose.
   // what does the datasheet say about how long it takes to switch?
   if (event.tx_buf) {
     CHECK(mosi_)
@@ -363,6 +368,7 @@ void SpiManager::DoTransfer(const Event& event) {
   VLOG(1) << "DMA transfer finished";
 
   if (event.run_after) event.run_after();
+  if (event.txn_unblock_sem) xSemaphoreGive(event.txn_unblock_sem);
 }
 
 void SpiManager::DoFlush(const Event& event) {
@@ -416,24 +422,14 @@ SpiTransaction::SpiTransaction(SpiDevice* device)
     : moved_from_(false),
       device_(device),
       flush_pending_(false),
-      blocking_sem_(CHECK_NOTNULL(
-          new SemaphoreHandle_t(CHECK_NOTNULL(xSemaphoreCreateBinary())))),
-      end_transaction_sem_(CHECK_NOTNULL(
-          new SemaphoreHandle_t(CHECK_NOTNULL(xSemaphoreCreateBinary())))),
       originating_task_(CHECK_NOTNULL(xTaskGetCurrentTaskHandle())) {}
 
 SpiTransaction::SpiTransaction(SpiTransaction&& other)
     : moved_from_(false),
       device_(other.device_),
       flush_pending_(other.flush_pending_),
-      blocking_sem_(std::move(other.blocking_sem_)),
-      end_transaction_sem_(std::move(other.end_transaction_sem_)),
       originating_task_(other.originating_task_) {
   other.moved_from_ = true;
-}
-
-void SpiTransaction::SemaphoreDeleter::operator()(SemaphoreHandle_t* sem) {
-  if (sem && *sem) vSemaphoreDelete(*sem);
 }
 
 SpiTransaction::Result SpiTransaction::Transfer(const TransferConfig& req,
@@ -463,7 +459,6 @@ SpiTransaction::Result SpiTransaction::TransferBlocking(
           << " len=" << req.len;
   CHECK(!moved_from_);
   CHECK_EQ(device_->spi_->active_device_, device_);
-  SemaphoreHandle_t sem = *blocking_sem_;
   SpiManager::Event event(SpiManager::Event{
       .tag = SpiManager::Event::Tag::TRANSFER,
       .device = device_,
@@ -471,11 +466,8 @@ SpiTransaction::Result SpiTransaction::TransferBlocking(
       .rx_buf = req.rx_buf,
       .len = req.len,
       .run_before = req.run_before,
-      .run_after =
-          [sem, orig_run_after = req.run_after]() {
-            if (orig_run_after) orig_run_after();
-            CHECK(xSemaphoreGive(sem));
-          },
+      .run_after = req.run_after,
+      .txn_unblock_sem = device_->blocking_sem_,
   });
   if (!xQueueSendToBack(device_->spi_->event_queue_, &event,
                         ticks_to_wait_enqueue)) {
@@ -483,7 +475,7 @@ SpiTransaction::Result SpiTransaction::TransferBlocking(
   }
   VLOG(1) << "TransferBlocking() enqueued device=" << device_->name_
           << " len=" << req.len;
-  if (!xSemaphoreTake(sem, ticks_to_wait_transmit)) {
+  if (!xSemaphoreTake(device_->blocking_sem_, ticks_to_wait_transmit)) {
     return Result::EXEC_TIMEOUT;
   }
   VLOG(1) << "TransferBlocking() complete device=" << device_->name_
@@ -502,7 +494,7 @@ void SpiTransaction::Dispose() {
   SpiManager::Event event(SpiManager::Event{
       .tag = SpiManager::Event::Tag::END_TRANSACTION,
       .device = device_,
-      .end_transaction_sem = *end_transaction_sem_,
+      .end_transaction_sem = device_->end_transaction_sem_,
   });
   VLOG(1) << "Dispose() enqueueing transaction end event";
   CHECK(xQueueSendToBack(device_->spi_->event_queue_, &event, portMAX_DELAY));
@@ -517,7 +509,7 @@ void SpiTransaction::Dispose() {
   // Wait for SpiManager to reach the end of the queue and deselect this
   // device's CS line, before allowing another transaction to begin.
   VLOG(1) << "Dispose() waiting to take end_transaction_sem_";
-  CHECK(xSemaphoreTake(*end_transaction_sem_, portMAX_DELAY));
+  CHECK(xSemaphoreTake(device_->end_transaction_sem_, portMAX_DELAY));
   VLOG(1) << "Dispose() returning transaction_mutex_";
   CHECK(xSemaphoreGive(device_->spi_->transaction_mutex_));
   VLOG(1) << "Dispose() done";
