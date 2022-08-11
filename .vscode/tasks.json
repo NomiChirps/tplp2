@@ -23,14 +23,6 @@
             ],
         },
         {
-            "label": "[iterate] build & flash",
-            "dependsOn": [
-                "[iterate] build",
-                "flash tplp",
-            ],
-            "dependsOrder": "sequence",
-        },
-        {
             "label": "[iterate] build & flash & monitor",
             "dependsOn": [
                 "[iterate] build",
