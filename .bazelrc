@@ -48,7 +48,7 @@ build --@rules_pico//pico/config:stdio_usb=True
 # USB is used by pico-debug, so we cannot use it for stdio.
 build:debug --@rules_pico//pico/config:stdio_usb=False
 # TODO: can we put these defines in a header somewhere?
-build --copt="-DPICOLOG_VMODULE=\"SpiManager=2,HX8357=1\""
+build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,HX8357=1\""
 # Disable CR/LF conversion on stdout. This is useless overhead.
 build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
 # Wait for someone to monitor serial output

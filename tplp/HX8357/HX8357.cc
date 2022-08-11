@@ -24,8 +24,8 @@ using std::chrono_literals::operator""ms;
 namespace tplp {
 namespace {
 
-constexpr int HX8357_TFTWIDTH = 320;   ///< 320 pixels wide
-constexpr int HX8357_TFTHEIGHT = 480;  ///< 480 pixels tall
+constexpr int16_t HX8357_TFTWIDTH = 320;   ///< 320 pixels wide
+constexpr int16_t HX8357_TFTHEIGHT = 480;  ///< 480 pixels tall
 
 constexpr uint8_t HX8357_NOP = 0x00;      ///< No op
 constexpr uint8_t HX8357_SWRESET = 0x01;  ///< software reset
@@ -36,7 +36,7 @@ constexpr uint8_t HX8357_RDPOWMODE = 0x0A;  ///< Read power mode Read power mode
 constexpr uint8_t HX8357_RDMADCTL = 0x0B;   ///< Read MADCTL
 constexpr uint8_t HX8357_RDCOLMOD = 0x0C;   ///< Column entry mode
 constexpr uint8_t HX8357_RDDIM = 0x0D;      ///< Read display image mode
-constexpr uint8_t HX8357_RDDSDR = 0x0F;     ///< Read dosplay signal mode
+constexpr uint8_t HX8357_RDDSDR = 0x0F;     ///< Read display signal mode
 
 constexpr uint8_t HX8357_SLPIN = 0x10;   ///< Enter sleep mode
 constexpr uint8_t HX8357_SLPOUT = 0x11;  ///< Exit sleep mode
@@ -45,13 +45,13 @@ constexpr uint8_t HX8357B_NORON = 0x13;  ///< Normal mode
 
 constexpr uint8_t HX8357_INVOFF = 0x20;   ///< Turn off invert
 constexpr uint8_t HX8357_INVON = 0x21;    ///< Turn on invert
-constexpr uint8_t HX8357_DISPOFF = 0x28;  ///< Display on
-constexpr uint8_t HX8357_DISPON = 0x29;   ///< Display off
+constexpr uint8_t HX8357_DISPOFF = 0x28;  ///< Display off
+constexpr uint8_t HX8357_DISPON = 0x29;   ///< Display on
 
 constexpr uint8_t HX8357_CASET = 0x2A;  ///< Column addr set
 constexpr uint8_t HX8357_PASET = 0x2B;  ///< Page addr set
 constexpr uint8_t HX8357_RAMWR = 0x2C;  ///< Write VRAM
-constexpr uint8_t HX8357_RAMRD = 0x2E;  ///< Read VRAm
+constexpr uint8_t HX8357_RAMRD = 0x2E;  ///< Read VRAM
 
 constexpr uint8_t HX8357B_PTLAR = 0x30;    ///< (unknown)
 constexpr uint8_t HX8357_TEON = 0x35;      ///< Tear enable on
@@ -193,48 +193,53 @@ static constexpr uint8_t kInitB[] = {
 };
 
 static constexpr uint8_t kInitD[] = {
-    HX8357_SWRESET,
-    0x80 + 100 / 5,  // Soft reset, then delay 10 ms
-    HX8357D_SETC,
-    3,
-    0xFF,
-    0x83,
-    0x57,
-    0xFF,
-    0x80 + 500 / 5,  // No command, just delay 300 ms
-    HX8357_SETRGB,
-    4,
-    0x80,
-    0x00,
-    0x06,
-    0x06,  // 0x80 enables SDO pin (0x00 disables)
-    HX8357D_SETCOM,
-    1,
-    0x25,  // -1.52V
-    HX8357_SETOSC,
-    1,
-    0x68,  // Normal mode 70Hz, Idle mode 55 Hz
-    HX8357_SETPANEL,
-    1,
-    0x05,  // BGR, Gate direction swapped
-    HX8357_SETPWR1,
-    6,
+    // Soft reset, then delay
+    HX8357_SWRESET, 0x80 + 100 / 5,
+    // Enable extended command set
+    HX8357D_SETC, 3, 0xFF, 0x83, 0x57,
+    // No-op and delay (nothing is sent, 0xFF is interpreted by SendCommand)
+    0xFF, 0x80 + 500 / 5,
+    // Set low-level RGB interface parameters
+    // 0x80: enable SDO pin, disable BYPASS, set 65k color mode data format
+    //       5-6-5 to insert 6th LSB equal to the MSB, set RAM access interface
+    //       to DBI/MPU, set display sync to internal clock.
+    // 0x00: set DOTCLK polarity to rising edge, set VSYNC pin to active low,
+    //       set HSYNC pin to active low, set ENABLE pin to active high
+    // 0x06: set RGB mode 1 (VS+HS+DE), set delay period from falling edge of
+    //       HSYNC signal to first valid data in DPI I/F mode 2 = 6 DOTCLK
+    //       cycles.
+    // 0x06: Set the delay period from falling edge of VSYNC signal to first
+    //       valid line in DPI I/F mode 2 = 6 DOTCLK cycles.
+    // (but those timings don't matter much because we're in DBI mode, not DPI)
+    HX8357_SETRGB, 4, 0x80, 0x00, 0x06, 0x06,
+    // Set VCOM voltage = -1.52V
+    // XXX: isn't there supposed to be a second parameter here?
+    HX8357D_SETCOM, 1, 0x25,
+    // Set internal oscillator frequency (controls display framerate)
+    // Normal mode 70Hz, Idle mode 55 Hz
+    // XXX: isn't there supposed to be a second parameter here?
+    HX8357_SETOSC, 1, 0x68,
+    // Set panel characteristics
+    // Normally white, BGR, Gate direction swapped, Source direction normal
+    HX8357_SETPANEL, 1, 0x05,
+    // Arcane low-level panel voltage stuff
+    HX8357_SETPWR1, 6,
     0x00,  // Not deep standby
-    0x15,  // BT
+    0x15,  // TRI, BT=5
     0x1C,  // VSPR
     0x1C,  // VSNR
     0x83,  // AP
     0xAA,  // FS
-    HX8357D_SETSTBA,
-    6,
+    // Arcane low-level panel timing and bias current stuff
+    HX8357D_SETSTBA, 6,
     0x50,  // OPON normal
     0x50,  // OPON idle
     0x01,  // STBA
     0x3C,  // STBA
     0x1E,  // STBA
     0x08,  // GEN
-    HX8357D_SETCYC,
-    7,
+    // Arcane low-level panel clock timing stuff
+    HX8357D_SETCYC, 7,
     0x02,  // NW 0x02
     0x40,  // RTN
     0x00,  // DIV
@@ -242,60 +247,30 @@ static constexpr uint8_t kInitD[] = {
     0x2A,  // DUM
     0x0D,  // GDON
     0x78,  // GDOFF
-    HX8357D_SETGAMMA,
-    34,
-    0x02,
-    0x0A,
-    0x11,
-    0x1d,
-    0x23,
-    0x35,
-    0x41,
-    0x4b,
-    0x4b,
-    0x42,
-    0x3A,
-    0x27,
-    0x1B,
-    0x08,
-    0x09,
-    0x03,
-    0x02,
-    0x0A,
-    0x11,
-    0x1d,
-    0x23,
-    0x35,
-    0x41,
-    0x4b,
-    0x4b,
-    0x42,
-    0x3A,
-    0x27,
-    0x1B,
-    0x08,
-    0x09,
-    0x03,
-    0x00,
+    // Set the gamma curve. Where did this come from?
+    HX8357D_SETGAMMA, 34, 0x02, 0x0A, 0x11, 0x1d, 0x23, 0x35, 0x41, 0x4b, 0x4b,
+    0x42, 0x3A, 0x27, 0x1B, 0x08, 0x09, 0x03, 0x02, 0x0A, 0x11, 0x1d, 0x23,
+    0x35, 0x41, 0x4b, 0x4b, 0x42, 0x3A, 0x27, 0x1B, 0x08, 0x09, 0x03, 0x00,
     0x01,
-    HX8357_COLMOD,
-    1,
-    0x55,  // 16 bit
-    HX8357_MADCTL,
-    1,
-    0xC0,
-    HX8357_TEON,
-    1,
-    0x00,  // TW off
-    HX8357_TEARLINE,
-    2,
-    0x00,
-    0x02,
-    HX8357_SLPOUT,
-    0x80 + 150 / 5,  // Exit Sleep, then delay 150 ms
-    HX8357_DISPON,
-    0x80 + 50 / 5,  // Main screen turn on, delay 50 ms
-    0,              // END OF COMMAND LIST
+    // Set 16 bits/pixel for DBI and DPI interfaces
+    HX8357_COLMOD, 1, 0x55,
+    // Define read/write scanning direction of frame memory.
+    // MX, MY control rotation of the display. Initial rotation MX=1, MY=1,
+    // matching the initial 320x480 value for display_width_ and
+    // display_height_.
+    // Also set RGB-BGR order for an RGB color filter panel.
+    HX8357_MADCTL, 1, 0xC0,
+    // Tearing-effect output line off.
+    // The Adafruit board doesn't bring it out.
+    HX8357_TEON, 1, 0x00,
+    // Tearing-effect line timing
+    // Pointless(?)
+    HX8357_TEARLINE, 2, 0x00, 0x02,
+    // Exit sleep, then delay 150ms
+    HX8357_SLPOUT, 0x80 + 150 / 5,
+    // Main screen turn on
+    HX8357_DISPON, 0x80 + 50 / 5,
+    0,  // END OF COMMAND LIST
 };
 
 }  // namespace
@@ -313,8 +288,9 @@ HX8357D::HX8357D(SpiManager* spi, gpio_pin_t cs, gpio_pin_t dc)
 
 void HX8357::Begin() {
   spi_device_ = spi_->AddDevice(cs_, "HX8357");
-  width_ = HX8357_TFTWIDTH;  // Screen dimensions for default rotation 0
-  height_ = HX8357_TFTHEIGHT;
+  // Screen dimensions for default rotation 0
+  display_width_ = HX8357_TFTWIDTH;
+  display_height_ = HX8357_TFTHEIGHT;
   gpio_init(dc_);
   gpio_set_dir(dc_, GPIO_OUT);
   SendInitSequence();
@@ -336,13 +312,14 @@ void HX8357::SendInitSequence() {
       }
     }
     if (x & 0x80) {  // If high bit set...
-      // numArgs is actually a delay time (5ms units)
+      // numArgs is actually a delay time in milliseconds
       int t = as_ticks_ceil(std::chrono::milliseconds(numArgs * 5));
       VLOG(1) << "Sleep at least " << (numArgs * 5)
               << "ms <= " << t * portTICK_PERIOD_MS << "ms as ticks";
       vTaskDelay(t);
     }
   }
+  LOG(INFO) << "HX8357 init sequence finished";
 }
 
 void HX8357::SendCommand(uint8_t command, const uint8_t* data, uint8_t len) {
@@ -365,14 +342,13 @@ void HX8357::SendCommand(uint8_t command, const uint8_t* data, uint8_t len) {
 }
 
 uint8_t HX8357::RDDSDR() {
-  SpiTransaction txn = spi_device_->StartTransaction();
-  VLOG(1) << "Issuing RDDSDR";
   const uint8_t command = HX8357_RDDSDR;
   // Datasheet claims that the first byte of the reply should be a "dummy read",
   // with the actual result being in the 2nd byte. I have determined that that
   // was a lie.
   uint8_t result = 0;
   gpio_put(dc_, 0);
+  SpiTransaction txn = spi_device_->StartTransaction();
   CHECK_OK(txn.Transfer({
       .tx_buf = &command,
       .len = 1,
@@ -381,8 +357,8 @@ uint8_t HX8357::RDDSDR() {
       .rx_buf = &result,
       .len = 1,
   }));
+  txn.Dispose();
   gpio_put(dc_, 1);
-  txn.Flush();
   VLOG(1) << std::hex << std::setw(2) << std::setfill('0')
           << "RDDSDR response 0x" << (int)result;
   return result;
@@ -414,5 +390,57 @@ bool HX8357::SelfTest() {
             << "Self-test overall result: 0x" << (int)dsdr1 << ", 0x"
             << (int)dsdr2 << " -> " << (ok ? "OK" : "FAIL");
   return ok;
+}
+
+namespace {
+// Please don't send a negative number
+uint8_t upper_half(int16_t n) { return (n & 0xff00) >> 8; }
+uint8_t lower_half(int16_t n) { return n & 0x00ff; }
+}  // namespace
+
+void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t width,
+                  int16_t height) {
+  CHECK_NOTNULL(pixels);
+  CHECK_GE(x1, 0);
+  CHECK_GE(y1, 0);
+  if (!width || !height) return;
+  const int16_t x2 = (x1 + width - 1);
+  const int16_t y2 = (y1 + height - 1);
+  CHECK_LT(x1, display_width_);
+  CHECK_LT(x1, display_width_);
+  CHECK_LT(y1, display_height_);
+  CHECK_LT(y2, display_height_);
+  CHECK_LT(x1, x2);
+  CHECK_LT(y1, y2);
+
+  uint64_t t1 = 0;
+  if (VLOG_IS_ON(1)) t1 = to_us_since_boot(get_absolute_time());
+
+  const uint8_t xcoords[4] = {upper_half(x1), lower_half(x1), upper_half(x2),
+                              lower_half(x2)};
+  const uint8_t ycoords[4] = {upper_half(y1), lower_half(y1), upper_half(y2),
+                              lower_half(y2)};
+  SendCommand(HX8357_CASET, xcoords, 4);
+  SendCommand(HX8357_PASET, ycoords, 4);
+  SpiTransaction txn = spi_device_->StartTransaction();
+  gpio_put(dc_, 0);
+  txn.TransferBlocking({
+      .tx_buf = &HX8357_RAMWR,
+      .len = 1,
+  });
+  gpio_put(dc_, 1);
+  // TODO: use 16-bit transfer width! :) but watch out for byte order
+  uint32_t len =
+      static_cast<uint32_t>(width) * static_cast<uint32_t>(height) * 2u;
+  txn.Transfer({
+      .tx_buf = reinterpret_cast<const uint8_t*>(pixels),
+      .len = len,
+  });
+  txn.Dispose();
+
+  uint64_t t2 = 0;
+  if (VLOG_IS_ON(1)) t2 = to_us_since_boot(get_absolute_time());
+  VLOG(1) << "Blit() finished in " << (t2 - t1) << "us ("
+          << ((1'000ll * len) / (t2 - t1)) << "kB/s";
 }
 }  // namespace tplp

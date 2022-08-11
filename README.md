@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] rename HX8357 -> Adafruit_HX8357
 - [ ] Create a front panel UI (assignee: wembly :)
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen

@@ -24,9 +24,9 @@ struct SpiManager::Event {
 
   // For TRANSFER events.
   SpiDevice* device;
-  const uint8_t* tx_buf;
-  uint8_t* rx_buf;
-  size_t len;
+  const uint8_t* tx_buf = nullptr;
+  uint8_t* rx_buf = nullptr;
+  size_t len = 0;
   std::function<void()> run_before;
   std::function<void()> run_after;
 
@@ -303,6 +303,12 @@ void SpiManager::DoTransfer(const Event& event) {
 
   if (event.run_before) event.run_before();
 
+  if (event.len == 0) {
+    VLOG(1)<< "Skipping zero-length transfer";
+    if (event.run_after) event.run_after();
+    return;
+  }
+
   VLOG(1) << "Start DMA SPI transfer dma_tx=" << dma_tx_
           << " tx_buf=" << static_cast<const void*>(event.tx_buf)
           << " dma_rx=" << dma_rx_
@@ -310,7 +316,9 @@ void SpiManager::DoTransfer(const Event& event) {
           << " len=" << event.len;
 
   volatile io_rw_32* spi_dr = &spi_get_hw(spi_)->dr;
-  // TODO: increase transfer width (8b,16b,32b) if buf is big and the right size
+  // TODO: increase transfer width (8b,16b,32b) if buf is big and the right size?
+  // alternatively, change tx_buf/rx_buf to void* and let caller choose.
+  // what does the datasheet say about how long it takes to switch?
   if (event.tx_buf) {
     CHECK(mosi_)
         << "Cannot transmit on an SpiManager with no configured MOSI pin";
@@ -390,6 +398,10 @@ std::optional<SpiTransaction> SpiDevice::StartTransaction(
     TickType_t ticks_to_wait) {
   VLOG(1) << "StartTransaction() device=" << name_
           << " waiting for transaction_mutex_";
+  CHECK_NE(xSemaphoreGetMutexHolder(spi_->transaction_mutex_),
+           xTaskGetCurrentTaskHandle())
+      << "Transaction on SPI" << spi_get_index(spi_->spi_)
+      << " already active in this task - would deadlock";
   if (!xSemaphoreTake(spi_->transaction_mutex_, ticks_to_wait)) {
     // timed out
     return std::nullopt;
@@ -479,9 +491,7 @@ SpiTransaction::Result SpiTransaction::TransferBlocking(
   return Result::OK;
 }
 
-SpiTransaction::~SpiTransaction() {
-  Dispose();
-}
+SpiTransaction::~SpiTransaction() { Dispose(); }
 
 void SpiTransaction::Dispose() {
   if (moved_from_) return;

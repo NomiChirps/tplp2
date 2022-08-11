@@ -17,7 +17,7 @@ class SpiDevice;
 class SpiTransaction;
 
 // Manages a number of devices on one SPI bus.
-// TODO: finish implementing receive mode
+// TODO: document
 class SpiManager {
   friend class SpiDevice;
   friend class SpiTransaction;

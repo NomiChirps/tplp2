@@ -41,11 +41,36 @@ void neopixel_task(void*) {
   // bool rgbw)
 }
 
+static const int16_t kW = 30;
+static const int16_t kH = 100;
+static std::array<uint16_t, kW*kH> kWhite;
+static std::array<uint16_t, kW*kH> kRed;
+static std::array<uint16_t, kW*kH> kGreen;
+static std::array<uint16_t, kW*kH> kBlue;
+
 void tft_test_task(void* task_param) {
+  kWhite.fill(0xffff);
+  kRed.fill(0x001f);
+  kGreen.fill(0x07e0);
+  kBlue.fill(0xf800);
+  std::array<uint16_t, kW*kH> *which[3] = {&kRed, &kGreen, &kBlue};
+
   HX8357D* display = static_cast<HX8357D*>(task_param);
+  vTaskDelay(as_ticks(5'000ms));
+  LOG(INFO) << "Self test 1";
+  display->SelfTest();
+  vTaskDelay(as_ticks(5'000ms));
+  LOG(INFO) << "Self test 2";
+  display->SelfTest();
+  const int16_t x1 = 20;
+  const int16_t y1 = 20;
+  int n = 0;
   for (;;) {
-    vTaskDelay(as_ticks(4'000ms));
-    display->SelfTest();
+    vTaskDelay(as_ticks(1'000ms));
+    display->Blit(which[n++%3]->begin(), x1, y1, kW, kH);
+    //display->Blit(kRed, x1, y1, kW, kH);
+    //display->Blit(kGreen, x1 + kW, y1, kW, kH);
+    //display->Blit(kBlue, x1 + 2 * kW, y1, kW, kH);
   }
 }
 
@@ -62,9 +87,11 @@ void StartupTask(void*) {
   CHECK(xTaskCreate(&led_task, "blinky", TaskStacks::kDefault, nullptr, 1,
                     nullptr));
 
-  // TODO: increase frequency
+  // TODO: increase frequency when done debugging HX8357
+  int kSlow = 500000;
+  int kFast = HX8357::kNominalMaxSpiFrequency;
   SpiManager* spi1_manager =
-      SpiManager::Init(TaskPriorities::kSpiManager1, spi1, 500'000,
+      SpiManager::Init(TaskPriorities::kSpiManager1, spi1, kSlow,
                        Pins::SPI1_SCLK, Pins::SPI1_MOSI, Pins::SPI1_MISO);
   LOG(INFO) << "SpiManager::Init() OK";
 
