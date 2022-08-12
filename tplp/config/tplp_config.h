@@ -28,6 +28,10 @@ struct Pins {
   static constexpr gpio_pin_t HX8357_CS = gpio_pin_t(2);
   static constexpr gpio_pin_t HX8357_DC = gpio_pin_t(3);
   static constexpr gpio_pin_t UART_TX = gpio_pin_t(0);  // for log output
+  static constexpr gpio_pin_t I2C0_SCL = gpio_pin_t(17);
+  static constexpr gpio_pin_t I2C0_SDA = gpio_pin_t(16);
+  // FIXME: don't forget to actually solder this one on
+  static constexpr gpio_pin_t TOUCHSCREEN_INTR = gpio_pin_t(18);
 #else
 #error "Board not detected"
 #endif
