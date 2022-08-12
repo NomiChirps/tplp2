@@ -27,6 +27,7 @@ struct Pins {
   static constexpr gpio_pin_t UART_TX = gpio_pin_t(0);  // for log output
   static constexpr gpio_pin_t I2C0_SCL = gpio_pin_t(17);
   static constexpr gpio_pin_t I2C0_SDA = gpio_pin_t(16);
+  static constexpr gpio_pin_t TEST_PUSHBUTTON = gpio_pin_t(28);
   // FIXME: don't forget to actually solder this one on
   static constexpr gpio_pin_t TOUCHSCREEN_INTR = gpio_pin_t(18);
 #else
@@ -48,6 +49,9 @@ struct TaskPriorities {
 
   static constexpr int kSpiManager0 = 3;
   static constexpr int kSpiManager1 = 3;
+  static constexpr int kI2cController0 = 3;
+  static constexpr int kRuntimeStats = 2;
+
   static constexpr int kLvglTimerHandler = 1;
   static constexpr int kSharpLCD = 1;
   static constexpr int kHX8357 = 1;
@@ -56,10 +60,15 @@ struct TaskPriorities {
 };
 
 struct TaskStacks {
-  static constexpr int kDefault = 1024;  // TODO: deprecate
+  static constexpr int kTESTONLY = 1024;
+  [[deprecated]] static constexpr int kDefault = 1024;
   static constexpr int kLvglTimerHandler = 2048;
   static constexpr int kLogging = 512;
   static constexpr int kHX8357 = 512;
+  static constexpr int kI2cController = 1024;
+  static constexpr int kSpiManager = 1024;
+  static constexpr int kRuntimeStats = 512;
+  static constexpr int kStartup = 1024;
 
   // unused
   static constexpr int kSharpLCD = 1024;

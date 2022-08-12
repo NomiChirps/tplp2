@@ -200,7 +200,7 @@ SharpLCD::SharpLCD(SpiManager* spi) : spi_(spi) {
 void SharpLCD::Begin(gpio_pin_t cs, int toggle_vcom_task_priority) {
   spi_device_ = spi_->AddDevice(cs, "SharpLCD");
   CHECK(xTaskCreate(&SharpLCD::ToggleVcomTask, "SharpLCD::ToggleVCOM",
-                    TaskStacks::kDefault, this, toggle_vcom_task_priority,
+                    TaskStacks::kSharpLCD, this, toggle_vcom_task_priority,
                     nullptr));
 }
 

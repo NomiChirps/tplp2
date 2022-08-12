@@ -85,7 +85,7 @@ class StatsTask {
                     << std::setw(0) << " bytes";
         }
       }
-      vTaskDelay(as_ticks(10'000ms));
+      vTaskDelay(as_ticks(30'000ms));
     }
   }
 
@@ -96,7 +96,7 @@ TaskStatus_t StatsTask::task_status[];
 uint32_t StatsTask::total_run_time;
 
 void StartRuntimeStatsReportingTask(int priority) {
-  CHECK(xTaskCreate(&StatsTask::stats_task, "print_stats", TaskStacks::kDefault,
+  CHECK(xTaskCreate(&StatsTask::stats_task, "RuntimeStats", TaskStacks::kRuntimeStats,
                     nullptr, priority, nullptr));
 }
 }  // namespace tplp

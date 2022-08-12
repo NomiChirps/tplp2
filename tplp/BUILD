@@ -12,12 +12,12 @@ pico_binary(
         ":hook_impl",
         ":time",
         ":types",
-        ":ws2812",
         "//tplp/HX8357",
         "//tplp/SharpLCD",
         "//tplp/config:tplp_config",
         "//tplp/graphics:lvgl_init",
         "//tplp/ui:main",
+        ":I2cController",
         "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
@@ -80,6 +80,21 @@ cc_library(
         "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_spi",
+    ],
+)
+
+cc_library(
+    name = "I2cController",
+    srcs = ["I2cController.cc"],
+    hdrs = ["I2cController.h"],
+    visibility = [":__subpackages__"],
+    deps = [
+        ":types",
+        "//picolog",
+        "//tplp/config:tplp_config",
+        "@rules_pico//pico:hardware_dma",
+        "@rules_pico//pico:hardware_gpio",
+        "@rules_pico//pico:hardware_i2c",
     ],
 )
 

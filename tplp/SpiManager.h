@@ -23,9 +23,6 @@ class SpiManager {
   friend class SpiTransaction;
 
  public:
-  SpiManager(const SpiManager&) = delete;
-  SpiManager& operator=(const SpiManager&) = delete;
-
   // Initializes the SPI hardware and any necessary FreeRTOS structures.
   // `task_priority` is a FreeRTOS priority value.
   static SpiManager* Init(int task_priority, spi_inst_t* spi, int freq_hz,
@@ -46,6 +43,10 @@ class SpiManager {
                       QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
                       std::optional<gpio_pin_t> mosi,
                       std::optional<gpio_pin_t> miso);
+  SpiManager(const SpiManager&) = delete;
+  SpiManager& operator=(const SpiManager&) = delete;
+  ~SpiManager() = delete;
+
   static void TaskFn(void*);
 
   // Events that are handled in the event queue.
