@@ -1,3 +1,5 @@
+#include "tplp/ui/main.h"
+
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
@@ -16,7 +18,6 @@
 #include "tplp/time.h"
 #include "tplp/types.h"
 #include "tplp/ws2812.h"
-#include "tplp/ui/main.h"
 
 using std::chrono_literals::operator""ms;
 
@@ -69,8 +70,8 @@ void StartupTask(void*) {
     // TODO: flash out an error code on something? board LED?
     LOG(ERROR) << "HX8357 self test failed! Continuing anyway...";
   }
-  // Flip it around so it's easier to read on my workbench.
-  display->SetRotation(0, 0, 0);
+  // Rotate to widescreen and so it's the right way around on my workbench.
+  display->SetRotation(0, 1, 1);
   LOG(INFO) << "HX8357 setup OK";
 
   InitLvgl(display);
