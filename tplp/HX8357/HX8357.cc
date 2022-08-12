@@ -213,11 +213,9 @@ static constexpr uint8_t kInitD[] = {
     // (but those timings don't matter much because we're in DBI mode, not DPI)
     HX8357_SETRGB, 4, 0x80, 0x00, 0x06, 0x06,
     // Set VCOM voltage = -1.52V
-    // XXX: isn't there supposed to be a second parameter here?
     HX8357D_SETCOM, 1, 0x25,
     // Set internal oscillator frequency (controls display framerate)
     // Normal mode 70Hz, Idle mode 55 Hz
-    // XXX: isn't there supposed to be a second parameter here?
     HX8357_SETOSC, 1, 0x68,
     // Set panel characteristics
     // Normally white, BGR, Gate direction swapped, Source direction normal
