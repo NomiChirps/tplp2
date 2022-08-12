@@ -66,15 +66,6 @@ cc_library(
     ],
 )
 
-# TODO: move to a library. or yeet it.
-cc_library(
-    name = "thread_local",
-    hdrs = ["thread_local.h"],
-    deps = [
-        "@FreeRTOS",
-    ],
-)
-
 cc_library(
     name = "SpiManager",
     srcs = ["SpiManager.cc"],
