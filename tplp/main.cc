@@ -20,7 +20,6 @@
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/time.h"
 #include "tplp/types.h"
-#include "tplp/ws2812.h"
 
 using std::chrono_literals::operator""ms;
 

@@ -3,10 +3,10 @@
 
 #include <vector>
 
-#include "hardware/i2c.h"
-#include "tplp/types.h"
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
+#include "hardware/i2c.h"
+#include "tplp/types.h"
 
 namespace tplp {
 
@@ -43,24 +43,36 @@ namespace tplp {
 using i2c_address_t = uint8_t;
 
 struct I2cDeviceId {
-    uint16_t manufacturer : 12;
-    uint16_t part_id : 9;
-    uint8_t revision : 3;
+  uint16_t manufacturer : 12;
+  uint16_t part_id : 9;
+  uint8_t revision : 3;
+};
+
+class I2cDevice {
+ public:
+  // TODO
+ private:
+  I2cDevice(const I2cDevice&) = delete;
+  I2cDevice& operator=(const I2cDevice&) = delete;
+  ~I2cDevice() = delete;
 };
 
 // Only supports 7-bit addressing (for now?)
 class I2cController {
  public:
   // Initializes the I2C and DMA hardware.
-  static I2cController* Init(int task_priority, 
-                             i2c_inst_t* i2c_instance, gpio_pin_t scl,
-                             gpio_pin_t sda, int baudrate);
+  static I2cController* Init(int task_priority, i2c_inst_t* i2c_instance,
+                             gpio_pin_t scl, gpio_pin_t sda, int baudrate);
 
   std::vector<i2c_address_t> ScanBus();
 
   // TODO: we need an error result object
   // Returns true on success.
   bool ReadDeviceId(i2c_address_t target, I2cDeviceId* out);
+
+  // Returns a device handle that can be used to communicate with the given
+  // target address.
+  I2cDevice* AddDevice(i2c_address_t target);
 
  private:
   I2cController();
@@ -73,7 +85,7 @@ class I2cController {
   void DoRead(const Event&);
   void DoWrite(const Event&);
 
-private:
+ private:
   // TODO: const correctness
   i2c_inst_t* i2c_;
   TaskHandle_t task_;
