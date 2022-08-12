@@ -288,9 +288,9 @@ HX8357D::HX8357D(SpiManager* spi, gpio_pin_t cs, gpio_pin_t dc)
 
 void HX8357::Begin() {
   spi_device_ = spi_->AddDevice(cs_, "HX8357");
-  // Screen dimensions for default rotation 0
-  display_width_ = HX8357_TFTWIDTH;
-  display_height_ = HX8357_TFTHEIGHT;
+  // Screen dimensions for default rotation (1,1,0)
+  width_ = HX8357_TFTWIDTH;
+  height_ = HX8357_TFTHEIGHT;
   gpio_init(dc_);
   gpio_set_dir(dc_, GPIO_OUT);
   SendInitSequence();
@@ -405,20 +405,20 @@ void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
   CHECK_GE(y1, 0);
   CHECK_GE(x2, 0);
   CHECK_GE(y2, 0);
-  CHECK_LT(x1, display_width_);
-  CHECK_LT(x2, display_width_);
-  CHECK_LT(y1, display_height_);
-  CHECK_LT(y2, display_height_);
+  CHECK_LT(x1, width_);
+  CHECK_LT(x2, width_);
+  CHECK_LT(y1, height_);
+  CHECK_LT(y2, height_);
   CHECK_LE(x1, x2);
   CHECK_LE(y1, y2);
 
   uint64_t t1 = 0;
   if (VLOG_IS_ON(1)) t1 = to_us_since_boot(get_absolute_time());
 
-  const uint8_t xcoords[4] = {upper_half(x1), lower_half(x1),
-                              upper_half(x2), lower_half(x2)};
-  const uint8_t ycoords[4] = {upper_half(y1), lower_half(y1),
-                              upper_half(y2), lower_half(y2)};
+  const uint8_t xcoords[4] = {upper_half(x1), lower_half(x1), upper_half(x2),
+                              lower_half(x2)};
+  const uint8_t ycoords[4] = {upper_half(y1), lower_half(y1), upper_half(y2),
+                              lower_half(y2)};
   SendCommand(HX8357_CASET, xcoords, 4);
   SendCommand(HX8357_PASET, ycoords, 4);
   SpiTransaction txn = spi_device_->StartTransaction();
@@ -441,5 +441,27 @@ void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
   if (VLOG_IS_ON(1)) t2 = to_us_since_boot(get_absolute_time());
   VLOG(1) << "Blit() finished in " << (t2 - t1) << "us ~"
           << ((1'000ll * len) / (t2 - t1)) << "kB/s";
+}
+
+void HX8357::SetRotation(bool mx, bool my, bool mv) {
+  uint8_t param = MADCTL_RGB;
+  if (mx) param |= MADCTL_MX;
+  if (my) param |= MADCTL_MY;
+  if (mv) {
+    param |= MADCTL_MV;
+    width_ = HX8357_TFTHEIGHT;
+    height_ = HX8357_TFTWIDTH;
+  } else {
+    width_ = HX8357_TFTWIDTH;
+    height_ = HX8357_TFTHEIGHT;
+  }
+  LOG(INFO) << "Setting rotation to (" << mx << "," << my << "," << mv
+            << "). New dimensions " << width_ << "x" << height_;
+
+  SendCommand(HX8357_MADCTL, &param, 1);
+}
+
+void HX8357::SetInvertedColors(bool invert) {
+  SendCommand(invert ? HX8357_INVON : HX8357_INVOFF);
 }
 }  // namespace tplp

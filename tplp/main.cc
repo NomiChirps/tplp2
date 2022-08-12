@@ -69,7 +69,9 @@ void StartupTask(void*) {
     // TODO: flash out an error code on something? board LED?
     LOG(ERROR) << "HX8357 self test failed! Continuing anyway...";
   }
-  LOG(INFO) << "HX8357->Begin() OK";
+  // Flip it around so it's easier to read on my workbench.
+  display->SetRotation(0, 0, 0);
+  LOG(INFO) << "HX8357 setup OK";
 
   InitLvgl(display);
   LOG(INFO) << "InitLvgl() OK";

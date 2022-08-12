@@ -29,12 +29,28 @@ class HX8357 {
   void Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
             int16_t y2);
 
+  // This can set mirroring as well as rotation. Do be careful not to change
+  // this to an incompatible width/height mode while LVGL is using it.
+  //
+  // MX: mirror X if false
+  // MY: mirror Y if false
+  // MV: swap X/Y if true
+  //
+  // The initial value is 1,1,0 with dimensions 320x480. Changing MV will cause
+  // the return values of width() and height() to change.
+  void SetRotation(bool mx, bool my, bool mv);
+
+  // True inverts displayed colors, false displays normal colors.
+  // This is fast and can be used to flash the screen as visual feedback.
+  void SetInvertedColors(bool invert);
+
   // Returns current width of the display, as modified by the rotation setting.
-  int16_t width() const { return display_width_; }
+  int16_t width() const { return width_; }
   // Returns current height of the display, as modified by the rotation setting.
-  int16_t height() const { return display_height_; }
+  int16_t height() const { return height_; }
 
   // TODO: implement and test rotation setting
+  // https://github.com/adafruit/Adafruit_HX8357_Library/blob/master/Adafruit_HX8357.cpp
 
  protected:
   enum class DisplayType;
@@ -57,8 +73,8 @@ class HX8357 {
   const gpio_pin_t cs_;
   const gpio_pin_t dc_;
   // Dimensions as modified by current rotation
-  int16_t display_width_;
-  int16_t display_height_;
+  int16_t width_;
+  int16_t height_;
 
   HX8357(const HX8357&) = delete;
   HX8357& operator=(const HX8357&) = delete;
