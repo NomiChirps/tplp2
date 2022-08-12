@@ -8,9 +8,6 @@
 namespace tplp {
 
 struct Pins {
-  // Note: "while many pins are capable of I2C, SPI and UART, you can only do
-  // two at a time, and only on separate peripherals, 0 and 1."
-
 #if defined(ADAFRUIT_FEATHER_RP2040)
   // See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts
   // Numeric labels on the board do NOT necessarily match the GPIO number!
