@@ -134,7 +134,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
-- [ ] LVGL driver for HX8357
+- [x] LVGL driver for HX8357
 - [x] HX8357 self test :)
 - [x] rework SpiManager again again; it should be able to suport full duplex. instead of sendevent/receiveevent, let's have transferevent(naming???) which specifies optionally both buffers. I GUESS???? if both are specified, they would necessarily have to be the same length!
 - [x] get a compile_commands going for //simulator
