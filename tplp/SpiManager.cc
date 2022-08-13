@@ -58,7 +58,7 @@ static constexpr int kEventQueueDepth = 8;
 class DmaFinishedNotifier {
  private:
   struct DeviceInfo {
-    std::optional<dma_channel_t> dma_rx;
+    dma_channel_t dma_rx;
     TaskHandle_t task;
   };
   // index: (irq, device)
@@ -72,8 +72,8 @@ class DmaFinishedNotifier {
     BaseType_t higher_priority_task_woken = 0;
     for (int i = 0; i < num_devices[irq_index]; ++i) {
       if (dma_irqn_get_channel_status(irq_index,
-                                      *devices[irq_index][i].dma_rx)) {
-        dma_irqn_acknowledge_channel(irq_index, *devices[irq_index][i].dma_rx);
+                                      devices[irq_index][i].dma_rx)) {
+        dma_irqn_acknowledge_channel(irq_index, devices[irq_index][i].dma_rx);
         vTaskNotifyGiveIndexedFromISR(devices[irq_index][i].task,
                                       kDmaFinishedNotificationIndex,
                                       &higher_priority_task_woken);
@@ -83,8 +83,7 @@ class DmaFinishedNotifier {
     portYIELD_FROM_ISR(higher_priority_task_woken);
   }
 
-  static void RegisterDevice(dma_irq_index_t irq_index,
-                             std::optional<dma_channel_t> dma_rx,
+  static void RegisterDevice(dma_irq_index_t irq_index, dma_channel_t dma_rx,
                              TaskHandle_t task) {
     CHECK_GE(irq_index, 0);
     CHECK_LT(irq_index, kNumDmaIrqs);
