@@ -32,7 +32,8 @@ void TestPushbuttonISR() {
   if (gpio_get_irq_event_mask(Pins::TEST_PUSHBUTTON) & GPIO_IRQ_EDGE_FALL) {
     gpio_acknowledge_irq(Pins::TEST_PUSHBUTTON, GPIO_IRQ_EDGE_FALL);
     uint64_t now = to_us_since_boot(get_absolute_time());
-    if (now - last_buttonpress_time < 100) return;
+    // this button is really very bad. give it 10ms to stop bouncing.
+    if (now - last_buttonpress_time < 10000) return;
     last_buttonpress_time = now;
     if (test_pushbutton_handler_body) (*test_pushbutton_handler_body)();
   }

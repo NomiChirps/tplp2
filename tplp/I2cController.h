@@ -6,6 +6,7 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/semphr.h"
+#include "hardware/dma.h"
 #include "hardware/i2c.h"
 #include "picolog/status.h"
 #include "tplp/types.h"
@@ -14,31 +15,17 @@ namespace tplp {
 
 // clang-format off
 // Features to implement
-// - program my address
 // - general call
 // - send software reset cmd
 // - send START BYTE (this is a special address to support slow-polling targets)
 // - normal / fast / fast+ mode (high / ultra-fast not supported)
-// - only 1 device can be addressed per txn; this is a rp2040 limitation
-// - check for reserved addresses
-// - 
 
 // notes
-// - disable waits for the next command with a STOP bit (not for fifo to be fully empty)
-// - changing target address requires disabling
-// - disabling requires polling for 25us+ ???
-//      above 2^: well, maybe. unclear. see pp.468/469.
-//      also pp.488 suggests the procedure is only needed when IC_CLK_TYPE=asynchronous
 // - IC_xS_SPKLEN must be configured according to the baud rate (SS/FS)
 // - likewise IC_SDA_SETUP, IC_xS_SCL_LCNT, IC_xS_SCL_HCNT
 // - programming timing is complicated! see Table 449 for minimums
 // - lol the pico-sdk code is super unsubtle about it. reimplement!
 // -     uint freq_in = clock_get_hz(clk_sys);
-// - pico-sdk says simply:
-//           i2c->hw->enable = 0;
-//           i2c->hw->tar = addr;
-//           i2c->hw->enable = 1;
-//  without waiting!
 // clang-format on
 
 struct I2cDeviceId {
@@ -88,12 +75,15 @@ class I2cTransaction {
 
   explicit I2cTransaction(I2cController* controller_, i2c_address_t addr);
 
-  void DoStop();
+  void AfterStop();
 
  private:
   I2cController* controller_;
   i2c_address_t addr_;
-  bool stopped_;  // also covers the moved-from condition
+  // also covers the moved-from condition
+  bool stopped_;
+  // true for the first read or write of the transaction
+  bool first_command_;
 };
 
 // Only supports 7-bit addressing (for now?)
@@ -133,6 +123,13 @@ class I2cController {
 
   QueueHandle_t event_queue_;
   SemaphoreHandle_t txn_mutex_;
+
+  dma_irq_index_t dma_irq_index_;
+  dma_irq_number_t dma_irq_number_;
+  dma_channel_t dma_rx_;
+  dma_channel_t dma_tx_;
+  dma_channel_config dma_rx_config_;
+  dma_channel_config dma_tx_config_;
 
   // Used by blocking operations in I2cTransaction. Only "shared" serially,
   // because no more than one transaction can be active at a time.

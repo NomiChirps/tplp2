@@ -7,6 +7,7 @@ pico_binary(
     ],
     visibility = ["//visibility:private"],
     deps = [
+        ":I2cController",
         ":RuntimeStats",
         ":SpiManager",
         ":hook_impl",
@@ -17,7 +18,6 @@ pico_binary(
         "//tplp/config:tplp_config",
         "//tplp/graphics:lvgl_init",
         "//tplp/ui:main",
-        ":I2cController",
         "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],
@@ -59,8 +59,8 @@ cc_library(
 
 cc_library(
     name = "types",
-    hdrs = ["types.h"],
     srcs = ["types.cc"],
+    hdrs = ["types.h"],
     visibility = [":__subpackages__"],
     deps = [
         "@NamedType",
@@ -90,11 +90,11 @@ cc_library(
     hdrs = ["I2cController.h"],
     visibility = [":__subpackages__"],
     deps = [
+        ":rtos_utils",
         ":types",
         "//picolog",
         "//tplp/config:tplp_config",
         "@rules_pico//pico:hardware_dma",
-        ":rtos_utils",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_i2c",
     ],
@@ -134,10 +134,10 @@ cc_library(
 
 cc_library(
     name = "rtos_utils",
-    hdrs = ["rtos_utils.h"],
     srcs = ["rtos_utils.cc"],
+    hdrs = ["rtos_utils.h"],
     deps = [
-        "@FreeRTOS",
         "//picolog",
+        "@FreeRTOS",
     ],
 )
