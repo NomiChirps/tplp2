@@ -246,10 +246,7 @@ void SpiManager::TaskFn(void* task_param) {
   Event event;
   for (;;) {
     VLOG(1) << "SpiManager waiting for event.";
-    while (!xQueueReceive(self->event_queue_, &event, as_ticks(10'000ms))) {
-      // Just keep waiting for events.
-      VLOG(1) << "SpiManager" << spi_get_index(self->spi_) << " idle.";
-    }
+    CHECK(xQueueReceive(self->event_queue_, &event, portMAX_DELAY));
     switch (event.tag) {
       case Event::Tag::TRANSFER:
         self->DoTransfer(event);
