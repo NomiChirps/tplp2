@@ -136,11 +136,13 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
   if (spi_index == 0) {
     irq_index = dma_irq_index_t(0);
     irq_number = dma_irq_number_t(DMA_IRQ_0);
-    irq_set_exclusive_handler(irq_number, &DmaFinishedNotifier::ISR<0>);
+    irq_add_shared_handler(irq_number, &DmaFinishedNotifier::ISR<0>,
+                           PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
   } else if (spi_index == 1) {
     irq_index = dma_irq_index_t(1);
     irq_number = dma_irq_number_t(DMA_IRQ_1);
-    irq_set_exclusive_handler(irq_number, &DmaFinishedNotifier::ISR<1>);
+    irq_add_shared_handler(irq_number, &DmaFinishedNotifier::ISR<1>,
+                           PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
   } else {
     LOG(FATAL) << "spi index out of expected range: " << spi_index;
   }
