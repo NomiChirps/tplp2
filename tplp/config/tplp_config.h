@@ -63,12 +63,14 @@ struct TaskStacks {
   static constexpr int kTESTONLY = 1024;
   [[deprecated]] static constexpr int kDefault = 1024;
   static constexpr int kLvglTimerHandler = 2048;
-  static constexpr int kLogging = 512;
   static constexpr int kHX8357 = 512;
   static constexpr int kI2cController = 1024;
   static constexpr int kSpiManager = 1024;
   static constexpr int kRuntimeStats = 512;
   static constexpr int kStartup = 1024;
+
+  // don't reduce further unless you enjoy heisenbugs
+  static constexpr int kLogging = 1024;
 
   // unused
   static constexpr int kSharpLCD = 1024;

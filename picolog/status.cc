@@ -94,17 +94,6 @@ const std::string* Status::MovedFromString() {
   return moved_from_string;
 }
 
-void Status::UnrefNonInlined(uintptr_t rep) {
-  status_internal::StatusRep* r = RepToPointer(rep);
-  // Fast path: if ref==1, there is no need for a RefCountDec (since
-  // this is the only reference and therefore no other thread is
-  // allowed to be mucking with r).
-  if (r->ref.load(std::memory_order_acquire) == 1 ||
-      r->ref.fetch_sub(1, std::memory_order_acq_rel) - 1 == 0) {
-    delete r;
-  }
-}
-
 Status::Status(util::StatusCode code, std::string_view msg)
     : rep_(CodeToInlinedRep(code)) {
   if (code != util::StatusCode::kOk && !msg.empty()) {

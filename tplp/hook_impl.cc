@@ -23,7 +23,12 @@ unsigned long FreeRTOS_GetRunTimeCounterValue() {
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t task, char* name) {
-  LOG(FATAL) << "Stack overflow in task " << name;
+  if (!picolog::IsDying()) {
+    LOG(FATAL) << "Stack overflow in task " << name;
+  } else {
+    // overflow probably happened in the logging task :(
+    panic("FreeRTOS stack overflow");
+  }
 }
 
 void lvgl_assertion_failed() {

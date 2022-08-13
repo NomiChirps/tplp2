@@ -13,9 +13,8 @@ namespace status_internal {
 // Reference-counted representation of Status data.
 struct StatusRep {
   StatusRep(util::StatusCode code_arg, std::string_view message_arg)
-      : ref(int32_t{1}), code(code_arg), message(message_arg) {}
+      : code(code_arg), message(message_arg) {}
 
-  std::atomic<int32_t> ref;
   util::StatusCode code;
   std::string message;
 };

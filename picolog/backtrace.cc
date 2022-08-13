@@ -2,6 +2,8 @@
 
 #include <unwind.h>
 
+//#include <cstdio>
+
 namespace {
 
 // From GCC implementation comments for -mpoke-function-name:
@@ -40,15 +42,41 @@ namespace {
 static const char* unwind_get_function_name(const _Unwind_Word* pc) {
   static_assert(sizeof(_Unwind_Word) == 4);
   if (!pc) {
-    return "<bad pc>";
+    return "<null pc>";
+  }
+  if (reinterpret_cast<unsigned>(pc) % 4 != 0) {
+    return "<unaligned pc>";
   }
   if (((*(pc - 1)) & 0xff000000) != 0xff000000) {
     return "<unknown>";
   }
-  int name_length = (*(pc - 1)) ^ 0xff000000;
+  int name_length = (*(pc - 1)) & 0x00ffffff;
+
   const char* name = reinterpret_cast<const char*>(pc - 1) - name_length;
-  // consistency check. it's guaranteed to be null-terminated.
-  if (name[name_length] == 0) {
+  // printf("pc-4 %08x @%p\n", *(pc - 4), pc - 4);
+  // printf("pc-3 %08x @%p\n", *(pc - 3), pc - 3);
+  // printf("pc-2 %08x @%p\n", *(pc - 2), pc - 2);
+  // printf("pc-1 %08x @%p\n", *(pc - 1), pc - 1);
+  // printf("pc-0 %08x @%p\n\n", *(pc - 0), pc - 0);
+  // for (const char* a = name; a < name + name_length; ++a) {
+  //   if (*a == 0)
+  //     putchar('~');
+  //   else if (*a < 128)
+  //     putchar(*a);
+  //   else
+  //     putchar('^');
+  // }
+  // printf("\n\n");
+  // due to alignment, the terminating null could be
+  // any of the 4 bytes in *(pc-2)
+  bool terminated = false;
+  for (int i = 0; i < 4; ++i) {
+    if (!name[name_length - i - 1]) {
+      terminated = true;
+      break;
+    }
+  }
+  if (!terminated) {
     return "<bad name data>";
   }
   return name;

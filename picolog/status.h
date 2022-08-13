@@ -5,7 +5,6 @@
 #include <string>
 #include <cassert>
 
-
 #include "picolog/status_internal.h"
 
 namespace util {
@@ -295,8 +294,10 @@ class [[nodiscard]] Status final {
   // by printing a warning) if it is not.
   Status(util::StatusCode code, std::string_view msg);
 
-  Status(const Status&);
-  Status& operator=(const Status& x);
+  // XXX: Copy not supported because ARMv6-M lacks synchronization primitives
+  //      for the reference-counting implementation.
+  Status(const Status&) = delete;
+  Status& operator=(const Status& x) = delete;
 
   // Move operators
 
@@ -321,7 +322,6 @@ class [[nodiscard]] Status final {
   //   // Instead of "if (overall_status.ok()) overall_status = new_status"
   //   overall_status.Update(new_status);
   //
-  void Update(const Status& new_status);
   void Update(Status&& new_status);
 
   // Status::ok()
@@ -383,10 +383,6 @@ class [[nodiscard]] Status final {
   // Creates a status in the canonical error space with the specified
   // code, and an empty error message.
   explicit Status(util::StatusCode code);
-
-  static void UnrefNonInlined(uintptr_t rep);
-  static void Ref(uintptr_t rep);
-  static void Unref(uintptr_t rep);
 
   static bool EqualsSlow(const util::Status& a, const util::Status& b);
 
@@ -520,18 +516,6 @@ inline Status::Status() : rep_(CodeToInlinedRep(util::StatusCode::kOk)) {}
 
 inline Status::Status(util::StatusCode code) : rep_(CodeToInlinedRep(code)) {}
 
-inline Status::Status(const Status& x) : rep_(x.rep_) { Ref(rep_); }
-
-inline Status& Status::operator=(const Status& x) {
-  uintptr_t old_rep = rep_;
-  if (x.rep_ != old_rep) {
-    Ref(x.rep_);
-    rep_ = x.rep_;
-    Unref(old_rep);
-  }
-  return *this;
-}
-
 inline Status::Status(Status&& x) noexcept : rep_(x.rep_) {
   x.rep_ = MovedFromRep();
 }
@@ -541,15 +525,8 @@ inline Status& Status::operator=(Status&& x) {
   if (x.rep_ != old_rep) {
     rep_ = x.rep_;
     x.rep_ = MovedFromRep();
-    Unref(old_rep);
   }
   return *this;
-}
-
-inline void Status::Update(const Status& new_status) {
-  if (ok()) {
-    *this = new_status;
-  }
 }
 
 inline void Status::Update(Status&& new_status) {
@@ -558,7 +535,7 @@ inline void Status::Update(Status&& new_status) {
   }
 }
 
-inline Status::~Status() { Unref(rep_); }
+inline Status::~Status() {}
 
 inline bool Status::ok() const {
   return rep_ == CodeToInlinedRep(util::StatusCode::kOk);
@@ -594,6 +571,7 @@ inline void swap(util::Status& a, util::Status& b) {
 
 inline bool Status::IsInlined(uintptr_t rep) { return (rep & 1) == 0; }
 
+
 inline bool Status::IsMovedFrom(uintptr_t rep) {
   return IsInlined(rep) && (rep & 2) != 0;
 }
@@ -618,18 +596,6 @@ inline status_internal::StatusRep* Status::RepToPointer(uintptr_t rep) {
 
 inline uintptr_t Status::PointerToRep(status_internal::StatusRep* rep) {
   return reinterpret_cast<uintptr_t>(rep) + 1;
-}
-
-inline void Status::Ref(uintptr_t rep) {
-  if (!IsInlined(rep)) {
-    RepToPointer(rep)->ref.fetch_add(1, std::memory_order_relaxed);
-  }
-}
-
-inline void Status::Unref(uintptr_t rep) {
-  if (!IsInlined(rep)) {
-    UnrefNonInlined(rep);
-  }
 }
 
 inline Status OkStatus() { return Status(); }

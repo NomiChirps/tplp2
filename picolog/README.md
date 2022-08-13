@@ -10,9 +10,9 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
 
 ## Wishlist
 
-- [ ] thread-local and/or arena storage for LogMessageData to avoid malloc
+- Maybe have a separate task handling FATAL errors so it can be given the highest priority.
+- [ ] arena storage for LogMessageData to avoid malloc
 - [ ] DCHECK
-- [ ] Status object and CHECK_OK
 - [ ] LOG level toggles at runtime
 - [ ] soften the hard dependency on pico-sdk, so we can run tests and use it in the simulator, with FreeRTOS's posix port
 - [ ] Trap hard faults so we can get stack traces for a nullptr dereference :)
@@ -20,5 +20,6 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
   - https://forums.raspberrypi.com/viewtopic.php?t=318745
 - [ ] support other log targets than stdout, e.g. flash, sd, or custom.
 - [ ] unit/etc tests for anything in picolog.cc
+- [x] Status object and CHECK_OK
 - [x] per-file VLOG toggles at compile time (use a constexpr function for string comparison with `__FILE__`, probably)
 - [x] test for VLOG_IS_ON

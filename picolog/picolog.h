@@ -8,6 +8,7 @@
 #include <ostream>
 #include <sstream>
 
+#include "picolog/status.h"
 #include "picolog/vlog_is_on.h"
 
 // PICOLOG_VMODULE allows selectively enabling VLOG(n) lines at compile time.
@@ -35,6 +36,9 @@ void InitLogging();
 // actually go somewhere.
 // TODO: support logging before the scheduler starts
 [[noreturn]] void BackgroundTask(void* ignored);
+
+// Returns true if the system is in the midst of crashing due to a fatal error.
+bool IsDying();
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -400,6 +404,9 @@ T CheckNotNull(const char* file, int line, const char* names, T&& t) {
 #define CHECK_NOTNULL(val)                                                   \
   ::picolog::CheckNotNull(__FILE__, __LINE__, "'" #val "' Must be non NULL", \
                           (val))
+
+// TODO: this construction feels brittle
+#define CHECK_OK(status) CHECK(status.ok()) << status
 
 // Helper functions for string comparisons.
 // To avoid bloat, the definitions are in logging.cc.

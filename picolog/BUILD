@@ -34,7 +34,10 @@ cc_test(
 
 cc_library(
     name = "status",
+    srcs = [
+        "status.cc",
+        "status_internal.h",
+    ],
     hdrs = ["status.h"],
-    srcs = ["status.cc"],
     deps = [],
 )

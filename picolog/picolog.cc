@@ -37,7 +37,11 @@ const char* GetTID() {
   }
 }
 
+static volatile bool global_is_dying_flag = false;
+
 }  // namespace
+
+bool IsDying() { return global_is_dying_flag; }
 
 // An arbitrary limit on the length of a single log message. This
 // is so that streaming can be done more efficiently.
@@ -114,8 +118,8 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
 
 static LogMessage::LogMessageData* NewLogMessageData() {
 #if PICOLOG_THREAD_LOCAL_STORAGE_INDEX
-  // TODO: implement thread local storage for LogMessageData
-  #error "not implemented"
+// TODO: implement thread local storage for LogMessageData
+#error "not implemented"
 #else
   // TODO: maybe use a statically allocated arena instead?
   return new LogMessage::LogMessageData();
@@ -165,8 +169,8 @@ void LogMessage::Flush() {
     return;
   }
   // TODO: short-circuit here when logging is disabled/filtered at runtime.
-
   if (data_->severity_ == PICOLOG_FATAL) {
+    global_is_dying_flag = true;
     // TODO: it would be cool if we could automatically break into the debugger
     // from here. unfortunately this doesn't seem to work.
     /*
@@ -221,8 +225,7 @@ void LogMessage::Flush() {
 void LogMessage::Fail() {
   TaskHandle_t self = xTaskGetCurrentTaskHandle();
   if (self) {
-    vTaskSuspend(self);
-    panic("Cannot resume task after a fatal error");
+    for (;;) taskYIELD();
   }
   panic("Fatal error");
 }
@@ -262,7 +265,7 @@ static void PrintStackTrace(const backtrace_frame_t* frames, int count) {
   // large enough. wild.
   char* demangled = static_cast<char*>(malloc(40));
   size_t demangled_len = 40;
-  int status;
+  int status = 1;
   for (int i = 0; i < count; ++i) {
     demangled =
         abi::__cxa_demangle(frames[i].name, demangled, &demangled_len, &status);
@@ -298,12 +301,12 @@ void BackgroundTask(void*) {
     fwrite(data.message_text_, data.num_chars_to_log_, 1, stdout);
 
     if (data.severity_ == PICOLOG_FATAL) {
-      // TODO: suspend others? what about the printf/malloc mutex?
-      // vTaskSuspendAll();
+      vTaskSuspendAll();
       printf("\n*** Aborted at %lluus since boot ***\n",
              to_us_since_boot(get_absolute_time()));
       PrintStackTrace(data.backtrace_, data.backtrace_length_);
       fflush(stdout);  // just in case
+      // TODO: other behaviors on fatal, like reset
 #if PICOLOG_RESET_TO_BOOTLOADER_ON_FATAL
       // TODO maybe there's a better way to configure this
       printf("\n*** Attempting to reset into Pico bootloader!\n");
@@ -311,10 +314,10 @@ void BackgroundTask(void*) {
       // TODO: this fails sometimes. is there something else we should stop or
       // reset first?
       reset_usb_boot(0, 0);
-      for(;;);
-#else
-      panic("Aborted by fatal error handler");
 #endif
+      panic("panic");
+      for (;;)
+        ;
     }
   }
 }

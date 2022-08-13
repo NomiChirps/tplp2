@@ -11,7 +11,7 @@
 
 using std::chrono_literals::operator""ms;
 
-#define CHECK_OK(expr) CHECK_EQ((expr), SpiTransaction::Result::OK)
+#define CHECK_TXN_OK(expr) CHECK_EQ((expr), SpiTransaction::Result::OK)
 
 // - see commands and init sequence at
 //   https://github.com/adafruit/Adafruit_HX8357_Library/blob/master/Adafruit_HX8357.h
@@ -326,13 +326,13 @@ void HX8357::SendCommand(uint8_t command, const uint8_t* data, uint8_t len) {
   // DC is low for a command byte, then high for the data.
   SpiTransaction txn = spi_device_->StartTransaction();
   gpio_put(dc_, 0);
-  CHECK_OK(txn.TransferBlocking({
+  CHECK_TXN_OK(txn.TransferBlocking({
       .tx_buf = &command,
       .len = 1,
   }));
   if (data && len) {
     gpio_put(dc_, 1);
-    CHECK_OK(txn.Transfer({
+    CHECK_TXN_OK(txn.Transfer({
         .tx_buf = data,
         .len = len,
     }));
@@ -347,11 +347,11 @@ uint8_t HX8357::RDDSDR() {
   uint8_t result = 0;
   gpio_put(dc_, 0);
   SpiTransaction txn = spi_device_->StartTransaction();
-  CHECK_OK(txn.Transfer({
+  CHECK_TXN_OK(txn.Transfer({
       .tx_buf = &command,
       .len = 1,
   }));
-  CHECK_OK(txn.Transfer({
+  CHECK_TXN_OK(txn.Transfer({
       .rx_buf = &result,
       .len = 1,
   }));
