@@ -50,56 +50,45 @@ static constexpr int kDmaFinishedNotificationIndex = 1;
 // The RP2040 DMA unit provides 2 IRQs to which each of the 12 DMA channels can
 // be assigned.
 static constexpr int kNumDmaIrqs = 2;
-// This limit is arbitrary and only exists to save some static memory.
-static constexpr int kMaxDevicesPerDmaIrq = 4;
 // This limit is mostly arbitrary.
 static constexpr int kEventQueueDepth = 8;
 
 class DmaFinishedNotifier {
  private:
-  struct DeviceInfo {
+  struct ManagerTaskInfo {
     dma_channel_t dma_rx;
-    TaskHandle_t task;
+    TaskHandle_t task = nullptr;
   };
-  // index: (irq, device)
-  static DeviceInfo devices[kNumDmaIrqs][kMaxDevicesPerDmaIrq];
-  static int num_devices[kNumDmaIrqs];
+  static ManagerTaskInfo manager_tasks[kNumDmaIrqs];
 
  public:
   template <int irq_index>
   static void ISR() {
     static_assert(irq_index >= 0 && irq_index < kNumDmaIrqs, "bad irq_index");
-    BaseType_t higher_priority_task_woken = 0;
-    for (int i = 0; i < num_devices[irq_index]; ++i) {
-      if (dma_irqn_get_channel_status(irq_index,
-                                      devices[irq_index][i].dma_rx)) {
-        dma_irqn_acknowledge_channel(irq_index, devices[irq_index][i].dma_rx);
-        vTaskNotifyGiveIndexedFromISR(devices[irq_index][i].task,
-                                      kDmaFinishedNotificationIndex,
-                                      &higher_priority_task_woken);
-        break;
-      }
+    if (dma_irqn_get_channel_status(irq_index,
+                                    manager_tasks[irq_index].dma_rx)) {
+      dma_irqn_acknowledge_channel(irq_index, manager_tasks[irq_index].dma_rx);
+      BaseType_t higher_priority_task_woken = 0;
+      vTaskNotifyGiveIndexedFromISR(manager_tasks[irq_index].task,
+                                    kDmaFinishedNotificationIndex,
+                                    &higher_priority_task_woken);
+      portYIELD_FROM_ISR(higher_priority_task_woken);
     }
-    portYIELD_FROM_ISR(higher_priority_task_woken);
   }
 
-  static void RegisterDevice(dma_irq_index_t irq_index, dma_channel_t dma_rx,
-                             TaskHandle_t task) {
+  static void RegisterManagerTask(dma_irq_index_t irq_index,
+                                  dma_channel_t dma_rx, TaskHandle_t task) {
     CHECK_GE(irq_index, 0);
     CHECK_LT(irq_index, kNumDmaIrqs);
-    CHECK_LT(num_devices[irq_index], kMaxDevicesPerDmaIrq)
-        << "Too many devices assigned to the SpiManager associated with DMA "
-        << irq_index;
-    devices[irq_index][num_devices[irq_index]++] = {.dma_rx = dma_rx,
-                                                    .task = task};
+    CHECK_EQ(manager_tasks[irq_index].task, nullptr)
+        << "SPI manager task on DMA IRQ index " << irq_index
+        << " already exists?";
+    manager_tasks[irq_index] = {.dma_rx = dma_rx, .task = task};
   }
 };
 
-// First index is the DMA interrupt index, 0 or 1. A value of the second index
-// is assigned to an `SpiDevice` when it's created.
-DmaFinishedNotifier::DeviceInfo
-    DmaFinishedNotifier::devices[kNumDmaIrqs][kMaxDevicesPerDmaIrq] = {};
-int DmaFinishedNotifier::num_devices[kNumDmaIrqs] = {0, 0};
+DmaFinishedNotifier::ManagerTaskInfo
+    DmaFinishedNotifier::manager_tasks[kNumDmaIrqs] = {};
 
 template void DmaFinishedNotifier::ISR<0>();
 template void DmaFinishedNotifier::ISR<1>();
@@ -218,7 +207,6 @@ SpiDevice* SpiManager::AddDevice(gpio_pin_t cs, std::string_view name) {
   gpio_init(cs);
   gpio_set_dir(cs, GPIO_OUT);
   gpio_put(cs, 1);
-  DmaFinishedNotifier::RegisterDevice(dma_irq_index_, dma_rx_, task_);
   return new SpiDevice(this, cs, name);
 }
 
@@ -237,6 +225,9 @@ SpiTransaction SpiDevice::StartTransaction() {
 void SpiManager::TaskFn(void* task_param) {
   SpiManager* self = static_cast<SpiManager*>(task_param);
   LOG(INFO) << "SpiManager task started.";
+
+  DmaFinishedNotifier::RegisterManagerTask(self->dma_irq_index_, self->dma_rx_,
+                                           self->task_);
 
   // Enable only the RX DMA IRQ for DmaFinishedNotifier. Since we always run in
   // full-duplex mode, with both DMAs active, we only need one to notify us that
