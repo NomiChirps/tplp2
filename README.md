@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] StatusOr
 - [ ] Create a front panel UI (assignee: wembly :)
   - [x] Use [LVGL](https://lvgl.io)
   - [ ] runtime stats / logging screen
@@ -47,7 +48,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
     - this will also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
   - [ ] split out lvgl-bazel as its own library? eh, maybe later. it's already pretty much prepped though
   - [ ] move/redirect config headers to a config/ dir
-  - [ ] consider removing the xTaskDelete() at the end of startup, and switching to heap_1.
+  - [ ] consider removing all deletions of FreeRTOS objects and switching to heap_1
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
   - [ ] Vendor all 3rd party libraries

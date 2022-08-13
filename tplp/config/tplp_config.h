@@ -76,6 +76,11 @@ struct TaskStacks {
   static constexpr int kSharpLCD = 1024;
 };
 
+struct I2cPeripheralAddress {
+  // TSC2007 touchscreen reader.
+  static constexpr i2c_address_t kTSC2007 = i2c_address_t(0x48);
+};
+
 }  // namespace tplp
 
 #endif  // TPLP_TPLP_CONFIG_H_

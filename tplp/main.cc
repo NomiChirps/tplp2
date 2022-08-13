@@ -72,9 +72,11 @@ class I2cTest {
       LOG(INFO) << "I2cTestTask awake.";
       if (!go) continue;
 
-      std::vector<i2c_address_t> addrs = i2c_->ScanBus();
+      std::vector<i2c_address_t> addrs;
+      CHECK_OK(i2c_->ScanBus(&addrs));
       for (i2c_address_t addr : addrs) {
-        LOG(INFO) << "Found device at " << (int)addr;
+        LOG(INFO) << "Found device at " << addr;
+        // TODO: implement DeviceId protocol
         // I2cDeviceId did;
         // i2c_->ReadDeviceId(addr, &did);
       }

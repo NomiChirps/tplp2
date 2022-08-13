@@ -1,6 +1,8 @@
 #ifndef TPLP_TYPES_H_
 #define TPLP_TYPES_H_
 
+#include <ostream>
+
 #include "NamedType/named_type.hpp"
 
 namespace tplp {
@@ -16,6 +18,13 @@ using dma_irq_index_t =
 // Refers to a physical IRQ number.
 using dma_irq_number_t =
     fluent::NamedType<int, struct DmaIrqNumberTag, fluent::FunctionCallable>;
+
+// Numeric address, 0<=value<256.
+using i2c_address_t =
+    fluent::NamedType<uint8_t, struct I2cAddressTag, fluent::PreIncrementable,
+                      fluent::Comparable>;
+
+std::ostream& operator<<(std::ostream& s, const i2c_address_t& addr);
 
 }  // namespace tplp
 

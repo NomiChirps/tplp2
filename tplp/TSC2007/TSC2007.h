@@ -8,7 +8,7 @@ namespace tplp {
 // TSC2007 4-wire resistive touchscreen controller with I2C interface.
 class TSC2007 {
  public:
-  TSC2007(I2cDevice* device);
+  explicit TSC2007(I2cDeviceHandle device);
 
  private:
 };

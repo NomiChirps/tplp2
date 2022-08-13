@@ -140,6 +140,8 @@ class SpiTransaction {
   ~SpiTransaction();
   // Moveable, but not copyable.
   SpiTransaction(SpiTransaction&&);
+  // Not stompable.
+  SpiTransaction& operator=(SpiTransaction&&) = delete;
 
   // Attempts to queue the given transfer, then returns without
   // waiting for it to complete. See `SpiDevice::Transfer` for options.

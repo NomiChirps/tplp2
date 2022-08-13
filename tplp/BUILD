@@ -60,6 +60,7 @@ cc_library(
 cc_library(
     name = "types",
     hdrs = ["types.h"],
+    srcs = ["types.cc"],
     visibility = [":__subpackages__"],
     deps = [
         "@NamedType",
@@ -93,6 +94,7 @@ cc_library(
         "//picolog",
         "//tplp/config:tplp_config",
         "@rules_pico//pico:hardware_dma",
+        ":rtos_utils",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_i2c",
     ],
@@ -127,5 +129,15 @@ cc_library(
     deps = [
         "@rules_pico//pico:hardware_clocks",
         "@rules_pico//pico:hardware_pio",
+    ],
+)
+
+cc_library(
+    name = "rtos_utils",
+    hdrs = ["rtos_utils.h"],
+    srcs = ["rtos_utils.cc"],
+    deps = [
+        "@FreeRTOS",
+        "//picolog",
     ],
 )
