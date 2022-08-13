@@ -10,6 +10,7 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
 
 ## Wishlist
 
+- StatusOr would be nice but not essential
 - Maybe have a separate task handling FATAL errors so it can be given the highest priority.
 - [ ] arena storage for LogMessageData to avoid malloc
 - [ ] DCHECK
