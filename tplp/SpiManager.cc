@@ -121,12 +121,12 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
     gpio_set_function(*mosi, GPIO_FUNC_SPI);
   }
   dma_channel_t dma_tx = dma_channel_t(dma_claim_unused_channel(false));
-  LOG_IF(FATAL, dma_tx < 0) << "No free DMA channels available!";
+  LOG_IF(FATAL, dma_tx < 0) << "No free DMA channels available";
   if (miso) {
     gpio_set_function(*miso, GPIO_FUNC_SPI);
   }
   dma_channel_t dma_rx = dma_channel_t(dma_claim_unused_channel(false));
-  LOG_IF(FATAL, dma_rx < 0) << "No free DMA channels available!";
+  LOG_IF(FATAL, dma_rx < 0) << "No free DMA channels available";
 
   // We're gonna use DMA_IRQ_0 for SPI0 and DMA_IRQ_1 for SPI1,
   // but this correspondence is not actually required. Each DMA channel can be
