@@ -6,6 +6,7 @@
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
 #include "picolog/picolog.h"
+#include "picolog/status_macros.h"
 #include "tplp/config/tplp_config.h"
 #include "tplp/rtos_utils.h"
 
@@ -88,17 +89,22 @@ enum Values : uint32_t {
   // This is a controller-mode-only bit. Controller has detected the transfer
   // abort (IC_ENABLE[1])
   ABRT_USER_ABRT = 1 << 16,
+
+  // IRQ_SOURCE_* flags indicate which interrupt causing this notification.
+
   // RX DMA has filled its write buffer, meaning that an I2C read operation has
   // fully completed, presumably with success.
-  DMA_RX_FINISHED = 1 << 17,
+  IRQ_SOURCE_DMA_RX_FINISHED = 1 << 17,
   // I2C RX FIFO overflow; more bytes were received on the bus than the RX DMA
   // could read. This should not happen and means that there's a bug in
   // I2cController.
-  RX_OVER = 1 << 18,
+  IRQ_SOURCE_RX_OVER = 1 << 18,
   // I2C TX FIFO is empty and transmission of the most recently popped command
   // is complete.
-  TX_EMPTY = 1 << 19,
-  // Bits 20 to 22 are unused for now.
+  IRQ_SOURCE_TX_EMPTY = 1 << 19,
+  // Transaction was aborted and there should be a reason somewhere up there.
+  IRQ_SOURCE_TX_ABRT = 1 << 20,
+  // Bits 21 to 22 are unused for now.
   // Bits 23 to 31 reserved for the TX_FLUSH_CNT value.
   // This field indicates the number of Tx FIFO Data
   // Commands which are flushed due to TX_ABRT interrupt. It
@@ -111,21 +117,21 @@ enum Values : uint32_t {
 };
 static_assert(!(TX_FLUSH_CNT_MASK & RESERVED_BITS_MASK));
 static_assert(!(RESERVED_BITS_MASK & ABRT_USER_ABRT));
-static_assert(RESERVED_BITS_MASK & DMA_RX_FINISHED);
-static_assert(RESERVED_BITS_MASK & TX_EMPTY);
+static_assert(RESERVED_BITS_MASK & IRQ_SOURCE_DMA_RX_FINISHED);
+static_assert(RESERVED_BITS_MASK & IRQ_SOURCE_TX_ABRT);
 
 util::Status AbortSourceToStatus(uint32_t bits) {
   if (bits & ABRT_7B_ADDR_NOACK) {
-    return util::NotFoundError("Address NACK");
+    return util::NotFoundError("Address byte not ACKed by any target");
   }
   if (bits & ABRT_10ADDR1_NOACK) {
-    return util::NotFoundError("Address NACK1");
+    return util::NotFoundError("Address byte 1 not ACKed by any target");
   }
   if (bits & ABRT_10ADDR2_NOACK) {
-    return util::NotFoundError("Address NACK2");
+    return util::NotFoundError("Address byte 2 not ACKed by any target");
   }
   if (bits & ABRT_TXDATA_NOACK) {
-    return util::DataLossError("Data not ACKed");
+    return util::DataLossError("Target failed to ACK data");
   }
   if (bits & ABRT_GCALL_NO_ACK) {
     return util::NotFoundError("General Call not ACKed by any target");
@@ -169,14 +175,14 @@ util::Status AbortSourceToStatus(uint32_t bits) {
   if (bits & ABRT_USER_ABRT) {
     return util::AbortedError("User abort");
   }
-  if (bits & DMA_RX_FINISHED) {
+  if (bits & IRQ_SOURCE_DMA_RX_FINISHED) {
     // This should have been handled elsewhere.
     LOG(FATAL) << "Unhandled DMA_RX_FINISHED";
   }
-  if (bits & RX_OVER) {
+  if (bits & IRQ_SOURCE_RX_OVER) {
     return util::InternalError("RX FIFO overflow");
   }
-  if (bits & TX_EMPTY) {
+  if (bits & IRQ_SOURCE_TX_EMPTY) {
     // This should have been handled elsewhere.
     LOG(FATAL) << "Unhandled TX_EMPTY";
   }
@@ -205,8 +211,8 @@ class DmaFinishedNotifier {
       BaseType_t higher_priority_task_woken = 0;
       xTaskNotifyIndexedFromISR(
           manager_tasks[irq_index].task, kNotificationIndex,
-          static_cast<uint32_t>(NotificationBits::DMA_RX_FINISHED), eSetBits,
-          &higher_priority_task_woken);
+          static_cast<uint32_t>(NotificationBits::IRQ_SOURCE_DMA_RX_FINISHED),
+          eSetBits, &higher_priority_task_woken);
       portYIELD_FROM_ISR(higher_priority_task_woken);
     }
   }
@@ -229,12 +235,12 @@ template void DmaFinishedNotifier::ISR<0>();
 template void DmaFinishedNotifier::ISR<1>();
 
 static dma_channel_config MakeChannelConfig(
-    i2c_inst_t* spi, dma_channel_t dma, dma_channel_transfer_size transfer_size,
+    i2c_inst_t* i2c, dma_channel_t dma, dma_channel_transfer_size transfer_size,
     bool is_tx, bool read_increment, bool write_increment, bool irq_quiet) {
   dma_channel_config c = dma_channel_get_default_config(dma);
-  channel_config_set_dreq(&c, i2c_get_dreq(spi, is_tx));
+  channel_config_set_dreq(&c, i2c_get_dreq(i2c, is_tx));
   VLOG(1) << "DMA channel " << dma << " will be connected to I2C"
-          << i2c_hw_index(spi) << " DREQ " << i2c_get_dreq(spi, is_tx);
+          << i2c_hw_index(i2c) << " DREQ " << i2c_get_dreq(i2c, is_tx);
   channel_config_set_transfer_data_size(&c, transfer_size);
   channel_config_set_read_increment(&c, read_increment);
   channel_config_set_write_increment(&c, write_increment);
@@ -261,7 +267,9 @@ class I2cNotifier {
       hw_clear_bits(&hw->dma_cr,
                     I2C_IC_DMA_CR_TDMAE_BITS | I2C_IC_DMA_CR_RDMAE_BITS);
       hw_set_bits(&hw->enable, I2C_IC_ENABLE_TX_CMD_BLOCK_BITS);
-      // Copy over the abort reason.
+      // Flag that we got this interrupt.
+      notify |= NotificationBits::IRQ_SOURCE_TX_ABRT;
+      // Copy over the abort reason, whatever it is.
       notify |= hw->tx_abrt_source & ~NotificationBits::RESERVED_BITS_MASK;
       // This clears the interrupt, unblocks the FIFOs, resumes command
       // processing, and clears the abort source register.
@@ -271,13 +279,13 @@ class I2cNotifier {
     }
     if (hw->intr_stat & I2C_IC_INTR_STAT_R_RX_OVER_BITS) {
       (void)hw->clr_rx_over;
-      notify |= NotificationBits::RX_OVER;
+      notify |= NotificationBits::IRQ_SOURCE_RX_OVER;
     }
     if (hw->intr_stat & I2C_IC_INTR_STAT_R_TX_EMPTY_BITS) {
       // TX_EMPTY is cleared by hardware! so we need to mask it here instead,
       // and rely on I2cController to unmask it when needed.
       hw_clear_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
-      notify |= NotificationBits::TX_EMPTY;
+      notify |= NotificationBits::IRQ_SOURCE_TX_EMPTY;
     }
     BaseType_t higher_priority_task_woken = 0;
     xTaskNotifyIndexedFromISR(manager_tasks[i2c_hw_index], kNotificationIndex,
@@ -302,18 +310,22 @@ constexpr int kEventQueueDepth = 8;
 struct I2cController::Event {
   enum class Tag { INVALID, READ, WRITE } tag = Tag::INVALID;
   i2c_address_t addr = i2c_address_t(0);
+  // TODO: build the commands in I2cTransaction and put the command buffer
+  //       here, instead of in TaskFn. that way the transaction can exactly
+  //       control restarts and stops without a context switch & dma reinit
+  //       in between. we might even be able to coalesce multiple read/write
+  //       ops into one event!!
   uint8_t* buf = nullptr;
   size_t len = 0;
+  bool restart = false;
   bool stop = true;
-  // Must be true for the first event of each transaction.
-  bool first_cmd_of_txn = false;
 
   // If not null, will be given after the operation completes.
   SemaphoreHandle_t blocking_sem = nullptr;
 
   // If not null, will be set to the result status of the operation.
-  // FIXME: make sure these are correct
-  // util::IsNotFound(): read/write was unacknowledged
+  // See `NotificationBits::AbortSourceToStatus()`.
+  // TODO: document those in the public header
   util::Status* out_result = nullptr;
 
   friend std::ostream& operator<<(std::ostream& stream, const Event::Tag& tag) {
@@ -378,11 +390,11 @@ I2cController* I2cController::Init(int task_priority, i2c_inst_t* i2c_instance,
   }
   // RX IRQ set to not-quiet.
   self->dma_rx_config_ = MakeChannelConfig(
-      self->i2c_, self->dma_rx_, DMA_SIZE_8, false, true, false, false);
+      self->i2c_, self->dma_rx_, DMA_SIZE_8, false, false, true, false);
   // TX needs to be 16 bits wide because we use the upper 8 as control bits
   // when writing to IC_DATA_CMD.
   self->dma_tx_config_ = MakeChannelConfig(
-      self->i2c_, self->dma_tx_, DMA_SIZE_16, true, false, true, true);
+      self->i2c_, self->dma_tx_, DMA_SIZE_16, true, true, false, true);
 
   if (i2c_instance_index) {
     irq_set_exclusive_handler(I2C1_IRQ, &I2cNotifier::ISR<1>);
@@ -432,6 +444,7 @@ void I2cController::TaskFn(void* task_param) {
 
   // Keep the controller initially disabled.
   self->i2c_->hw->enable = 0;
+  self->new_transaction_ = true;
 
   for (;;) {
     Event event;
@@ -441,10 +454,8 @@ void I2cController::TaskFn(void* task_param) {
 
     switch (event.tag) {
       case Event::Tag::READ:
-        self->DoRead(event);
-        break;
       case Event::Tag::WRITE:
-        self->DoWrite(event);
+        self->DoTransfer(event);
         break;
       default:
         LOG(FATAL) << "Invalid event received: " << event;
@@ -454,14 +465,11 @@ void I2cController::TaskFn(void* task_param) {
   }
 }
 
-void I2cController::DoRead(const Event& event) {
+void I2cController::DoTransfer(const Event& event) {
+  CHECK(event.tag == Event::Tag::READ || event.tag == Event::Tag::WRITE);
+  const bool is_read = event.tag == Event::Tag::READ;
   const auto hw = i2c_->hw;
 
-  CHECK_EQ(hw->enable_status & 1, 0u) << "Expected i2c hw to be disabled";
-  CHECK(!(hw->status & I2C_IC_STATUS_RFNE_BITS))
-      << "Expected receive FIFO to be empty";
-  CHECK(hw->status & I2C_IC_STATUS_TFE_BITS)
-      << "Expected transmit FIFO to be empty";
   CHECK(!dma_channel_is_busy(dma_rx_));
   CHECK(!dma_channel_is_busy(dma_tx_));
   uint32_t notify =
@@ -469,39 +477,69 @@ void I2cController::DoRead(const Event& event) {
   CHECK_EQ(notify, 0u) << "Unexpected notification bits";
   CHECK(!xTaskNotifyStateClearIndexed(nullptr, kNotificationIndex))
       << "Unexpected notification state";
-  CHECK_EQ(hw->enable_status & I2C_IC_ENABLE_STATUS_IC_EN_BITS, 0u)
-      << "I2C hardware unexpectedly enabled";
 
   CHECK_LT(event.len, kCommandBufferSize)
-      << "reads above command buffer size not implemented";
+      << "transfers above command buffer size not implemented";
 
-  hw->tar = event.addr.get();
-  hw->enable = 1;
+  if (new_transaction_) {
+    CHECK_EQ(hw->enable_status & I2C_IC_ENABLE_STATUS_IC_EN_BITS, 0u)
+        << "Expected i2c hw to be disabled at start of transaction";
+    CHECK(!(hw->status & I2C_IC_STATUS_RFNE_BITS))
+        << "Expected receive FIFO to be empty";
+    CHECK(hw->status & I2C_IC_STATUS_TFE_BITS)
+        << "Expected transmit FIFO to be empty";
+
+    hw->tar = event.addr.get();
+    hw->enable = 1;
+
+    new_transaction_ = false;
+  }
 
   // TODO allocate elsewhere
   uint16_t cmd_buf[kCommandBufferSize];
-  // Setting the CMD bit indicates a read command.
-  std::fill<uint16_t*, uint16_t>(cmd_buf, cmd_buf + event.len,
-                                 I2C_IC_DATA_CMD_CMD_BITS);
-  // Issue RESTART if this is not the first read of the txn.
-  if (!event.first_cmd_of_txn) cmd_buf[0] |= I2C_IC_DATA_CMD_RESTART_BITS;
+  if (is_read) {
+    // Setting the CMD bit indicates a read command.
+    std::fill<uint16_t*, uint16_t>(cmd_buf, cmd_buf + event.len,
+                                   I2C_IC_DATA_CMD_CMD_BITS);
+  } else {
+    // Copy user's bytes, leaving the CMD bit unset.
+    std::copy(event.buf, event.buf + event.len, cmd_buf);
+    // XXX: remove check after making sure this is correct
+    for (size_t i = 0; i < event.len; ++i) {
+      CHECK_EQ(cmd_buf[i], event.buf[i]) << i;
+    }
+  }
+  // Issue RESTART before the first byte if requested.
+  if (event.restart) cmd_buf[0] |= I2C_IC_DATA_CMD_RESTART_BITS;
   // Issue STOP after the last byte if requested.
   if (event.stop) cmd_buf[event.len - 1] |= I2C_IC_DATA_CMD_STOP_BITS;
 
-  // Mask the TX_EMPTY interrupt; for a read we don't want to be notified
-  // when the TX FIFO is empty (i.e. when the last command has been executed),
-  // but only when the RX DMA has finished (or on abort).
-  hw_clear_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
+  if (is_read) {
+    // Mask the TX_EMPTY interrupt; for a read we don't want to be notified
+    // when the TX FIFO is empty (i.e. when the last command has been executed),
+    // but only when the RX DMA has finished (or on abort).
+    hw_clear_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
+  } else {
+    // Unmask TX_EMPTY so we're notified when the transfer completes.
+    // I2cNotifier re-masks it each time, so this is necessary even if the
+    // previous operation was also a write.
+    hw_set_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
+  }
 
   dma_channel_configure(dma_tx_, &dma_tx_config_, &hw->data_cmd, cmd_buf,
                         event.len, false);
-  dma_channel_configure(dma_rx_, &dma_rx_config_, event.buf, &hw->data_cmd,
-                        event.len, false);
-  // Start TX and RX simultaneously so the I2C FIFOs don't overflow.
-  dma_start_channel_mask((1u << dma_tx_) | (1u << dma_rx_));
+  if (is_read) {
+    dma_channel_configure(dma_rx_, &dma_rx_config_, event.buf, &hw->data_cmd,
+                          event.len, false);
+    // Start TX and RX simultaneously so the I2C FIFOs don't overflow.
+    dma_start_channel_mask((1u << dma_tx_) | (1u << dma_rx_));
+  } else {
+    // We don't use the RX DMA for writes.
+    dma_start_channel_mask(1u << dma_tx_);
+  }
   VLOG(2) << "DMA started; waiting";
 
-  // Wait for the DMA to complete or the transaction to be aborted. Set a
+  // Wait for the DMA(s) to complete or the transaction to be aborted. Set a
   // generous timeout- no reasonable DMA or I2C transfer should take longer.
   // notify = ulTaskNotifyTakeIndexed(kNotificationIndex, true, portMAX_DELAY);
   notify =
@@ -515,20 +553,7 @@ void I2cController::DoRead(const Event& event) {
   }
   VLOG(2) << "Got notification bits: " << std::hex << notify;
 
-  if (notify & NotificationBits::DMA_RX_FINISHED) {
-    // We expect that the read fully completed with success in this scenario.
-    CHECK_EQ(notify & ~NotificationBits::DMA_RX_FINISHED, 0u)
-        << "Unexpected abort reason in DMA_RX_FINISHED notification";
-    *event.out_result = util::OkStatus();
-    // Safely disable the controller for the next command.
-    CHECK(!(hw->status & I2C_IC_STATUS_ACTIVITY_BITS))
-        << "Expected I2C bus to be idle after successful read";
-    hw->enable = 0;
-    // The rest of the disable procedure is unnecessary because we've already
-    // checked that the state machine is idle.
-    CHECK_EQ(hw->enable_status & I2C_IC_ENABLE_STATUS_IC_EN_BITS, 0u)
-        << "I2C controller did not respond to disable in a timely fashion";
-  } else {
+  if (notify & NotificationBits::IRQ_SOURCE_TX_ABRT) {
     // Safely abort any in-flight DMA transfers
     dma_irqn_set_channel_enabled(dma_irq_index_, dma_rx_, false);
     dma_irqn_set_channel_enabled(dma_irq_index_, dma_tx_, false);
@@ -546,13 +571,15 @@ void I2cController::DoRead(const Event& event) {
     // by checking `notify & TX_FLUSH_CNT_MASK` and the remaining
     // DMA transfer_count. But we don't.
 
-    // TODO: not sure about this assumption.
+    // NB: not actually sure about this assumption.
+    //     maybe it depends on the type of abort?
     CHECK(!(hw->status & I2C_IC_STATUS_ACTIVITY_BITS))
         << "Expected I2C state machine to be idle after abort";
-    // Clear the FIFOs and simultaneously
-    // remove the block on command execution that was set in the I2cNotifier
-    // ISR.
+    // Clear the FIFOs and simultaneously remove the block on command execution
+    // that was set in the I2cNotifier ISR.
     hw->enable = 0;
+    // Next request will necessarily be starting a new transaction.
+    new_transaction_ = true;
     // The rest of the disable procedure is unnecessary because we've already
     // checked that the state machine is idle.
     CHECK_EQ(hw->enable_status & I2C_IC_ENABLE_STATUS_IC_EN_BITS, 0u)
@@ -560,22 +587,37 @@ void I2cController::DoRead(const Event& event) {
     util::Status status = NotificationBits::AbortSourceToStatus(notify);
     LOG_IF(FATAL, util::IsInternal(status)) << status;
     *event.out_result = std::move(status);
+  } else if (notify & NotificationBits::IRQ_SOURCE_DMA_RX_FINISHED) {
+    // Read must have finished successfully.
+    CHECK(is_read) << "Got DMA_RX_FINISHED for a write";
+    // We expect that the read fully completed with success in this scenario.
+    CHECK_EQ(notify & ~NotificationBits::IRQ_SOURCE_DMA_RX_FINISHED, 0u)
+        << "Unexpected abort reason in DMA_RX_FINISHED notification";
+    *event.out_result = util::OkStatus();
+  } else if (notify & NotificationBits::IRQ_SOURCE_TX_EMPTY) {
+    // Read must have finished successfully.
+    CHECK(!is_read) << "Got TX_EMPTY for a read";
+    // We expect that the write fully completed with success in this scenario.
+    CHECK_EQ(notify & ~NotificationBits::IRQ_SOURCE_TX_EMPTY, 0u)
+        << "Unexpected abort reason in TX_EMPTY notification";
+    *event.out_result = util::OkStatus();
+    // No need to re-mask the TX_EMPTY interrupt; I2cNotifier already did.
+  } else {
+    LOG(FATAL) << "Unclear notification bits: " << std::hex << notify;
+  }
+  if (event.stop) {
+    // End of the transaction; disable the controller.
+    CHECK(!(hw->status & I2C_IC_STATUS_ACTIVITY_BITS))
+        << "Expected I2C bus to be idle after STOP status="
+        << std::hex << hw->status;
+    hw->enable = 0;
+    new_transaction_ = true;
+    // The rest of the disable procedure is unnecessary because we've already
+    // checked that the state machine is idle.
+    CHECK_EQ(hw->enable_status & I2C_IC_ENABLE_STATUS_IC_EN_BITS, 0u)
+        << "I2C controller did not respond to disable in a timely fashion";
   }
   // Done.
-}
-
-void I2cController::DoWrite(const Event& event) {
-  int ret = i2c_write_blocking(i2c_, event.addr.get(), event.buf, event.len,
-                               !event.stop);
-  // FIXME: for now, assuming all errors are NotFoundError.
-
-  // Unmask the TX_EMPTY interrupt; I2cNotifier masks it each time it's
-  // triggered.
-  // hw_clear_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
-
-  if (event.out_result) {
-    *event.out_result = ret <= 0 ? util::NotFoundError("") : util::OkStatus();
-  }
 }
 
 util::Status I2cController::ScanBus(
@@ -603,7 +645,26 @@ util::Status I2cController::ScanBus(
 
 util::Status I2cController::ReadDeviceId(i2c_address_t target,
                                          I2cDeviceId* out) {
-  return util::UnimplementedError("ReadDeviceId");
+  // TODO: test with a device that supports it.
+  return util::UnimplementedError("ReadDeviceId not implemented");
+
+  // Described in section 3.1.17 of the I2C specification.
+  constexpr i2c_address_t kReservedDeviceIdAddress = i2c_address_t(0x7c);
+  I2cTransaction txn = StartTransaction(kReservedDeviceIdAddress);
+  static_assert(sizeof(decltype(target.get())) == 1);
+  // ??? do we need to left-shift by 1 actually?
+  uint8_t shifted_addr = target.get() << 1;
+  // ??? seems like we abort early because the address byte isn't ACK'ed. can
+  //     we make the controller ignore that condition?
+  RETURN_IF_ERROR(txn.Write(&shifted_addr, 1, false));
+  txn.Restart();
+  uint8_t data[3];
+  RETURN_IF_ERROR(txn.ReadAndStop(data, 3));
+
+  out->manufacturer = (data[0] << 8) | (data[1] & 0xf0);
+  out->part_id = ((data[1] & 0x0f) << 5) | ((data[2] & 0xf8) >> 3);
+  out->revision = data[2] & 0x07;
+  return util::OkStatus();
 }
 
 I2cTransaction I2cController::StartTransaction(i2c_address_t addr) {
@@ -612,15 +673,12 @@ I2cTransaction I2cController::StartTransaction(i2c_address_t addr) {
 }
 
 I2cTransaction::I2cTransaction(I2cController* controller, i2c_address_t addr)
-    : controller_(controller),
-      addr_(addr),
-      stopped_(false),
-      first_command_(true) {}
+    : controller_(controller), addr_(addr), stopped_(false), restart_(false) {}
 
 I2cTransaction::~I2cTransaction() {
   if (!stopped_) {
     util::Status s = Abort();
-    LOG(WARNING) << "Transaction destroyed before STOP. Abort status: " << s;
+    LOG(WARNING) << "Transaction ended before STOP. Abort status: " << s;
     CHECK(xSemaphoreGive(controller_->txn_mutex_));
   }
 }
@@ -628,7 +686,7 @@ I2cTransaction::I2cTransaction(I2cTransaction&& other)
     : controller_(other.controller_),
       addr_(other.addr_),
       stopped_(other.stopped_),
-      first_command_(other.first_command_) {
+      restart_(other.restart_) {
   other.stopped_ = true;
 }
 
@@ -640,17 +698,17 @@ util::Status I2cTransaction::Write(const uint8_t* buf, size_t len, bool stop) {
       .addr = addr_,
       .buf = const_cast<uint8_t*>(buf),
       .len = len,
+      .restart = restart_,
       .stop = stop,
-      .first_cmd_of_txn = first_command_,
       .blocking_sem = controller_->shared_blocking_sem_,
       .out_result = &status,
   };
+  restart_ = false;
   CHECK(xQueueSendToBack(controller_->event_queue_, &event, portMAX_DELAY));
   CHECK(xSemaphoreTake(controller_->shared_blocking_sem_, portMAX_DELAY));
   if (stop) {
     AfterStop();
   }
-  first_command_ = false;
   return status;
 }
 
@@ -662,19 +720,21 @@ util::Status I2cTransaction::Read(uint8_t* buf, size_t len, bool stop) {
       .addr = addr_,
       .buf = buf,
       .len = len,
+      .restart = restart_,
       .stop = stop,
-      .first_cmd_of_txn = first_command_,
       .blocking_sem = controller_->shared_blocking_sem_,
       .out_result = &status,
   };
+  restart_ = false;
   CHECK(xQueueSendToBack(controller_->event_queue_, &event, portMAX_DELAY));
   CHECK(xSemaphoreTake(controller_->shared_blocking_sem_, portMAX_DELAY));
   if (stop) {
     AfterStop();
   }
-  first_command_ = false;
   return status;
 }
+
+void I2cTransaction::Restart() { restart_ = true; }
 
 void I2cTransaction::AfterStop() {
   stopped_ = true;

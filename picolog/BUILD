@@ -39,5 +39,13 @@ cc_library(
         "status_internal.h",
     ],
     hdrs = ["status.h"],
+    visibility = ["//visibility:public"],
     deps = [],
+)
+
+cc_library(
+    name = "status_macros",
+    hdrs = ["status_macros.h"],
+    visibility = ["//visibility:public"],
+    deps = [":status"],
 )

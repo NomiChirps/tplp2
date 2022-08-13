@@ -15,6 +15,7 @@
 #include "tplp/I2cController.h"
 #include "tplp/RuntimeStats.h"
 #include "tplp/SpiManager.h"
+#include "tplp/TSC2007/TSC2007.h"
 #include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_init.h"
 #include "tplp/graphics/lvgl_mutex.h"
@@ -32,8 +33,8 @@ void TestPushbuttonISR() {
   if (gpio_get_irq_event_mask(Pins::TEST_PUSHBUTTON) & GPIO_IRQ_EDGE_FALL) {
     gpio_acknowledge_irq(Pins::TEST_PUSHBUTTON, GPIO_IRQ_EDGE_FALL);
     uint64_t now = to_us_since_boot(get_absolute_time());
-    // this button is really very bad. give it 10ms to stop bouncing.
-    if (now - last_buttonpress_time < 10000) return;
+    // this button is really very bad. give it 100ms to stop bouncing.
+    if (now - last_buttonpress_time < 100000) return;
     last_buttonpress_time = now;
     if (test_pushbutton_handler_body) (*test_pushbutton_handler_body)();
   }
@@ -58,28 +59,53 @@ class I2cTest {
  private:
   static I2cController* i2c_;
   static TaskHandle_t task_;
+  static TSC2007* touchscreen_;
 
  public:
-  static void Start(I2cController* i2c) {
+  static void Start(I2cController* i2c, TSC2007* touchscreen) {
     i2c_ = i2c;
+    touchscreen_ = touchscreen;
     CHECK(xTaskCreate(&I2cTestTask, "I2C Test", TaskStacks::kTESTONLY, nullptr,
                       1, &task_));
   }
 
   static void I2cTestTask(void* task_param) {
     SetTestButtonHandler(&ButtonPressedISR);
+    util::Status status;
+    int16_t x, y, z1, z2;
+    bool setup = false;
     for (;;) {
       bool go = ulTaskNotifyTake(true, as_ticks(10'000ms));
       LOG(INFO) << "I2cTestTask awake.";
       if (!go) continue;
 
-      std::vector<i2c_address_t> addrs;
-      CHECK_OK(i2c_->ScanBus(&addrs));
-      for (i2c_address_t addr : addrs) {
-        LOG(INFO) << "Found device at " << addr;
-        // TODO: implement DeviceId protocol
-        // I2cDeviceId did;
-        // i2c_->ReadDeviceId(addr, &did);
+      if (!setup) {
+        status = touchscreen_->Setup();
+        if (!status.ok()) {
+          LOG(ERROR) << "Setup failed: " << status;
+          continue;
+        } else {
+          setup = true;
+        }
+      }
+
+      status = touchscreen_->ReadPosition(&x, &y, &z1, &z2);
+      if (!status.ok()) {
+        LOG(ERROR) << "ReadPosition failed: " << status;
+        continue;
+      }
+      LOG(INFO) << "x=" << x << " y=" << y << " z1=" << z1 << " z2=" << z2;
+
+      if (0) {
+        // Scan I2C bus
+        std::vector<i2c_address_t> addrs;
+        CHECK_OK(i2c_->ScanBus(&addrs));
+        for (i2c_address_t addr : addrs) {
+          LOG(INFO) << "Found device at " << addr;
+          I2cDeviceId did;
+          status = i2c_->ReadDeviceId(addr, &did);
+          LOG_IF(ERROR, !status.ok()) << "Device ID failed: " << status;
+        }
       }
     }
   }
@@ -94,8 +120,11 @@ class I2cTest {
 
 I2cController* I2cTest::i2c_;
 TaskHandle_t I2cTest::task_;
+TSC2007* I2cTest::touchscreen_;
 
 void StartupTask(void*) {
+  util::Status status;
+
   picolog::InitLogging();
   if (!xTaskCreate(&picolog::BackgroundTask, "picolog", TaskStacks::kLogging,
                    nullptr, TaskPriorities::kLogging, nullptr)) {
@@ -109,7 +138,11 @@ void StartupTask(void*) {
       I2cController::Init(TaskPriorities::kI2cController0, i2c0, Pins::I2C0_SCL,
                           Pins::I2C0_SDA, 100'000);
 
-  I2cTest::Start(i2c0_controller);
+  // Touchscreen reader.
+  TSC2007* touchscreen = CHECK_NOTNULL(new TSC2007(
+      I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kTSC2007)));
+
+  I2cTest::Start(i2c0_controller, touchscreen);
 
   // skip gui & display for now, i'm working on i2c
   if (0) {

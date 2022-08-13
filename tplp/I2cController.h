@@ -44,21 +44,18 @@ class I2cTransaction {
 
   // TODO: add nonblocking operations
 
-  util::Status WriteAndContinue(const uint8_t* buf, size_t len) {
-    return Write(buf, len, false);
-  }
   util::Status WriteAndStop(const uint8_t* buf, size_t len) {
     return Write(buf, len, true);
-  }
-  util::Status ReadAndContinue(uint8_t* buf, size_t len) {
-    return Read(buf, len, false);
   }
   util::Status ReadAndStop(uint8_t* buf, size_t len) {
     return Read(buf, len, true);
   }
 
-  util::Status Write(const uint8_t* buf, size_t len, bool stop);
-  util::Status Read(uint8_t* buf, size_t len, bool stop);
+  util::Status Write(const uint8_t* buf, size_t len, bool stop = false);
+  util::Status Read(uint8_t* buf, size_t len, bool stop = false);
+
+  // Flags that the next Read or Write of this transaction should be preceded by a RESTART condition on the I2C bus. This flag is cleared after any call to Read or Write.
+  void Restart();
 
   // TODO: document nicely.
   // it's like dispose. this also happens if you don't read/write with a stop
@@ -82,8 +79,7 @@ class I2cTransaction {
   i2c_address_t addr_;
   // also covers the moved-from condition
   bool stopped_;
-  // true for the first read or write of the transaction
-  bool first_command_;
+  bool restart_;
 };
 
 // Only supports 7-bit addressing (for now?)
@@ -94,6 +90,8 @@ class I2cController {
                              gpio_pin_t scl, gpio_pin_t sda, int baudrate);
 
   util::Status ScanBus(std::vector<i2c_address_t>* detected_addresses);
+
+  // Not implemented.
   util::Status ReadDeviceId(i2c_address_t target, I2cDeviceId* out);
 
   // Returns a transaction handle that locks the bus for the duration of its
@@ -113,8 +111,7 @@ class I2cController {
   ~I2cController() = delete;
 
   static void TaskFn(void*);
-  void DoRead(const Event&);
-  void DoWrite(const Event&);
+  void DoTransfer(const Event&);
 
  private:
   // TODO: const correctness
@@ -134,6 +131,8 @@ class I2cController {
   // Used by blocking operations in I2cTransaction. Only "shared" serially,
   // because no more than one transaction can be active at a time.
   SemaphoreHandle_t shared_blocking_sem_;
+
+  bool new_transaction_;
 };
 
 // A restriction of the I2cController interface, allowing communication with
