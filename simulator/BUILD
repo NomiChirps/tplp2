@@ -2,7 +2,7 @@ load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile
 
 cc_binary(
     name = "main",
-    srcs = ["main.c"],
+    srcs = ["main.cc"],
     deps = [
         ":console",
         ":hooks",
@@ -16,7 +16,7 @@ cc_binary(
 
 cc_library(
     name = "hooks",
-    srcs = ["hooks.c"],
+    srcs = ["hooks.cc"],
     hdrs = ["hooks.h"],
     deps = [
         ":console",
@@ -26,7 +26,7 @@ cc_library(
 
 cc_library(
     name = "console",
-    srcs = ["console.c"],
+    srcs = ["console.cc"],
     hdrs = ["console.h"],
     deps = [
         "@FreeRTOS",

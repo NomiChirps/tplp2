@@ -8,8 +8,8 @@ static void back_clicked(lv_event_t * e);
 static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char * txt);
 
 typedef struct {
-    char * icon;
-    char * txt;
+    const char * icon;
+    const char * txt;
     lv_obj_t * (*create_section)(lv_obj_t * parent);
 } settings_section;
 
@@ -17,6 +17,8 @@ static const settings_section sections[] = {
     { LV_SYMBOL_SETTINGS, "Test", ui_settings_test_content_create},
     { LV_SYMBOL_USB, "I2C", ui_settings_i2c_devices_create},
 };
+
+static char root_page_title[] = "Settings";
 
 lv_obj_t * ui_screen_settings_create(lv_obj_t * parent)
 {
@@ -27,7 +29,7 @@ lv_obj_t * ui_screen_settings_create(lv_obj_t * parent)
     lv_obj_set_size(menu, lv_disp_get_hor_res(NULL), lv_disp_get_ver_res(NULL));
     lv_obj_center(menu);
 
-    lv_obj_t * root_page = lv_menu_page_create(menu, "Settings");
+    lv_obj_t * root_page = lv_menu_page_create(menu, root_page_title);
     lv_obj_set_style_pad_hor(root_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
     lv_menu_set_sidebar_page(menu, root_page);
 
@@ -74,7 +76,7 @@ static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char *
 static void back_clicked(lv_event_t * e)
 {
     lv_obj_t * obj = lv_event_get_target(e);
-    lv_obj_t * menu = lv_event_get_user_data(e);
+    lv_obj_t * menu = static_cast<lv_obj_t*>(lv_event_get_user_data(e));
 
     if(lv_menu_back_btn_is_root(menu, obj)) {
         lv_obj_t * scr = lv_obj_create(NULL);
