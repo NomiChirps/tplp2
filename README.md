@@ -16,7 +16,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] (?!) display fails self-test during startup if usb-serial output not present
+- [ ] insert appropriate delays in TSC2007 read cycle; we have noise problems
+- [ ] clear the display on boot. the random pixels look kinda cool but...
+- [ ] forget the std::duration stuff.. really not worth the hassle.
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
 - [ ] StatusOr
 - [ ] Create a front panel UI (assignee: wembly :)
@@ -114,7 +116,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 1. Put Pico into bootloader mode (reset while holding BOOTSEL).
 1. Run `bazel run //tools:flash-pico-debug`, which downloads a prebuilt [pico-debug](https://github.com/majbthrd/pico-debug) binary and copies it to the device. Pico is now running the debugger on core 1.
 1. Start the OpenOCD server: `third_party/openocd/bazel-bin/external/openocd/openocd/bin/openocd -s third_party/openocd/bazel-bin/external/openocd/openocd/bin/openocd -f interface/cmsis-dap.cfg -f target/rp2040-core0.cfg -c "transport select swd" -c "adapter speed 4000"`. It should connect to the Pico and wait for commands.
-1. Build tplp in debug mode: `bazel build --config=debug //tplp:firmware.elf`
+1. Build tplp in debug mode: `bazel build --config=picodebug //tplp:firmware.elf`
 1. Start GDB: `arm-none-eabi-gdb bazel-bin/tplp/firmware.elf`.
 1. Connect GDB to OpenOCD: `(gdb) target remote localhost:3333`.
 1. Load the target into flash: `(gdb) load`.
@@ -137,6 +139,8 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] (?!) display fails self-test during startup if usb-serial output not present
+  - the issue was it needed some time to boot up after poweron before accepting commands
 - [x] LVGL driver for HX8357
 - [x] HX8357 self test :)
 - [x] rework SpiManager again again; it should be able to suport full duplex. instead of sendevent/receiveevent, let's have transferevent(naming???) which specifies optionally both buffers. I GUESS???? if both are specified, they would necessarily have to be the same length!

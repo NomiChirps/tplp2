@@ -8,7 +8,7 @@
                 "build",
                 "//tplp:firmware.elf",
                 "//tplp:firmware.uf2",
-                "--config=debug",
+                "--config=picodebug",
             ],
             "type": "shell",
         },

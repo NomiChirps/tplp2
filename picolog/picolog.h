@@ -291,12 +291,12 @@ class NullStreamFatal : public NullStream {
 #define LOG(severity) PICOLOG_COMPACT_LOG_##severity
 
 // Apparently the "voidification" gymnastics here are used to explicitly
-// ignore values, avoiding compiler warnings about unused warnings. Thanks
+// ignore values, avoiding compiler warnings about unused values. Thanks
 // glog!
 class LogMessageVoidify {
  public:
   LogMessageVoidify() {}
-  void operator&(std::ostream&) {}
+  void operator&(const std::ostream&) {}
 };
 
 #define LOG_IF(severity, condition) \

@@ -44,6 +44,11 @@ class ScopedSemaphoreReleaser {
  private:
   const SemaphoreHandle_t sem_;
 };
+
+// Waits until at least the given number of milliseconds have passed since boot.
+// Scheduler must be running.
+void EnsureTimeSinceBootMillis(int wait_until);
+
 }  // namespace tplp
 
 #endif  // TPLP_RTOS_UTILS_H_

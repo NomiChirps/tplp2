@@ -36,7 +36,4 @@ fi
 
 echo "Copying..."
 cp "${1}" "${mountpoint}"/
-echo "Waiting for reboot."
-# Wait a sec for the device to reboot and establish a USB connection for whatever we're doing next.
-sleep 2
 echo "Success."

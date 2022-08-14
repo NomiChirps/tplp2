@@ -8,6 +8,7 @@
 #include "hardware/gpio.h"
 #include "picolog/picolog.h"
 #include "tplp/time.h"
+#include "tplp/rtos_utils.h"
 
 using std::chrono_literals::operator""ms;
 
@@ -296,6 +297,10 @@ void HX8357::Begin() {
 
 void HX8357::SendInitSequence() {
   LOG(INFO) << "HX8357 init sequence start";
+  // The display needs some time to warm up after power-on, before we start
+  // sending commands. Otherwise things go Wrong(tm).
+  EnsureTimeSinceBootMillis(50);
+
   const uint8_t* addr = (type_ == DisplayType::HX8357B) ? kInitB : kInitD;
   uint8_t cmd, x, numArgs;
   while ((cmd = *(addr++)) > 0) {  // '0' command ends list
@@ -365,7 +370,7 @@ uint8_t HX8357::RDDSDR() {
 bool HX8357::SelfTest() {
   uint8_t dsdr1 = RDDSDR();
   SendCommand(HX8357_SLPOUT);
-  vTaskDelay(as_ticks_ceil(120ms));
+  vTaskDelay(as_ticks_ceil(140ms));
   uint8_t dsdr2 = RDDSDR();
 
   // DSDR register protocol is that a successful self-test of a module inverts

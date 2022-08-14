@@ -138,6 +138,7 @@ cc_library(
     name = "rtos_utils",
     srcs = ["rtos_utils.cc"],
     hdrs = ["rtos_utils.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//picolog",
         "@FreeRTOS",

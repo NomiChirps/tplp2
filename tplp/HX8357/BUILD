@@ -5,6 +5,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//tplp:SpiManager",
+        "//tplp:rtos_utils",
         "//tplp:types",
         "@FreeRTOS",
         "@rules_pico//pico:hardware_gpio",
@@ -18,8 +19,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":HX8357",
-        "//tplp/graphics:lvgl_mutex",
         "//picolog",
+        "//tplp/graphics:lvgl_mutex",
         "@lvgl",
     ],
 )

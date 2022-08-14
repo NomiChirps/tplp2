@@ -99,15 +99,6 @@ class I2cTest {
 I2cController* I2cTest::i2c_;
 TaskHandle_t I2cTest::task_;
 
-// Wait until at least the given number of milliseconds have passed since boot.
-void EnsureTimeSinceBootMillis(int millis) {
-  absolute_time_t now = get_absolute_time();
-  int ms_since_boot = to_ms_since_boot(now);
-  if (millis < ms_since_boot) {
-    busy_wait_until(delayed_by_ms(now, ms_since_boot - millis));
-  }
-}
-
 void StartupTask(void*) {
   util::Status status;
 
@@ -128,9 +119,6 @@ void StartupTask(void*) {
   LOG(INFO) << "SpiManager::Init() OK";
 
   HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
-  // FIXME: something goes very wrong with the display when we boot without
-  //        usb-stdout. probably a timing issue, but ?????
-  //        it still works, but with wrong colors and rotation...
   display->Begin();
   if (!display->SelfTest()) {
     // TODO: flash out an error code on something? board LED?
