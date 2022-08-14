@@ -17,8 +17,13 @@ ls -lh bazel-bin/tplp/firmware.uf2
 ## TODO / Notes
 
 - [ ] rename SpiManager -> SpiController
-- [ ] SpiManager
-- [ ] I2cController need nonblocking operations, coalescing commands, general TLC
+- [ ] SpiManager could use improvement - we're not getting full utilization of the bus
+  - use 2 dma channels in each direction and chain them so there's no stall when swapping buffers
+  - coalesce consecutive nonblocking operations within a transaction this way
+  - well.. that's not so useful for HX8357, which blocks a lot in order to switch the D/C pin on and off. maybe a fully nonblocking transaction builder which allows inserting std::function calls between transfers. we could run those from the interrupt before triggering the next DMA... won't be as fast as direct DMA chaining, but definitely more flexible.
+  - we can retrofit a little of this on right now- an optional std::function with each transfer event, or just a gpio pin to toggle, and run from the dma-finished interrupt handler
+  - actually -- I2cController could use a lot of the same infrastructure. why don't we make a hardass DmaController class that does all this? lets you queue things up in a nonblocking way with an optional action in between each. makes use of DMA chaining when possible (i.e. no action), or starts the next DMA from the interrupt handler if not. if you want to block, you make the action be a task notification or semaphore-give. yeah! i like it!
+- [ ] I2cController needs nonblocking operations, coalescing commands, general TLC
 - [ ] clear the display on boot. the random pixels look kinda cool but...
 - [ ] forget the std::duration stuff.. really not worth the hassle.
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
@@ -49,6 +54,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Transfer from breadboard to permaproto
   - [x] Add bus capacitors
 - Nice-to-haves
+  - [ ] TSC2007 lvgl driver should debounce, buffer, and interpolate
+  - [ ] I2cController need nonblocking operations, coalescing commands, general TLC
   - [ ] write a stress test for SpiManager. lotsa tasks, lotsa devices, all hammering away
   - [ ] hook up tft backlight pin and add an adjustable brightness setting (PWM)
   - [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
