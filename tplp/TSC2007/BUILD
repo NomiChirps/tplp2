@@ -7,5 +7,9 @@ cc_library(
         "//picolog",
         "//picolog:status_macros",
         "//tplp:I2cController",
+        "//tplp/config:tplp_config",
+        "@FreeRTOS",
+        "@rules_pico//pico:hardware_gpio",
+        "@rules_pico//pico:hardware_irq",
     ],
 )

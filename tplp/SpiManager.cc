@@ -157,7 +157,7 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
 
   // task_name remains allocated forever
   char* task_name = new char[16];
-  snprintf(task_name, 16, "SpiManager%d", spi_get_index(spi));
+  snprintf(task_name, 16, "SPI %d", spi_get_index(spi));
   CHECK(xTaskCreate(&SpiManager::TaskFn, task_name, TaskStacks::kSpiManager,
                     that, task_priority, &that->task_));
   LOG(INFO) << "SPI" << spi_get_index(spi) << " initialization complete.";

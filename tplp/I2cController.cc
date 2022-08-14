@@ -504,10 +504,6 @@ void I2cController::DoTransfer(const Event& event) {
   } else {
     // Copy user's bytes, leaving the CMD bit unset.
     std::copy(event.buf, event.buf + event.len, cmd_buf);
-    // XXX: remove check after making sure this is correct
-    for (size_t i = 0; i < event.len; ++i) {
-      CHECK_EQ(cmd_buf[i], event.buf[i]) << i;
-    }
   }
   // Issue RESTART before the first byte if requested.
   if (event.restart) cmd_buf[0] |= I2C_IC_DATA_CMD_RESTART_BITS;
@@ -606,16 +602,25 @@ void I2cController::DoTransfer(const Event& event) {
     LOG(FATAL) << "Unclear notification bits: " << std::hex << notify;
   }
   if (event.stop) {
-    // End of the transaction; disable the controller.
-    CHECK(!(hw->status & I2C_IC_STATUS_ACTIVITY_BITS))
-        << "Expected I2C bus to be idle after STOP status="
-        << std::hex << hw->status;
+    // End of the transaction; disable the controller to prepare for the next
+    // one. According to the datasheet, the controller can only be disabled if
+    // the current command being processed has the STOP bit set to one.
+    // We should have guaranteed this in the case of a read or write, but
+    // in case of abort it's less clear. Furthermore, the datasheet recommends
+    // we wait & poll when disabling in ALL cases.
+    // TODO: is this ok? can we avoid this loop somehow? does it matter?
     hw->enable = 0;
+    int n = 0;
+    while (hw->enable_status & 1) {
+      ++n;
+      VLOG(1) << "waiting for disable... " << n;
+      vTaskDelay(1);
+      LOG_IF(FATAL, n > 999)
+          << "Failed to disable I2C controller after " << n << " ticks.";
+    }
+    LOG_IF(WARNING, n) << "Waited " << n
+                       << " ticks for the I2C controller to shut down.";
     new_transaction_ = true;
-    // The rest of the disable procedure is unnecessary because we've already
-    // checked that the state machine is idle.
-    CHECK_EQ(hw->enable_status & I2C_IC_ENABLE_STATUS_IC_EN_BITS, 0u)
-        << "I2C controller did not respond to disable in a timely fashion";
   }
   // Done.
 }

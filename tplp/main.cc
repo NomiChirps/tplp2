@@ -33,8 +33,9 @@ void TestPushbuttonISR() {
   if (gpio_get_irq_event_mask(Pins::TEST_PUSHBUTTON) & GPIO_IRQ_EDGE_FALL) {
     gpio_acknowledge_irq(Pins::TEST_PUSHBUTTON, GPIO_IRQ_EDGE_FALL);
     uint64_t now = to_us_since_boot(get_absolute_time());
-    // this button is really very bad. give it 100ms to stop bouncing.
-    if (now - last_buttonpress_time < 100000) return;
+    // this button is really very bad. give it a WHOLE ENTIRE SECOND
+    // to stop bouncing.
+    if (now - last_buttonpress_time < 1'000'000) return;
     last_buttonpress_time = now;
     if (test_pushbutton_handler_body) (*test_pushbutton_handler_body)();
   }
@@ -59,12 +60,10 @@ class I2cTest {
  private:
   static I2cController* i2c_;
   static TaskHandle_t task_;
-  static TSC2007* touchscreen_;
 
  public:
-  static void Start(I2cController* i2c, TSC2007* touchscreen) {
+  static void Start(I2cController* i2c) {
     i2c_ = i2c;
-    touchscreen_ = touchscreen;
     CHECK(xTaskCreate(&I2cTestTask, "I2C Test", TaskStacks::kTESTONLY, nullptr,
                       1, &task_));
   }
@@ -72,40 +71,19 @@ class I2cTest {
   static void I2cTestTask(void* task_param) {
     SetTestButtonHandler(&ButtonPressedISR);
     util::Status status;
-    int16_t x, y, z1, z2;
-    bool setup = false;
     for (;;) {
       bool go = ulTaskNotifyTake(true, as_ticks(10'000ms));
       LOG(INFO) << "I2cTestTask awake.";
       if (!go) continue;
 
-      if (!setup) {
-        status = touchscreen_->Setup();
-        if (!status.ok()) {
-          LOG(ERROR) << "Setup failed: " << status;
-          continue;
-        } else {
-          setup = true;
-        }
-      }
-
-      status = touchscreen_->ReadPosition(&x, &y, &z1, &z2);
-      if (!status.ok()) {
-        LOG(ERROR) << "ReadPosition failed: " << status;
-        continue;
-      }
-      LOG(INFO) << "x=" << x << " y=" << y << " z1=" << z1 << " z2=" << z2;
-
-      if (0) {
-        // Scan I2C bus
-        std::vector<i2c_address_t> addrs;
-        CHECK_OK(i2c_->ScanBus(&addrs));
-        for (i2c_address_t addr : addrs) {
-          LOG(INFO) << "Found device at " << addr;
-          I2cDeviceId did;
-          status = i2c_->ReadDeviceId(addr, &did);
-          LOG_IF(ERROR, !status.ok()) << "Device ID failed: " << status;
-        }
+      // Scan I2C bus
+      std::vector<i2c_address_t> addrs;
+      CHECK_OK(i2c_->ScanBus(&addrs));
+      for (i2c_address_t addr : addrs) {
+        LOG(INFO) << "Found device at " << addr;
+        I2cDeviceId did;
+        status = i2c_->ReadDeviceId(addr, &did);
+        LOG_IF(ERROR, !status.ok()) << "Device ID failed: " << status;
       }
     }
   }
@@ -120,7 +98,6 @@ class I2cTest {
 
 I2cController* I2cTest::i2c_;
 TaskHandle_t I2cTest::task_;
-TSC2007* I2cTest::touchscreen_;
 
 void StartupTask(void*) {
   util::Status status;
@@ -138,42 +115,44 @@ void StartupTask(void*) {
       I2cController::Init(TaskPriorities::kI2cController0, i2c0, Pins::I2C0_SCL,
                           Pins::I2C0_SDA, 100'000);
 
+  I2cTest::Start(i2c0_controller);
+
+  SpiManager* spi1_manager = SpiManager::Init(
+      TaskPriorities::kSpiManager1, spi1, HX8357::kNominalMaxSpiFrequency,
+      Pins::SPI1_SCLK, Pins::SPI1_MOSI, Pins::SPI1_MISO);
+  LOG(INFO) << "SpiManager::Init() OK";
+
+  HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
+  display->Begin();
+  if (!display->SelfTest()) {
+    // TODO: flash out an error code on something? board LED?
+    LOG(ERROR) << "HX8357 self test failed! Continuing anyway...";
+  }
+  // Rotate to widescreen and so it's the right way around on my workbench.
+  display->SetRotation(0, 1, 1);
+  LOG(INFO) << "HX8357 setup OK";
+
+  InitLvgl(display);
+  LOG(INFO) << "InitLvgl() OK";
+
+  // Create GUI screens.
+  {
+    LvglMutex mutex;
+    ui_main();
+  }
+
   // Touchscreen reader.
   TSC2007* touchscreen = CHECK_NOTNULL(new TSC2007(
       I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kTSC2007)));
-
-  I2cTest::Start(i2c0_controller, touchscreen);
-
-  // skip gui & display for now, i'm working on i2c
-  if (0) {
-    // TODO: increase frequency when done debugging HX8357
-    int kSlow = 500000;
-    int kFast = HX8357::kNominalMaxSpiFrequency;
-    SpiManager* spi1_manager =
-        SpiManager::Init(TaskPriorities::kSpiManager1, spi1, kSlow,
-                         Pins::SPI1_SCLK, Pins::SPI1_MOSI, Pins::SPI1_MISO);
-    LOG(INFO) << "SpiManager::Init() OK";
-
-    HX8357* display =
-        new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
-    display->Begin();
-    if (!display->SelfTest()) {
-      // TODO: flash out an error code on something? board LED?
-      LOG(ERROR) << "HX8357 self test failed! Continuing anyway...";
-    }
-    // Rotate to widescreen and so it's the right way around on my workbench.
-    display->SetRotation(0, 1, 1);
-    LOG(INFO) << "HX8357 setup OK";
-
-    InitLvgl(display);
-    LOG(INFO) << "InitLvgl() OK";
-
-    // Create GUI screens.
-    {
-      LvglMutex mutex;
-      ui_main();
-    }
-  }
+  status = touchscreen->Setup();
+  LOG_IF(INFO, status.ok()) << "TSC2007 setup OK";
+  // TODO: with the GUI up, we can fail more gracefully by displaying a message
+  LOG_IF(FATAL, !status.ok()) << "TSC2007 setup failed: " << status;
+  touchscreen->StartTask(Pins::TOUCHSCREEN_PENINT,
+                         [](const TSC2007::TouchInfo& touch) {
+                           LOG(INFO) << "Touch @ (" << touch.x << "," << touch.y
+                                     << ") " << touch.z1 << ":" << touch.z2;
+                         });
 
   LOG(INFO) << "Startup complete.";
   vTaskDelete(nullptr);

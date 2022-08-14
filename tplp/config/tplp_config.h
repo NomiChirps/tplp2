@@ -28,8 +28,7 @@ struct Pins {
   static constexpr gpio_pin_t I2C0_SCL = gpio_pin_t(17);
   static constexpr gpio_pin_t I2C0_SDA = gpio_pin_t(16);
   static constexpr gpio_pin_t TEST_PUSHBUTTON = gpio_pin_t(28);
-  // FIXME: don't forget to actually solder this one on
-  static constexpr gpio_pin_t TOUCHSCREEN_INTR = gpio_pin_t(18);
+  static constexpr gpio_pin_t TOUCHSCREEN_PENINT = gpio_pin_t(18);
 #else
 #error "Board not detected"
 #endif
@@ -45,16 +44,22 @@ struct TaskPriorities {
   // from lower-priority tasks will block until the message is flushed.
   // Maybe later we can reduce this, but for debugging it's essential.
   static constexpr int kLogging = 6;
+
+  // Allow startup to finish without anything else getting in the way.
   static constexpr int kStartup = 5;
 
+  // Bus controllers.
   static constexpr int kSpiManager0 = 3;
   static constexpr int kSpiManager1 = 3;
   static constexpr int kI2cController0 = 3;
+
   static constexpr int kRuntimeStats = 2;
 
+  // GUI stuff is a low priority.
   static constexpr int kLvglTimerHandler = 1;
   static constexpr int kSharpLCD = 1;
   static constexpr int kHX8357 = 1;
+  static constexpr int kTSC2007 = 1;
 
   // FreeRTOS idle task runs at priority 0.
 };
@@ -68,6 +73,7 @@ struct TaskStacks {
   static constexpr int kSpiManager = 1024;
   static constexpr int kRuntimeStats = 512;
   static constexpr int kStartup = 1024;
+  static constexpr int kTSC2007 = 512;
 
   // don't reduce further unless you enjoy heisenbugs
   static constexpr int kLogging = 1024;

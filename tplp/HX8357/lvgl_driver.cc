@@ -89,7 +89,7 @@ lv_disp_t* RegisterDisplayDriver_HX8357(HX8357* display,
 
   BlitInfo* blit_info = CHECK_NOTNULL(new BlitInfo);
   blit_info->lv_timer_task = lv_timer_task;
-  CHECK(xTaskCreate(&BlitTask, "HX8357 Blit", TaskStacks::kHX8357, blit_info,
+  CHECK(xTaskCreate(&BlitTask, "HX8357", TaskStacks::kHX8357, blit_info,
                     TaskPriorities::kHX8357, &blit_info->blit_task));
 
   lv_disp_drv_t* driver = CHECK_NOTNULL(new lv_disp_drv_t);

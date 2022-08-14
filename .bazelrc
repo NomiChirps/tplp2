@@ -56,7 +56,7 @@ build:iterate --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200"
 # For faster turnaround after a fatal error! :)
 build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 # Verbose logging
-build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,I2cController=2,TSC2007=2\""
+build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,I2cController=0,TSC2007=1\""
 #build --copt="-DPICO_DEBUG_MALLOC=1"
 
 # lvgl config

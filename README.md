@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] figure out who's allowed to call xTaskCreate. centralize it.
 - [ ] StatusOr
 - [ ] Create a front panel UI (assignee: wembly :)
   - [x] Use [LVGL](https://lvgl.io)
