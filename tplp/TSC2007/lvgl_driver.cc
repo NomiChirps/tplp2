@@ -29,7 +29,7 @@ void read_cb_impl(lv_indev_drv_t* driver, lv_indev_data_t* data) {
   }
 
   // Transform determined empirically.
-  LOG(INFO) << x << "," << y << " " << z1 << ":" << z2;
+  VLOG(1) << x << "," << y << " " << z1 << ":" << z2;
   // Turns out also that x is vertical and y is horizontal.
   // FIXME: we need to get this from the display's rotation setting
   const int min_x = 300;

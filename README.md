@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
 - [ ] forget the std::duration stuff.. really not worth the hassle.
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
 - [ ] Create a front panel UI (assignee: wembly :)
