@@ -31,12 +31,11 @@ void LvglTimerHandlerTask(void*) {
       VLOG(2) << "calling lv_timer_handler";
       lv_timer_handler();
     }
-    // TODO: should this be shorter?
-    // Actually, come to think of it, if the timer task has the appropriate
-    // priority then it doesn't even matter. This can be a taskYIELD(), all
-    // that'd happen is this would replace the idle task. Which isn't
-    // necessarily what we want just for *waves hands* efficiency reasons.
-    vTaskDelay(as_ticks_ceil(100ms));
+    // This timer task should be a very low priority. LVGL will happily soak up
+    // all the CPU time we can throw at it and put it into making the UI more
+    // reponsive; but this should obviously not be at the expense of anything
+    // more important, which is almost anything.
+    taskYIELD();
   }
 }
 

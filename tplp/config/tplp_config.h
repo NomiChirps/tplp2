@@ -46,23 +46,24 @@ struct TaskPriorities {
   static constexpr int kLogging = 6;
 
   // Allow startup to finish without anything else getting in the way.
+  // Except logging, of course.
   static constexpr int kStartup = 5;
 
   // Bus controllers of high quality and esteemed stature.
   static constexpr int kSpiController0 = 4;
   static constexpr int kSpiController1 = 4;
 
-  static constexpr int kRuntimeStats = 2;
+  static constexpr int kRuntimeStats = 2;  // don't care
 
-  // GUI stuff is a low priority, but not the lowest.
-  static constexpr int kLvglTimerHandler = 2;
+  // User-interface peripherals are low priority, but not the lowest.
   static constexpr int kSharpLCD = 2;
   static constexpr int kHX8357 = 2;
   static constexpr int kTSC2007 = 2;
+  // I2cController needs work; it busy-waits a lot.
+  static constexpr int kI2cController0 = 2;
 
-  // The code for the I2C controller needs work; it busy-waits a lot.
-  // Keep it to a low priority for now. Maybe for ever.
-  static constexpr int kI2cController0 = 1;
+  // Any remaining CPU time goes into making the UI more responsive.
+  static constexpr int kLvglTimerHandler = 1;
 
   // FreeRTOS idle task runs at priority 0.
 };
