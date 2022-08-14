@@ -10,6 +10,9 @@ lv_obj_t * ui_settings_i2c_devices_create(lv_obj_t * parent)
 {
     lv_obj_t * content = lv_obj_create(parent);
     lv_obj_remove_style_all(content);
+    lv_obj_set_style_pad_all(content, 10, 0);
+    lv_obj_set_style_pad_gap(content, 10, 0);
+
     lv_obj_set_layout(content, LV_LAYOUT_FLEX);
 
     lv_obj_set_size(content, LV_PCT(100), LV_SIZE_CONTENT);
