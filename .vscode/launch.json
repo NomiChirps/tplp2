@@ -31,9 +31,19 @@
             "searchDir": [
                 "${workspaceFolder}/third_party/openocd/bazel-bin/external/openocd/openocd/share/openocd/scripts",
             ],
-            "preLaunchTask": "debugger-prelaunch",
+            "preLaunchTask": "pico-debug-prelaunch",
             // TODO: what does this do and why doesn't it work?
             //"rtos": "FreeRTOS",
         },
+        {
+            // Provided by "webfreak.debug" VSCode extension
+            "type": "gdb",
+            "request": "launch",
+            "name": "Simulator Debug",
+            "target": "./bazel-bin/simulator/main",
+            "cwd": "${workspaceRoot}",
+            "valuesFormatting": "parseText",
+            "preLaunchTask": "[simulator] debug build",
+        }
     ]
 }

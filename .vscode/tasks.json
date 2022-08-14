@@ -84,12 +84,22 @@
             "type": "shell",
         },
         {
-            "label": "debugger-prelaunch",
+            "label": "pico-debug-prelaunch",
             "dependsOn": [
                 "build openocd",
                 "[debug] build"
             ],
             "dependsOrder": "parallel",
+        },
+        {
+            "label": "[simulator] run simulator",
+            "command": "bazel run --config=simulate //simulator:main",
+            "type": "shell",
+        },
+        {
+            "label": "[simulator] debug build",
+            "command": "bazel build -c dbg --config=simulate //simulator:main",
+            "type": "shell",
         },
     ]
 }
