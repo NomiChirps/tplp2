@@ -30,7 +30,7 @@ namespace tplp {
 static irq_handler_t test_pushbutton_handler_body = nullptr;
 static uint64_t last_buttonpress_time;
 
-void TestPushbuttonISR() {
+static void TestPushbuttonISR() {
   if (gpio_get_irq_event_mask(Pins::TEST_PUSHBUTTON) & GPIO_IRQ_EDGE_FALL) {
     gpio_acknowledge_irq(Pins::TEST_PUSHBUTTON, GPIO_IRQ_EDGE_FALL);
     uint64_t now = to_us_since_boot(get_absolute_time());
@@ -42,7 +42,7 @@ void TestPushbuttonISR() {
   }
 }
 
-void SetTestButtonHandler(irq_handler_t fn) {
+static void SetTestButtonHandler(irq_handler_t fn) {
   gpio_init(Pins::TEST_PUSHBUTTON);
   gpio_set_function(Pins::TEST_PUSHBUTTON, GPIO_FUNC_SIO);
   gpio_set_dir(Pins::TEST_PUSHBUTTON, GPIO_IN);
@@ -56,49 +56,6 @@ void SetTestButtonHandler(irq_handler_t fn) {
   gpio_set_irq_enabled(Pins::TEST_PUSHBUTTON, GPIO_IRQ_EDGE_FALL, true);
   irq_set_enabled(IO_IRQ_BANK0, true);
 }
-
-class I2cTest {
- private:
-  static I2cController* i2c_;
-  static TaskHandle_t task_;
-
- public:
-  static void Start(I2cController* i2c) {
-    i2c_ = i2c;
-    CHECK(xTaskCreate(&I2cTestTask, "I2C Test", TaskStacks::kTESTONLY, nullptr,
-                      1, &task_));
-  }
-
-  static void I2cTestTask(void* task_param) {
-    SetTestButtonHandler(&ButtonPressedISR);
-    util::Status status;
-    for (;;) {
-      bool go = ulTaskNotifyTake(true, as_ticks(10'000ms));
-      LOG(INFO) << "I2cTestTask awake.";
-      if (!go) continue;
-
-      // Scan I2C bus
-      std::vector<i2c_address_t> addrs;
-      CHECK_OK(i2c_->ScanBus(&addrs));
-      for (i2c_address_t addr : addrs) {
-        LOG(INFO) << "Found device at " << addr;
-        I2cDeviceId did;
-        status = i2c_->ReadDeviceId(addr, &did);
-        LOG_IF(ERROR, !status.ok()) << "Device ID failed: " << status;
-      }
-    }
-  }
-
- private:
-  static void ButtonPressedISR() {
-    BaseType_t higher_priority_task_woken;
-    vTaskNotifyGiveFromISR(task_, &higher_priority_task_woken);
-    portYIELD_FROM_ISR(higher_priority_task_woken);
-  }
-};
-
-I2cController* I2cTest::i2c_;
-TaskHandle_t I2cTest::task_;
 
 void StartupTask(void*) {
   util::Status status;
@@ -155,7 +112,6 @@ void StartupTask(void*) {
   LOG(INFO) << "User interface setup OK";
 
   StartRuntimeStatsReportingTask(TaskPriorities::kRuntimeStats);
-  I2cTest::Start(i2c0_controller);
 
   LOG(INFO) << "Startup complete.";
   vTaskDelete(nullptr);
