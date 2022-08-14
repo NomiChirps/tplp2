@@ -28,7 +28,7 @@ struct Pins {
   static constexpr gpio_pin_t I2C0_SCL = gpio_pin_t(17);
   static constexpr gpio_pin_t I2C0_SDA = gpio_pin_t(16);
   static constexpr gpio_pin_t TEST_PUSHBUTTON = gpio_pin_t(28);
-  static constexpr gpio_pin_t TOUCHSCREEN_PENINT = gpio_pin_t(18);
+  static constexpr gpio_pin_t TOUCHSCREEN_PENIRQ = gpio_pin_t(18);
 #else
 #error "Board not detected"
 #endif

@@ -10,7 +10,7 @@ namespace tplp {
 // TSC2007 4-wire resistive touchscreen controller with I2C interface.
 class TSC2007 {
  public:
-  explicit TSC2007(I2cDeviceHandle device);
+  explicit TSC2007(I2cDeviceHandle device, gpio_pin_t penirq);
 
   struct TouchInfo {
     int16_t x, y, z1, z2;
@@ -21,8 +21,9 @@ class TSC2007 {
   // Call Setup() at least once before any other methods.
   util::Status Setup();
 
-  void StartTask(gpio_pin_t penirq);
-  
+  // Starts a task and sets up an IRQ handler to process touch interrupts on the
+  // `penirq` pin specified in the constructor.
+  //
   // Note that this TouchCallback gives you very raw events. They come from an
   // interrupt pin and will need debouncing.
   //
@@ -35,7 +36,7 @@ class TSC2007 {
   // before the "real" touch event. They usually seem to have garbage x,y data.
   //
   // This will CHECK-fail if called more than once.
-  void SetCallback(const TouchCallback& callback);
+  void ReceiveTouchEvents(const TouchCallback& callback);
 
   util::Status ReadPosition(int16_t* x, int16_t* y, int16_t* z1 = nullptr,
                             int16_t* z2 = nullptr);
@@ -50,6 +51,7 @@ class TSC2007 {
 
  private:
   I2cDeviceHandle i2c_;
+  gpio_pin_t penirq_;
   TouchCallback callback_;
 };
 

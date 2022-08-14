@@ -66,11 +66,11 @@ void PenIrqHandlerISR() {
 // associated to PENIRQ. This masking prevents false triggering of interrupts
 // when the PENIRQ line is disabled in the cases previously listed."
 void EnablePenIrq() {
-  VLOG(1) << "<- PENINT enable";
+  VLOG(1) << "<- PENIRQ unmask";
   gpio_set_irq_enabled(global_penirq, GPIO_IRQ_EDGE_FALL, true);
 }
 void DisablePenIrq() {
-  VLOG(1) << "-> PENINT disable";
+  VLOG(1) << "-> PENIRQ mask";
   gpio_set_irq_enabled(global_penirq, GPIO_IRQ_EDGE_FALL, false);
 }
 
@@ -82,7 +82,7 @@ class ScopedDisablePenIrq {
 
 }  // namespace
 
-TSC2007::TSC2007(I2cDeviceHandle device) : i2c_(device), callback_(nullptr) {}
+TSC2007::TSC2007(I2cDeviceHandle device, gpio_pin_t penirq) : i2c_(device), penirq_(penirq), callback_(nullptr) {}
 
 util::Status TSC2007::Setup() {
   I2cTransaction txn = i2c_.StartTransaction();
@@ -136,25 +136,22 @@ util::Status TSC2007::ReadPosition(int16_t* x, int16_t* y, int16_t* z1,
   return Command(txn, MEASURE_TEMP0, POWERDOWN_IRQON, ADC_12BIT, true);
 }
 
-void TSC2007::StartTask(gpio_pin_t penirq) {
+void TSC2007::ReceiveTouchEvents(const TouchCallback& callback) {
+  CHECK(!callback_) << "Callback already set";
   CHECK(!global_task)
       << "Sorry, I was lazy and only 1 instance of TSC2007 is allowed";
   CHECK(xTaskCreate(&TSC2007::TaskFn, "TSC2007", TaskStacks::kTSC2007, this,
                     TaskPriorities::kTSC2007, &global_task));
-  global_penirq = penirq;
-
-  gpio_init(penirq);
-  gpio_set_function(penirq, GPIO_FUNC_SIO);
-  gpio_set_dir(penirq, GPIO_IN);
-  gpio_set_input_enabled(penirq, true);
-  gpio_add_raw_irq_handler(penirq, &PenIrqHandlerISR);
-  EnablePenIrq();
-  irq_set_enabled(IO_IRQ_BANK0, true);
-}
-
-void TSC2007::SetCallback(const TouchCallback& callback) {
-  CHECK(!callback_) << "Callback already set";
+  global_penirq = penirq_;
   callback_ = callback;
+
+  gpio_init(penirq_);
+  gpio_set_function(penirq_, GPIO_FUNC_SIO);
+  gpio_set_dir(penirq_, GPIO_IN);
+  gpio_set_input_enabled(penirq_, true);
+  gpio_add_raw_irq_handler(penirq_, &PenIrqHandlerISR);
+  irq_set_enabled(IO_IRQ_BANK0, true);
+  EnablePenIrq();
 }
 
 void TSC2007::TaskFn(void* task_param) {
@@ -163,7 +160,7 @@ void TSC2007::TaskFn(void* task_param) {
   util::Status status;
   TouchInfo touch;
   for (;;) {
-    VLOG(1) << "Waiting for PENINT";
+    VLOG(1) << "Waiting for PENIRQ";
     CHECK(ulTaskNotifyTake(true, portMAX_DELAY));
     status = self->ReadPosition(&touch.x, &touch.y, &touch.z1, &touch.z2);
     if (!status.ok()) {

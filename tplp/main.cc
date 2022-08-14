@@ -130,13 +130,13 @@ void StartupTask(void*) {
 
   // Touchscreen reader.
   TSC2007* touchscreen = CHECK_NOTNULL(new TSC2007(
-      I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kTSC2007)));
+      I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kTSC2007),
+      Pins::TOUCHSCREEN_PENIRQ));
   status = touchscreen->Setup();
   LOG_IF(INFO, status.ok()) << "TSC2007 setup OK";
   // TODO: if we bring the lvgl display up first, we can fail more gracefully by
   //       displaying a message
   LOG_IF(FATAL, !status.ok()) << "TSC2007 setup failed: " << status;
-  touchscreen->StartTask(Pins::TOUCHSCREEN_PENINT);
 
   LvglInit lvgl;
   lvgl.BaseInit();
