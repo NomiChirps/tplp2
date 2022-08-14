@@ -99,6 +99,15 @@ class I2cTest {
 I2cController* I2cTest::i2c_;
 TaskHandle_t I2cTest::task_;
 
+// Wait until at least the given number of milliseconds have passed since boot.
+void EnsureTimeSinceBootMillis(int millis) {
+  absolute_time_t now = get_absolute_time();
+  int ms_since_boot = to_ms_since_boot(now);
+  if (millis < ms_since_boot) {
+    busy_wait_until(delayed_by_ms(now, ms_since_boot - millis));
+  }
+}
+
 void StartupTask(void*) {
   util::Status status;
 
@@ -119,10 +128,13 @@ void StartupTask(void*) {
   LOG(INFO) << "SpiManager::Init() OK";
 
   HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
+  // FIXME: something goes very wrong with the display when we boot without
+  //        usb-stdout. probably a timing issue, but ?????
+  //        it still works, but with wrong colors and rotation...
   display->Begin();
   if (!display->SelfTest()) {
     // TODO: flash out an error code on something? board LED?
-    LOG(FATAL) << "HX8357 self test failed";
+    LOG(ERROR) << "HX8357 self test failed";
   }
   // Rotate to widescreen and so it's the right way around on my workbench.
   display->SetRotation(0, 1, 1);
@@ -136,16 +148,12 @@ void StartupTask(void*) {
   // TODO: if we bring the lvgl display up first, we can fail more gracefully by
   //       displaying a message
   LOG_IF(FATAL, !status.ok()) << "TSC2007 setup failed: " << status;
-  touchscreen->StartTask(Pins::TOUCHSCREEN_PENINT,
-                         [](const TSC2007::TouchInfo& touch) {
-                           LOG(INFO) << "Touch @ (" << touch.x << "," << touch.y
-                                     << ") " << touch.z1 << ":" << touch.z2;
-                         });
+  touchscreen->StartTask(Pins::TOUCHSCREEN_PENINT);
 
   LvglInit lvgl;
   lvgl.BaseInit();
   lvgl.SetDisplay(display);
-  lvgl.SetTouchscreen(touchscreen);
+  lvgl.AddTouchscreen(touchscreen);
   lvgl.Start();
 
   // Create GUI screens.

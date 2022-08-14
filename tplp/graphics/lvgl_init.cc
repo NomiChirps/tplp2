@@ -9,8 +9,10 @@
 #include "picolog/picolog.h"
 #include "tplp/HX8357/lvgl_driver.h"
 #include "tplp/SharpLCD/lvgl_driver.h"
+#include "tplp/TSC2007/lvgl_driver.h"
 #include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_mutex.h"
+#include "tplp/graphics/mouse_cursor_icon.h"
 #include "tplp/time.h"
 
 using std::chrono_literals::operator""ms;
@@ -65,7 +67,13 @@ void FinishDisplaySetup(lv_disp_t* display) {
 
 }  // namespace
 
-LvglInit::LvglInit() : timer_task_(nullptr) {}
+struct LvglInit::Objects {
+  TaskHandle_t timer_task = nullptr;
+
+  lv_indev_t* touchscreen = nullptr;
+};
+
+LvglInit::LvglInit() : stuff_(CHECK_NOTNULL(new Objects)) {}
 
 void LvglInit::BaseInit() {
   LvglMutex::InitOnce();
@@ -82,7 +90,7 @@ void LvglInit::BaseInit() {
   lv_init();
 
   // Task will wait until we xTaskNotifyGive() it.
-  timer_task_ = CreateTimerHandlerTask();
+  stuff_->timer_task = CreateTimerHandlerTask();
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.
   static_assert(LV_TICK_CUSTOM);
 }
@@ -93,17 +101,25 @@ void LvglInit::SetDisplay(SharpLCD* raw_display) {
 }
 
 void LvglInit::SetDisplay(HX8357* raw_display) {
-  CHECK(timer_task_) << "call BaseInit() first";
+  CHECK(stuff_->timer_task) << "call BaseInit() first";
   lv_disp_t* display =
-      RegisterDisplayDriver_HX8357(raw_display, timer_task_);
+      RegisterDisplayDriver_HX8357(raw_display, stuff_->timer_task);
   FinishDisplaySetup(display);
 }
 
-void LvglInit::SetTouchscreen(TSC2007* touchscreen) {
-  // TODO!
+void LvglInit::AddTouchscreen(TSC2007* raw_touchscreen) {
+  stuff_->touchscreen = RegisterInputDevice_TSC2007(raw_touchscreen);
 }
 
-void LvglInit::Start() { xTaskNotifyGive(timer_task_); }
+void LvglInit::Start() {
+  if (stuff_->touchscreen) {
+    lv_obj_t* icon = lv_img_create(lv_scr_act());
+    lv_img_set_src(icon, &mouse_cursor_icon);
+    lv_indev_set_cursor(stuff_->touchscreen, icon);
+  }
+
+  xTaskNotifyGive(stuff_->timer_task);
+}
 
 void RunLvglDemo(void*) {
   LOG(INFO) << "RunLvglDemo task started.";

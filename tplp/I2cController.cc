@@ -618,8 +618,8 @@ void I2cController::DoTransfer(const Event& event) {
       LOG_IF(FATAL, n > 999)
           << "Failed to disable I2C controller after " << n << " ticks.";
     }
-    LOG_IF(WARNING, n) << "Waited " << n
-                       << " ticks for the I2C controller to shut down.";
+    VLOG_IF(1, n) << "Waited " << n
+                  << " ticks for the I2C controller to shut down.";
     new_transaction_ = true;
   }
   // Done.

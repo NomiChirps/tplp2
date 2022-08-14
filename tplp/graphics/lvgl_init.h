@@ -14,14 +14,18 @@ class LvglInit {
   // Call this first, then set devices, then Start()
   void BaseInit();
 
+  // Adding multiple displays not tested...
   void SetDisplay(SharpLCD* display);
   void SetDisplay(HX8357* display);
-  void SetTouchscreen(TSC2007* touchscreen);
+
+  // Add at least one display before adding any input devices.
+  void AddTouchscreen(TSC2007* touchscreen);
 
   void Start();
 
  private:
-  TaskHandle_t timer_task_;
+  struct Objects;
+  Objects* stuff_;
 };
 
 // Draws something interesting on a loop.

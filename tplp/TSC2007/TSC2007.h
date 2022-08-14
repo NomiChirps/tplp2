@@ -21,6 +21,8 @@ class TSC2007 {
   // Call Setup() at least once before any other methods.
   util::Status Setup();
 
+  void StartTask(gpio_pin_t penirq);
+  
   // Note that this TouchCallback gives you very raw events. They come from an
   // interrupt pin and will need debouncing.
   //
@@ -31,7 +33,9 @@ class TSC2007 {
   // Touch events with z1==z2==0 (zero pressure) sometimes happen after
   // releasing pressure, and sometimes don't. Sometimes they also happen just
   // before the "real" touch event. They usually seem to have garbage x,y data.
-  void StartTask(gpio_pin_t penirq, TouchCallback callback);
+  //
+  // This will CHECK-fail if called more than once.
+  void SetCallback(const TouchCallback& callback);
 
   util::Status ReadPosition(int16_t* x, int16_t* y, int16_t* z1 = nullptr,
                             int16_t* z2 = nullptr);

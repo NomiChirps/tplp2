@@ -436,6 +436,8 @@ DECLARE_CHECK_STROP_IMPL(strcasecmp, false)
 #define CHECK_BOUND(B, A) CHECK(B <= (sizeof(A) / sizeof(A[0])))
 
 #define VLOG(verboselevel) LOG_IF(INFO, VLOG_IS_ON(verboselevel))
+#define VLOG_IF(verboselevel, condition) \
+  LOG_IF(INFO, VLOG_IS_ON(verboselevel) && (condition))
 
 }  // namespace picolog
 

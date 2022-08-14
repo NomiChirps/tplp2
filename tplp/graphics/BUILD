@@ -5,6 +5,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":lvgl_mutex",
+        ":mouse_cursor_icon",
         "//picolog",
         "//tplp/HX8357",
         "//tplp/HX8357:lvgl_driver",
@@ -26,5 +27,14 @@ cc_library(
     deps = [
         "//picolog",
         "@FreeRTOS",
+    ],
+)
+
+cc_library(
+    name = "mouse_cursor_icon",
+    srcs = ["mouse_cursor_icon.c"],
+    hdrs = ["mouse_cursor_icon.h"],
+    deps = [
+        "@lvgl",
     ],
 )

@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] (?!) display fails self-test during startup if usb-serial output not present
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
 - [ ] StatusOr
 - [ ] Create a front panel UI (assignee: wembly :)
