@@ -147,7 +147,7 @@ void LogMessage::Init(const char* file, int line, LogSeverity severity) {
            << std::setw(2) << data_->logmsgtime_.sec() << '.'
            << std::setw(6) << data_->logmsgtime_.usec()
            << ' '
-           << std::setfill(' ') << std::setw(5) << data_->task_name_
+           << std::setfill(' ') << std::setw(0) << data_->task_name_
            << ' '
            << data_->basename_ << ':' << data_->line_ << "] ";
   // clang-format on
