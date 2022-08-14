@@ -2,7 +2,6 @@
 #include "tplp/ui/screens/settings.h"
 #include "tplp/ui/screens/home_screen.h"
 
-
 static lv_obj_t * ui_test_content_create(lv_obj_t * parent);
 static lv_obj_t * ui_i2c_content_create(lv_obj_t * parent);
 static void back_clicked(lv_event_t * e);
@@ -12,11 +11,20 @@ static void i2c_refresh_clicked(lv_event_t * e);
 static void update_label(void);
 static void update_i2c_list(void);
 
-lv_obj_t * root_page;
-
 static int counter = 0;
 static lv_obj_t * label = NULL;
 static lv_obj_t * i2c_devices_label = NULL;
+
+typedef struct {
+    char * icon;
+    char * txt;
+    lv_obj_t * (*create_section)(lv_obj_t * parent);
+} settings_section;
+
+static const settings_section sections[] = {
+    { LV_SYMBOL_SETTINGS, "Test", ui_test_content_create},
+    { LV_SYMBOL_USB, "I2C", ui_i2c_content_create},
+};
 
 lv_obj_t * ui_settings_create(lv_obj_t * parent)
 {
@@ -27,36 +35,24 @@ lv_obj_t * ui_settings_create(lv_obj_t * parent)
     lv_obj_set_size(menu, lv_disp_get_hor_res(NULL), lv_disp_get_ver_res(NULL));
     lv_obj_center(menu);
 
-    lv_obj_t * section;
-    lv_obj_t * content;
-
-    /* test sub-page */
-    lv_obj_t * sub_test_page = lv_menu_page_create(menu, NULL);
-    lv_obj_set_style_pad_hor(sub_test_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
-    lv_menu_separator_create(sub_test_page);
-    section = lv_menu_section_create(sub_test_page);
-    ui_test_content_create(section);
-
-    /* i2c sub-page */
-    lv_obj_t * sub_i2c_page = lv_menu_page_create(menu, NULL);
-    lv_obj_set_style_pad_hor(sub_i2c_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
-    lv_menu_separator_create(sub_i2c_page);
-    section = lv_menu_section_create(sub_i2c_page);
-    ui_i2c_content_create(section);
-
-    /* root page */
-    root_page = lv_menu_page_create(menu, "Settings");
+    lv_obj_t * root_page = lv_menu_page_create(menu, "Settings");
     lv_obj_set_style_pad_hor(root_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
-    section = lv_menu_section_create(root_page);
-    content = create_text(section, LV_SYMBOL_SETTINGS, "Test");
-    lv_menu_set_load_page_event(menu, content, sub_test_page);
 
-    section = lv_menu_section_create(root_page);
-    content = create_text(section, LV_SYMBOL_USB, "I2C");
-    lv_menu_set_load_page_event(menu, content, sub_i2c_page);
+    const int length = sizeof(sections) / sizeof(sections[0]);
+    for(int i = 0; i < length; i++) {
+        lv_obj_t * section_contents = lv_menu_page_create(menu, NULL);
+        lv_obj_set_style_pad_hor(section_contents, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+        lv_menu_separator_create(section_contents);
+        sections[i].create_section(section_contents);
+
+        lv_obj_t * section_title = lv_menu_section_create(root_page);
+        lv_obj_t * content = create_text(section_title, sections[i].icon, sections[i].txt);
+        lv_menu_set_load_page_event(menu, content, section_contents);
+    }
 
     lv_menu_set_sidebar_page(menu, root_page);
 
+    // sets the first section to be displayed
     lv_event_send(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED, NULL);
 
     return menu;
