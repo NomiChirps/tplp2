@@ -535,7 +535,11 @@ inline void Status::Update(Status&& new_status) {
   }
 }
 
-inline Status::~Status() {}
+inline Status::~Status() {
+  if (!IsInlined(rep_)) {
+    delete RepToPointer(rep_);
+  }
+}
 
 inline bool Status::ok() const {
   return rep_ == CodeToInlinedRep(util::StatusCode::kOk);

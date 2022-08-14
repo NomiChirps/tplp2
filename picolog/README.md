@@ -10,6 +10,7 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
 
 ## Wishlist
 
+- [ ] arena storage for the non-inlined StatusRep. or maybe we can get rid of it and require that the message be a compile-time constant...? or even better, provide a special case to make that path alloc-free.
 - StatusOr would be nice but not essential
 - Maybe have a separate task handling FATAL errors so it can be given the highest priority.
 - [ ] arena storage for LogMessageData to avoid malloc (still requires mutex)
