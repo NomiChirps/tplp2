@@ -631,7 +631,7 @@ util::Status I2cController::ScanBus(
   uint8_t dummy;
 
   // addresses above 0x77 are reserved
-  LOG(INFO) << "Starting I2C bus scan...";
+  VLOG(1) << "Starting I2C bus scan...";
   for (i2c_address_t addr(0); addr < i2c_address_t(0x78); ++addr) {
     if (is_reserved(addr)) continue;
     I2cTransaction txn = StartTransaction(addr);

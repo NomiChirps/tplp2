@@ -5,7 +5,6 @@
 #include <ostream>
 #include <iomanip>
 
-using tplp::ui::TplpInterface;
 using tplp::ui::I2cScanResult;
 
 static void i2c_refresh_clicked(lv_event_t * e);
@@ -44,12 +43,11 @@ static void i2c_refresh_clicked(lv_event_t * e)
 {
     lv_label_set_text_fmt(i2c_devices_label, "Scanning...");
     global_tplp_->ScanI2cBus(&update_i2c_list);
-    // TODO: disable the button while scanning so the user doesn't accidentally queue up a second scan
 }
 
 static void update_i2c_list(const I2cScanResult& result)
 {
-    std::stringstream txt;
+    std::ostringstream txt;
     txt << "Status: " << result.status << "\n"
         << "Detected " << result.addresses.size() << " device(s)\n"
         << std::hex << std::setw(2) << std::setfill('0');
