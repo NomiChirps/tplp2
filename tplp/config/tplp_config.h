@@ -49,8 +49,8 @@ struct TaskPriorities {
   static constexpr int kStartup = 5;
 
   // Bus controllers of high quality and esteemed stature.
-  static constexpr int kSpiManager0 = 4;
-  static constexpr int kSpiManager1 = 4;
+  static constexpr int kSpiController0 = 4;
+  static constexpr int kSpiController1 = 4;
 
   static constexpr int kRuntimeStats = 2;
 
@@ -73,7 +73,7 @@ struct TaskStacks {
   static constexpr int kLvglTimerHandler = 2048;
   static constexpr int kHX8357 = 512;
   static constexpr int kI2cController = 1024;
-  static constexpr int kSpiManager = 1024;
+  static constexpr int kSpiController = 1024;
   static constexpr int kRuntimeStats = 512;
   static constexpr int kStartup = 1024;
   static constexpr int kTSC2007 = 512;

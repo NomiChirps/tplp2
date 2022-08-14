@@ -276,13 +276,13 @@ static constexpr uint8_t kInitD[] = {
 
 enum class HX8357::DisplayType { HX8357D = 0xD, HX8357B = 0xB };
 
-HX8357::HX8357(DisplayType type, SpiManager* spi, gpio_pin_t cs, gpio_pin_t dc)
+HX8357::HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
     : type_(type), spi_(spi), cs_(cs), dc_(dc) {}
 
-HX8357B::HX8357B(SpiManager* spi, gpio_pin_t cs, gpio_pin_t dc)
+HX8357B::HX8357B(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
     : HX8357(DisplayType::HX8357B, spi, cs, dc) {}
 
-HX8357D::HX8357D(SpiManager* spi, gpio_pin_t cs, gpio_pin_t dc)
+HX8357D::HX8357D(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
     : HX8357(DisplayType::HX8357D, spi, cs, dc) {}
 
 void HX8357::Begin() {

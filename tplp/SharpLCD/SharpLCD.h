@@ -1,7 +1,7 @@
 #ifndef TPLP_SHARPLCD_H_
 #define TPLP_SHARPLCD_H_
 
-#include "tplp/SpiManager.h"
+#include "tplp/SpiController.h"
 
 namespace tplp {
 
@@ -74,12 +74,12 @@ class SharpLCD {
   SharpLCD& operator=(const SharpLCD&) = delete;
 
   // Caller retains ownership of `spi`.
-  explicit SharpLCD(SpiManager* spi);
+  explicit SharpLCD(SpiController* spi);
 
   // Configure the SPI hardware and start a background task to toggle VCOM
   // periodically.
   //
-  // `cs`: Chip select pin. `SpiManager` will expect this to be active LOW, but
+  // `cs`: Chip select pin. `SpiController` will expect this to be active LOW, but
   // the Sharp LCD chip expects active HIGH. Make sure you've got an inverter in
   // the circuit.
   void Begin(gpio_pin_t cs, int toggle_vcom_task_priority);
@@ -120,7 +120,7 @@ class SharpLCD {
   static void ToggleVcomTask(void*);
 
  private:
-  SpiManager* const spi_;
+  SpiController* const spi_;
   SpiDevice* spi_device_;
 };
 

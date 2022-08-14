@@ -9,7 +9,7 @@ pico_binary(
     deps = [
         ":I2cController",
         ":RuntimeStats",
-        ":SpiManager",
+        ":SpiController",
         ":hook_impl",
         ":time",
         ":types",
@@ -69,9 +69,9 @@ cc_library(
 )
 
 cc_library(
-    name = "SpiManager",
-    srcs = ["SpiManager.cc"],
-    hdrs = ["SpiManager.h"],
+    name = "SpiController",
+    srcs = ["SpiController.cc"],
+    hdrs = ["SpiController.h"],
     visibility = [":__subpackages__"],
     deps = [
         ":time",

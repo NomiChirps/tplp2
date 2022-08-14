@@ -1,7 +1,7 @@
 #ifndef TPLP_HX8357_HX8357_H_
 #define TPLP_HX8357_HX8357_H_
 
-#include "tplp/SpiManager.h"
+#include "tplp/SpiController.h"
 #include "tplp/types.h"
 
 namespace tplp {
@@ -54,7 +54,7 @@ class HX8357 {
 
  protected:
   enum class DisplayType;
-  explicit HX8357(DisplayType type, SpiManager* spi, gpio_pin_t cs,
+  explicit HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs,
                   gpio_pin_t dc);
 
   void SendCommand(uint8_t command, const uint8_t* data = nullptr,
@@ -68,7 +68,7 @@ class HX8357 {
 
  private:
   const DisplayType type_;
-  SpiManager* const spi_;
+  SpiController* const spi_;
   SpiDevice* spi_device_;
   const gpio_pin_t cs_;
   const gpio_pin_t dc_;
@@ -86,7 +86,7 @@ class HX8357B : public HX8357 {
   // than `kNominalMaxSpiFrequency`.
   // `cs`: SPI chip select.
   // `dc`: Data/Command.
-  explicit HX8357B(SpiManager* spi, gpio_pin_t cs, gpio_pin_t dc);
+  explicit HX8357B(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc);
 };
 
 class HX8357D : public HX8357 {
@@ -95,7 +95,7 @@ class HX8357D : public HX8357 {
   // than `kNominalMaxSpiFrequency`.
   // `cs`: SPI chip select.
   // `dc`: Data/Command.
-  explicit HX8357D(SpiManager* spi, gpio_pin_t cs, gpio_pin_t dc);
+  explicit HX8357D(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc);
 };
 
 }  // namespace tplp

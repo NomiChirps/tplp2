@@ -4,7 +4,7 @@ cc_library(
     hdrs = ["HX8357.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//tplp:SpiManager",
+        "//tplp:SpiController",
         "//tplp:rtos_utils",
         "//tplp:types",
         "@FreeRTOS",

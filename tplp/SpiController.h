@@ -18,14 +18,14 @@ class SpiTransaction;
 
 // Manages a number of devices on one SPI bus.
 // TODO: document
-class SpiManager {
+class SpiController {
   friend class SpiDevice;
   friend class SpiTransaction;
 
  public:
   // Initializes the SPI hardware and any necessary FreeRTOS structures.
   // `task_priority` is a FreeRTOS priority value.
-  static SpiManager* Init(int task_priority, spi_inst_t* spi, int freq_hz,
+  static SpiController* Init(int task_priority, spi_inst_t* spi, int freq_hz,
                           gpio_pin_t sclk, std::optional<gpio_pin_t> mosi,
                           std::optional<gpio_pin_t> miso);
 
@@ -36,16 +36,16 @@ class SpiManager {
   int GetActualFrequency() const { return actual_frequency_; }
 
  private:
-  explicit SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
+  explicit SpiController(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
                       dma_irq_number_t dma_irq_number, dma_channel_t dma_tx,
                       dma_channel_t dma_rx, int actual_frequency,
                       SemaphoreHandle_t transaction_mutex,
                       QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
                       std::optional<gpio_pin_t> mosi,
                       std::optional<gpio_pin_t> miso);
-  SpiManager(const SpiManager&) = delete;
-  SpiManager& operator=(const SpiManager&) = delete;
-  ~SpiManager() = delete;
+  SpiController(const SpiController&) = delete;
+  SpiController& operator=(const SpiController&) = delete;
+  ~SpiController() = delete;
 
   static void TaskFn(void*);
 
@@ -97,7 +97,7 @@ class SpiManager {
 // mutex locking out the SPI bus in order to participate in priority inheritance
 // if other, higher priority tasks need to use it, and FreeRTOS requires that
 // the task releasing such a mutex be the same task that acquired it. Even if it
-// didn't, and enqueueing multiple transactions was allowed, SpiManager would
+// didn't, and enqueueing multiple transactions was allowed, SpiController would
 // then have to implement its own priority inheritance or queue-jumping
 // mechanism in order to provide priority guarantees for access to the bus,
 // which, uh, no thank you. Signed, your humble editor.
@@ -202,7 +202,7 @@ class SpiTransaction {
 };
 
 class SpiDevice {
-  friend class SpiManager;
+  friend class SpiController;
   friend class SpiTransaction;
 
  public:
@@ -217,13 +217,13 @@ class SpiDevice {
   SpiTransaction StartTransaction();
 
  private:
-  explicit SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name);
+  explicit SpiDevice(SpiController* spi, gpio_pin_t cs, std::string_view name);
 
  private:
   SpiDevice(const SpiDevice&) = delete;
   SpiDevice& operator=(const SpiDevice&) = delete;
 
-  SpiManager* const spi_;
+  SpiController* const spi_;
   const gpio_pin_t cs_;
   const std::string name_;
 

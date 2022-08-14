@@ -16,8 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] rename SpiManager -> SpiController
-- [ ] SpiManager could use improvement - we're not getting full utilization of the bus
+- [ ] SpiController could use improvement - we're not getting full utilization of the bus
   - use 2 dma channels in each direction and chain them so there's no stall when swapping buffers
   - coalesce consecutive nonblocking operations within a transaction this way
   - well.. that's not so useful for HX8357, which blocks a lot in order to switch the D/C pin on and off. maybe a fully nonblocking transaction builder which allows inserting std::function calls between transfers. we could run those from the interrupt before triggering the next DMA... won't be as fast as direct DMA chaining, but definitely more flexible.
@@ -56,7 +55,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - Nice-to-haves
   - [ ] TSC2007 lvgl driver should debounce, buffer, and interpolate
   - [ ] I2cController need nonblocking operations, coalescing commands, general TLC
-  - [ ] write a stress test for SpiManager. lotsa tasks, lotsa devices, all hammering away
+  - [ ] write a stress test for SpiController. lotsa tasks, lotsa devices, all hammering away
   - [ ] hook up tft backlight pin and add an adjustable brightness setting (PWM)
   - [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
     - this will also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
@@ -148,6 +147,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] rename SpiManager -> SpiController
 - [x] insert appropriate delays in TSC2007 read cycle; we have noise problems
 - [x] consider removing all deletions of FreeRTOS objects and switching to heap_1
   - I considered it. it's not gonna happen
@@ -156,7 +156,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
   - the issue was it needed some time to boot up after poweron before accepting commands
 - [x] LVGL driver for HX8357
 - [x] HX8357 self test :)
-- [x] rework SpiManager again again; it should be able to suport full duplex. instead of sendevent/receiveevent, let's have transferevent(naming???) which specifies optionally both buffers. I GUESS???? if both are specified, they would necessarily have to be the same length!
+- [x] rework SpiController again again; it should be able to suport full duplex. instead of sendevent/receiveevent, let's have transferevent(naming???) which specifies optionally both buffers. I GUESS???? if both are specified, they would necessarily have to be the same length!
 - [x] get a compile_commands going for //simulator
 - [x] have FreeRTOS and LVGL running together in a simulator mode on the host, for UI development (and unit testing?!)
 - [x] fix lvgl+simulator so it doesn't build SDL2 twice

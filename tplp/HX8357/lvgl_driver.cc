@@ -41,7 +41,7 @@ static void wait_cb_impl(lv_disp_drv_t* driver) {
   xTaskNotifyWait(0, 0, nullptr, portMAX_DELAY);
 }
 
-// Blitting is split off into a different task because SpiManager's transaction
+// Blitting is split off into a different task because SpiController's transaction
 // interface requires the calling task to wait for the transaction to complete,
 // and we don't want to block flush_cb_impl. I mean, we *could* block it, but
 // because it's run from the main LVGL timer task, LVGL wouldn't be able to do

@@ -14,7 +14,7 @@
 #include "tplp/HX8357/HX8357.h"
 #include "tplp/I2cController.h"
 #include "tplp/RuntimeStats.h"
-#include "tplp/SpiManager.h"
+#include "tplp/SpiController.h"
 #include "tplp/TSC2007/TSC2007.h"
 #include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_init.h"
@@ -113,10 +113,10 @@ void StartupTask(void*) {
       I2cController::Init(TaskPriorities::kI2cController0, i2c0, Pins::I2C0_SCL,
                           Pins::I2C0_SDA, 100'000);
 
-  SpiManager* spi1_manager = SpiManager::Init(
-      TaskPriorities::kSpiManager1, spi1, HX8357::kNominalMaxSpiFrequency,
+  SpiController* spi1_manager = SpiController::Init(
+      TaskPriorities::kSpiController1, spi1, HX8357::kNominalMaxSpiFrequency,
       Pins::SPI1_SCLK, Pins::SPI1_MOSI, Pins::SPI1_MISO);
-  LOG(INFO) << "SpiManager::Init() OK";
+  LOG(INFO) << "SpiController::Init() OK";
 
   HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
   display->Begin();

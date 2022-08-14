@@ -37,7 +37,7 @@ build:iterate -c opt
 
 # picolog config
 # Verbosity
-build --copt="-DPICOLOG_VMODULE=\"SpiManager=0,I2cController=0,TSC2007=0\""
+build --copt="-DPICOLOG_VMODULE=\"SpiController=0,I2cController=0,TSC2007=0\""
 # Immediately reset to bootloader for faster turnaround after a fatal error
 build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
 # Compile out logs below a certain severity

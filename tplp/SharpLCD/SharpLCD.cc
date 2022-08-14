@@ -193,7 +193,7 @@ SharpLCD::FrameBuffer::BitBlit(const uint8_t *bitmap,
   }
 }
 
-SharpLCD::SharpLCD(SpiManager* spi) : spi_(spi) {
+SharpLCD::SharpLCD(SpiController* spi) : spi_(spi) {
   CHECK_LE(spi_->GetActualFrequency(), 2'000'000);
 }
 

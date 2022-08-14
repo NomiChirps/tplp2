@@ -1,4 +1,4 @@
-#include "tplp/SpiManager.h"
+#include "tplp/SpiController.h"
 
 #include <chrono>
 #include <cstdio>
@@ -19,7 +19,7 @@
 using std::chrono_literals::operator""ms;
 
 namespace tplp {
-struct SpiManager::Event {
+struct SpiController::Event {
   enum class Tag { NOT_INITIALIZED = 0, TRANSFER, FLUSH, END_TRANSACTION } tag;
 
   // For TRANSFER events.
@@ -33,9 +33,9 @@ struct SpiManager::Event {
   SemaphoreHandle_t txn_unblock_sem = nullptr;
 
   // Semaphore used in the END_TRANSACTION flow to signal the user's
-  // transaction task that it can now give up SpiManager::transaction_mutex_.
+  // transaction task that it can now give up SpiController::transaction_mutex_.
   // We could use this field for FLUSH too, but it's okay for flush to
-  // use the single shared binary semaphore SpiManager::flush_sem_ (because
+  // use the single shared binary semaphore SpiController::flush_sem_ (because
   // flush does not require priority inheritance on top of that provided by
   // transaction_mutex_).
   SemaphoreHandle_t end_transaction_sem;
@@ -43,7 +43,7 @@ struct SpiManager::Event {
 
 namespace {
 // Notification index 0 is reserved by the FreeRTOS message buffer
-// implementation, so we use the next one. This index of the SpiManager task is
+// implementation, so we use the next one. This index of the SpiController task is
 // notified from `TransferDone::ISR` whenever a send or receive DMA finishes.
 static constexpr int kDmaFinishedNotificationIndex = 1;
 
@@ -105,7 +105,7 @@ static uint32_t GetDmaTransferCount(dma_channel_t channel) {
 
 }  // namespace
 
-SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
+SpiController* SpiController::Init(int task_priority, spi_inst_t* spi, int freq_hz,
                              gpio_pin_t sclk, std::optional<gpio_pin_t> mosi,
                              std::optional<gpio_pin_t> miso) {
   const int spi_index = spi_get_index(spi);
@@ -151,14 +151,14 @@ SpiManager* SpiManager::Init(int task_priority, spi_inst_t* spi, int freq_hz,
 
   SemaphoreHandle_t transaction_mutex = CHECK_NOTNULL(xSemaphoreCreateMutex());
   SemaphoreHandle_t flush_sem = CHECK_NOTNULL(xSemaphoreCreateBinary());
-  SpiManager* that =
-      new SpiManager(spi, irq_index, irq_number, dma_tx, dma_rx, actual_freq_hz,
+  SpiController* that =
+      new SpiController(spi, irq_index, irq_number, dma_tx, dma_rx, actual_freq_hz,
                      transaction_mutex, event_queue, flush_sem, mosi, miso);
 
   // task_name remains allocated forever
   char* task_name = new char[16];
   snprintf(task_name, 16, "SPI %d", spi_get_index(spi));
-  CHECK(xTaskCreate(&SpiManager::TaskFn, task_name, TaskStacks::kSpiManager,
+  CHECK(xTaskCreate(&SpiController::TaskFn, task_name, TaskStacks::kSpiController,
                     that, task_priority, &that->task_));
   LOG(INFO) << "SPI" << spi_get_index(spi) << " initialization complete.";
   return that;
@@ -179,7 +179,7 @@ static dma_channel_config MakeChannelConfig(spi_inst_t* spi, dma_channel_t dma,
   return c;
 }
 
-SpiManager::SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
+SpiController::SpiController(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
                        dma_irq_number_t dma_irq_number, dma_channel_t dma_tx,
                        dma_channel_t dma_rx, int actual_frequency,
                        SemaphoreHandle_t transaction_mutex,
@@ -205,14 +205,14 @@ SpiManager::SpiManager(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
       mosi_(mosi),
       miso_(miso) {}
 
-SpiDevice* SpiManager::AddDevice(gpio_pin_t cs, std::string_view name) {
+SpiDevice* SpiController::AddDevice(gpio_pin_t cs, std::string_view name) {
   gpio_init(cs);
   gpio_set_dir(cs, GPIO_OUT);
   gpio_put(cs, 1);
   return new SpiDevice(this, cs, name);
 }
 
-SpiDevice::SpiDevice(SpiManager* spi, gpio_pin_t cs, std::string_view name)
+SpiDevice::SpiDevice(SpiController* spi, gpio_pin_t cs, std::string_view name)
     : spi_(spi), cs_(cs), name_(name) {
   blocking_sem_ = xSemaphoreCreateBinary();
   end_transaction_sem_ = xSemaphoreCreateBinary();
@@ -224,9 +224,9 @@ SpiTransaction SpiDevice::StartTransaction() {
   return std::move(*txn);
 }
 
-void SpiManager::TaskFn(void* task_param) {
-  SpiManager* self = static_cast<SpiManager*>(task_param);
-  LOG(INFO) << "SpiManager task started.";
+void SpiController::TaskFn(void* task_param) {
+  SpiController* self = static_cast<SpiController*>(task_param);
+  LOG(INFO) << "SpiController task started.";
 
   DmaFinishedNotifier::RegisterManagerTask(self->dma_irq_index_, self->dma_rx_,
                                            self->task_);
@@ -245,7 +245,7 @@ void SpiManager::TaskFn(void* task_param) {
 
   Event event;
   for (;;) {
-    VLOG(1) << "SpiManager waiting for event.";
+    VLOG(1) << "SpiController waiting for event.";
     CHECK(xQueueReceive(self->event_queue_, &event, portMAX_DELAY));
     switch (event.tag) {
       case Event::Tag::TRANSFER:
@@ -264,7 +264,7 @@ void SpiManager::TaskFn(void* task_param) {
   }
 }
 
-void SpiManager::DoStartTransaction(SpiDevice* new_device) {
+void SpiController::DoStartTransaction(SpiDevice* new_device) {
   CHECK_EQ(xSemaphoreGetMutexHolder(transaction_mutex_),
            xTaskGetCurrentTaskHandle());
   CHECK_EQ(uxQueueMessagesWaiting(event_queue_), 0u);
@@ -280,7 +280,7 @@ void SpiManager::DoStartTransaction(SpiDevice* new_device) {
   gpio_put(new_device->cs_, 0);
 }
 
-void SpiManager::DoTransfer(const Event& event) {
+void SpiController::DoTransfer(const Event& event) {
   static uint32_t kDummyTxBuffer = 0x0a;
   static uint32_t kDummyRxBuffer = 0xa0;
 
@@ -315,7 +315,7 @@ void SpiManager::DoTransfer(const Event& event) {
   // what does the datasheet say about how long it takes to switch?
   if (event.tx_buf) {
     CHECK(mosi_)
-        << "Cannot transmit on an SpiManager with no configured MOSI pin";
+        << "Cannot transmit on an SpiController with no configured MOSI pin";
     dma_channel_configure(dma_tx_, &dma_tx_config_, spi_dr, event.tx_buf,
                           event.len, false);
   } else {
@@ -324,7 +324,7 @@ void SpiManager::DoTransfer(const Event& event) {
   }
   if (event.rx_buf) {
     CHECK(miso_)
-        << "Cannot receive on an SpiManager with no configured MISO pin";
+        << "Cannot receive on an SpiController with no configured MISO pin";
     dma_channel_configure(dma_rx_, &dma_rx_config_, event.rx_buf, spi_dr,
                           event.len, false);
   } else {
@@ -360,7 +360,7 @@ void SpiManager::DoTransfer(const Event& event) {
   if (event.txn_unblock_sem) xSemaphoreGive(event.txn_unblock_sem);
 }
 
-void SpiManager::DoFlush(const Event& event) {
+void SpiController::DoFlush(const Event& event) {
   VLOG(1) << "FLUSH device=" << event.device->name_;
   CHECK_EQ(active_device_, event.device)
       << "active_device_->name_=" << active_device_->name_
@@ -371,7 +371,7 @@ void SpiManager::DoFlush(const Event& event) {
   CHECK(xSemaphoreGive(flush_sem_));
 }
 
-void SpiManager::DoEndTransaction(const Event& event) {
+void SpiController::DoEndTransaction(const Event& event) {
   VLOG(1) << "END_TRANSACTION device=" << event.device->name_;
   CHECK_EQ(active_device_, event.device)
       << "active_device_->name_=" << active_device_->name_
@@ -426,8 +426,8 @@ SpiTransaction::Result SpiTransaction::Transfer(const TransferConfig& req,
   VLOG(1) << "Transfer() device=" << device_->name_ << " len=" << req.len;
   CHECK(!moved_from_);
   CHECK_EQ(device_->spi_->active_device_, device_);
-  SpiManager::Event event(SpiManager::Event{
-      .tag = SpiManager::Event::Tag::TRANSFER,
+  SpiController::Event event(SpiController::Event{
+      .tag = SpiController::Event::Tag::TRANSFER,
       .device = device_,
       .tx_buf = req.tx_buf,
       .rx_buf = req.rx_buf,
@@ -448,8 +448,8 @@ SpiTransaction::Result SpiTransaction::TransferBlocking(
           << " len=" << req.len;
   CHECK(!moved_from_);
   CHECK_EQ(device_->spi_->active_device_, device_);
-  SpiManager::Event event(SpiManager::Event{
-      .tag = SpiManager::Event::Tag::TRANSFER,
+  SpiController::Event event(SpiController::Event{
+      .tag = SpiController::Event::Tag::TRANSFER,
       .device = device_,
       .tx_buf = req.tx_buf,
       .rx_buf = req.rx_buf,
@@ -480,8 +480,8 @@ void SpiTransaction::Dispose() {
   CHECK_EQ(originating_task_, xTaskGetCurrentTaskHandle())
       << "An SpiTransaction must be deleted by the same task that created it!";
 
-  SpiManager::Event event(SpiManager::Event{
-      .tag = SpiManager::Event::Tag::END_TRANSACTION,
+  SpiController::Event event(SpiController::Event{
+      .tag = SpiController::Event::Tag::END_TRANSACTION,
       .device = device_,
       .end_transaction_sem = device_->end_transaction_sem_,
   });
@@ -490,12 +490,12 @@ void SpiTransaction::Dispose() {
 
   if (flush_pending_) {
     // We need to consume any pending flush signal, otherwise the semaphore will
-    // go out of sync and SpiManager will eventually get stuck.
+    // go out of sync and SpiController will eventually get stuck.
     VLOG(1) << "Dispose() waiting to take flush_sem_ for pending flush";
     CHECK(xSemaphoreTake(device_->spi_->flush_sem_, portMAX_DELAY));
   }
 
-  // Wait for SpiManager to reach the end of the queue and deselect this
+  // Wait for SpiController to reach the end of the queue and deselect this
   // device's CS line, before allowing another transaction to begin.
   VLOG(1) << "Dispose() waiting to take end_transaction_sem_";
   CHECK(xSemaphoreTake(device_->end_transaction_sem_, portMAX_DELAY));
@@ -511,8 +511,8 @@ SpiTransaction::Result SpiTransaction::Flush(TickType_t ticks_to_wait_enqueue,
           << " ticks_to_wait_flush=" << ticks_to_wait_flush;
   CHECK(!moved_from_);
   if (!flush_pending_) {
-    SpiManager::Event event(SpiManager::Event{
-        .tag = SpiManager::Event::Tag::FLUSH,
+    SpiController::Event event(SpiController::Event{
+        .tag = SpiController::Event::Tag::FLUSH,
         .device = device_,
     });
     if (xQueueSendToBack(device_->spi_->event_queue_, &event,
