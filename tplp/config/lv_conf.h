@@ -271,11 +271,10 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h"*/
        recommended)*/
 #define LV_USE_ASSERT_STYLE \
   1 /*Check if the styles are properly initialized. (Very fast, recommended)*/
-// TODO(for release): disable slow asserts
 #define LV_USE_ASSERT_MEM_INTEGRITY \
-  1 /*Check the integrity of `lv_mem` after critical operations. (Slow)*/
+  0 /*Check the integrity of `lv_mem` after critical operations. (Slow)*/
 #define LV_USE_ASSERT_OBJ \
-  1 /*Check the object's type and existence (e.g. not deleted). (Slow)*/
+  0 /*Check the object's type and existence (e.g. not deleted). (Slow)*/
 
 /*Add a custom handler when assert happens e.g. to restart the MCU*/
 #define LV_ASSERT_HANDLER_INCLUDE <stdint.h>
