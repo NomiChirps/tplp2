@@ -16,7 +16,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] insert appropriate delays in TSC2007 read cycle; we have noise problems
+- [ ] rename SpiManager -> SpiController
+- [ ] SpiManager
+- [ ] I2cController need nonblocking operations, coalescing commands, general TLC
 - [ ] clear the display on boot. the random pixels look kinda cool but...
 - [ ] forget the std::duration stuff.. really not worth the hassle.
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
@@ -139,6 +141,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] insert appropriate delays in TSC2007 read cycle; we have noise problems
 - [x] consider removing all deletions of FreeRTOS objects and switching to heap_1
   - I considered it. it's not gonna happen
 - [x] move/redirect config headers to a config/ dir

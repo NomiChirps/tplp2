@@ -105,6 +105,7 @@ util::Status TSC2007::ReadPosition(int16_t* x, int16_t* y, int16_t* z1,
   I2cTransaction txn = i2c_.StartTransaction();
   if (x) {
     RETURN_IF_ERROR(Command(txn, MEASURE_X, ADON_IRQOFF, ADC_12BIT));
+    busy_wait_us(10);
     RETURN_IF_ERROR(txn.Read(buf, 2));
     VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "X = [0x"
             << (int)buf[0] << ", 0x" << (int)buf[1] << "]";
@@ -112,6 +113,7 @@ util::Status TSC2007::ReadPosition(int16_t* x, int16_t* y, int16_t* z1,
   }
   if (y) {
     RETURN_IF_ERROR(Command(txn, MEASURE_Y, ADON_IRQOFF, ADC_12BIT));
+    busy_wait_us(10);
     RETURN_IF_ERROR(txn.Read(buf, 2));
     VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "Y = [0x"
             << (int)buf[0] << ", 0x" << (int)buf[1] << "]";
