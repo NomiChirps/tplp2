@@ -4,15 +4,19 @@
 
 
 static lv_obj_t * ui_test_content_create(lv_obj_t * parent);
+static lv_obj_t * ui_i2c_content_create(lv_obj_t * parent);
 static void back_clicked(lv_event_t * e);
 static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char * txt);
 static void inc_click(lv_event_t * e);
+static void i2c_refresh_clicked(lv_event_t * e);
 static void update_label(void);
+static void update_i2c_list(void);
 
 lv_obj_t * root_page;
 
 static int counter = 0;
 static lv_obj_t * label = NULL;
+static lv_obj_t * i2c_devices_label = NULL;
 
 lv_obj_t * ui_settings_create(lv_obj_t * parent)
 {
@@ -33,12 +37,23 @@ lv_obj_t * ui_settings_create(lv_obj_t * parent)
     section = lv_menu_section_create(sub_test_page);
     ui_test_content_create(section);
 
+    /* i2c sub-page */
+    lv_obj_t * sub_i2c_page = lv_menu_page_create(menu, NULL);
+    lv_obj_set_style_pad_hor(sub_i2c_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+    lv_menu_separator_create(sub_i2c_page);
+    section = lv_menu_section_create(sub_i2c_page);
+    ui_i2c_content_create(section);
+
     /* root page */
     root_page = lv_menu_page_create(menu, "Settings");
     lv_obj_set_style_pad_hor(root_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
     section = lv_menu_section_create(root_page);
     content = create_text(section, LV_SYMBOL_SETTINGS, "Test");
     lv_menu_set_load_page_event(menu, content, sub_test_page);
+
+    section = lv_menu_section_create(root_page);
+    content = create_text(section, LV_SYMBOL_USB, "I2C");
+    lv_menu_set_load_page_event(menu, content, sub_i2c_page);
 
     lv_menu_set_sidebar_page(menu, root_page);
 
@@ -63,6 +78,30 @@ static lv_obj_t * ui_test_content_create(lv_obj_t * parent)
     lv_obj_t * inc_label = lv_label_create(inc_btn);
     lv_label_set_text(inc_label, "+1");
     lv_obj_add_event_cb(inc_btn, inc_click, LV_EVENT_CLICKED, NULL);
+
+    return content;
+}
+
+static lv_obj_t * ui_i2c_content_create(lv_obj_t * parent)
+{
+    lv_obj_t * content = lv_obj_create(parent);
+    lv_obj_remove_style_all(content);
+    lv_obj_set_layout(content, LV_LAYOUT_FLEX);
+
+    lv_obj_set_size(content, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
+
+    lv_obj_t * button = lv_btn_create(content);
+    lv_obj_t * img = lv_img_create(button);
+    lv_img_set_src(img, LV_SYMBOL_REFRESH);
+    lv_obj_add_event_cb(button, i2c_refresh_clicked, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t * device_list = lv_obj_create(content);
+    lv_obj_set_size(device_list, LV_PCT(100), LV_SIZE_CONTENT);
+
+    i2c_devices_label = lv_label_create(device_list);
+
+    update_i2c_list();
 
     return content;
 }
@@ -108,7 +147,17 @@ static void inc_click(lv_event_t * e)
     update_label();
 }
 
+static void i2c_refresh_clicked(lv_event_t * e)
+{
+    // TODO: add command to refresh list
+}
+
 static void update_label(void)
 {
     lv_label_set_text_fmt(label, "The button has been pressed %d times", counter);
+}
+
+static void update_i2c_list(void)
+{
+    lv_label_set_text_fmt(i2c_devices_label, "I2C Device 1\nI2C Device 2\nI2C Device 3");
 }
