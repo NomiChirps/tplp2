@@ -395,6 +395,9 @@ bool HX8357::SelfTest() {
   return ok;
 }
 
+// TODO: add the automatic brightness control self-diagnostic
+// see command RDABCSDR, page 177.
+
 namespace {
 // Please don't send a negative number
 uint8_t upper_half(int16_t n) { return (n & 0xff00) >> 8; }
