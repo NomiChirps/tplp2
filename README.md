@@ -67,6 +67,7 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
 | ---- | ------- |
 | SPI0 | -       |
 | SPI1 | HX8357  |
+| I2C0 | TSC2007 |
 | I2C1 | -       |
 
 ### Stepper driver ribbon cable layout
