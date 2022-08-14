@@ -127,7 +127,8 @@ int main() {
   hal_init();
 
   // Create all the UI widgets
-  ui_main();
+  // Use the default do-nothing impl of TplpInterface.
+  tplp::ui::ui_main(new tplp::ui::TplpInterface());
 
   // Fork off a thread to run the FreeRTOS scheduler.
   SDL_CreateThread(&FreeRTOSStartupPthread, "FreeRTOS Scheduler", NULL);

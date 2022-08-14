@@ -1,8 +1,15 @@
 #include "lvgl/lvgl.h"
 #include "settings_i2c_devices.h"
+#include "tplp/ui/globals.h"
+
+#include <ostream>
+#include <iomanip>
+
+using tplp::ui::TplpInterface;
+using tplp::ui::I2cScanResult;
 
 static void i2c_refresh_clicked(lv_event_t * e);
-static void update_i2c_list(void);
+static void update_i2c_list(const I2cScanResult&);
 
 static lv_obj_t * i2c_devices_label = NULL;
 
@@ -28,17 +35,27 @@ lv_obj_t * ui_settings_i2c_devices_create(lv_obj_t * parent)
 
     i2c_devices_label = lv_label_create(device_list);
 
-    update_i2c_list();
+    lv_label_set_text_fmt(i2c_devices_label, "No scan running.");
 
     return content;
 }
 
 static void i2c_refresh_clicked(lv_event_t * e)
 {
-    // TODO: add command to refresh list
+    lv_label_set_text_fmt(i2c_devices_label, "Scanning...");
+    global_tplp_->ScanI2cBus(&update_i2c_list);
+    // TODO: disable the button while scanning so the user doesn't accidentally queue up a second scan
 }
 
-static void update_i2c_list(void)
+static void update_i2c_list(const I2cScanResult& result)
 {
-    lv_label_set_text_fmt(i2c_devices_label, "I2C Device 1\nI2C Device 2\nI2C Device 3");
+    std::stringstream txt;
+    txt << "Status: " << result.status << "\n"
+        << "Detected " << result.addresses.size() << " device(s)\n"
+        << std::hex << std::setw(2) << std::setfill('0');
+    for (uint8_t addr : result.addresses) {
+        txt << "    0x" << (int)addr << "\n";
+    }
+
+    lv_label_set_text(i2c_devices_label, txt.str().c_str());
 }

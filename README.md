@@ -19,12 +19,12 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - [ ] forget the std::duration stuff.. really not worth the hassle.
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
 - [ ] Create a front panel UI (assignee: wembly :)
-  - [ ] virtual class interface for callbacks 'n' stuff
-  - [ ] I2C bus scan
   - [ ] runtime stats / logging screen
   - [ ] manual peripheral control screen
   - [ ] parameters screen
   - [ ] (later) print status / job control / main screen ?
+  - [x] I2C bus scan
+  - [x] virtual class interface for callbacks 'n' stuff
   - [x] Use [LVGL](https://lvgl.io)
 - [ ] Get peripheral hardware running
   - [ ] Stepper drivers (use pico_stepper)

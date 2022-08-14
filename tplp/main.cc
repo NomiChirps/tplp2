@@ -16,6 +16,7 @@
 #include "tplp/RuntimeStats.h"
 #include "tplp/SpiController.h"
 #include "tplp/TSC2007/TSC2007.h"
+#include "tplp/TplpInterfaceImpl.h"
 #include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_init.h"
 #include "tplp/graphics/lvgl_mutex.h"
@@ -146,8 +147,10 @@ void StartupTask(void*) {
 
   // Create GUI screens.
   {
+    ui::TplpInterface* tplp =
+        CHECK_NOTNULL(new ui::TplpInterfaceImpl(display, i2c0_controller));
     LvglMutex mutex;
-    ui_main();
+    ui::ui_main(tplp);
   }
   LOG(INFO) << "User interface setup OK";
 

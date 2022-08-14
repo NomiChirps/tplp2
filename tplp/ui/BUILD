@@ -8,19 +8,38 @@ cc_library(
     srcs = [
         "main.cc",
         "screen_home.cc",
+        "screen_home.h",
         "screen_settings.cc",
+        "screen_settings.h",
         "settings_i2c_devices.cc",
+        "settings_i2c_devices.h",
         "settings_test_content.cc",
+        "settings_test_content.h",
     ],
     hdrs = [
         "main.h",
-        "screen_home.h",
-        "screen_settings.h",
-        "settings_i2c_devices.h",
-        "settings_test_content.h",
     ],
     visibility = ["//visibility:public"],
     deps = [
+        ":TplpInterface",
+        ":globals",
         "@lvgl",
     ],
+)
+
+cc_library(
+    name = "TplpInterface",
+    srcs = ["TplpInterface.cc"],
+    hdrs = ["TplpInterface.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//picolog:status",
+    ],
+)
+
+cc_library(
+    name = "globals",
+    srcs = ["globals.cc"],
+    hdrs = ["globals.h"],
+    deps = [":TplpInterface"],
 )

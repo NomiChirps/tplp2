@@ -10,6 +10,7 @@ pico_binary(
         ":I2cController",
         ":RuntimeStats",
         ":SpiController",
+        ":TplpInterfaceImpl",
         ":hook_impl",
         ":time",
         ":types",
@@ -142,5 +143,16 @@ cc_library(
     deps = [
         "//picolog",
         "@FreeRTOS",
+    ],
+)
+
+cc_library(
+    name = "TplpInterfaceImpl",
+    srcs = ["TplpInterfaceImpl.cc"],
+    hdrs = ["TplpInterfaceImpl.h"],
+    deps = [
+        "//tplp/HX8357",
+        "//tplp:I2cController",
+        "//tplp/ui:TplpInterface",
     ],
 )
