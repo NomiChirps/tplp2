@@ -37,6 +37,7 @@ lv_obj_t * ui_settings_create(lv_obj_t * parent)
 
     lv_obj_t * root_page = lv_menu_page_create(menu, "Settings");
     lv_obj_set_style_pad_hor(root_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+    lv_menu_set_sidebar_page(menu, root_page);
 
     const int length = sizeof(sections) / sizeof(sections[0]);
     for(int i = 0; i < length; i++) {
@@ -49,8 +50,6 @@ lv_obj_t * ui_settings_create(lv_obj_t * parent)
         lv_obj_t * content = create_text(section_title, sections[i].icon, sections[i].txt);
         lv_menu_set_load_page_event(menu, content, section_contents);
     }
-
-    lv_menu_set_sidebar_page(menu, root_page);
 
     // sets the first section to be displayed
     lv_event_send(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED, NULL);
