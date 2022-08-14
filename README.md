@@ -22,37 +22,36 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
 - [ ] StatusOr
 - [ ] Create a front panel UI (assignee: wembly :)
-  - [x] Use [LVGL](https://lvgl.io)
+  - [ ] virtual class interface for callbacks 'n' stuff
+  - [ ] I2C bus scan
   - [ ] runtime stats / logging screen
   - [ ] manual peripheral control screen
   - [ ] parameters screen
   - [ ] (later) print status / job control / main screen ?
+  - [x] Use [LVGL](https://lvgl.io)
 - [ ] Get peripheral hardware running
-  - [ ] touchscreen input (SPI breakout)
-  - [ ] Shiny new front panel display + LVGL driver
-  - [ ] Front panel buttons
   - [ ] Stepper drivers (use pico_stepper)
   - [ ] Laser module
   - [ ] Load cell reader https://github.com/endail/hx711-pico-c
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
   - [ ] MicroSD card reader
+  - [x] Shiny new front panel display + LVGL driver
+  - [x] touchscreen input (SPI breakout)
   - [x] Sharp LCD display + LVGL driver
 - [ ] Finish the electronics hardware
   - [ ] Power everything from the 12v bus
-  - [ ] Add bus capacitors
   - [ ] Install jumpers on the stepper drivers (to configure internal 5v power supply)
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto
+  - [x] Add bus capacitors
 - Nice-to-haves
   - [ ] write a stress test for SpiManager. lotsa tasks, lotsa devices, all hammering away
   - [ ] hook up tft backlight pin and add an adjustable brightness setting (PWM)
   - [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
     - this will also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
-  - [ ] split out lvgl-bazel as its own library? eh, maybe later. it's already pretty much prepped though
-  - [ ] move/redirect config headers to a config/ dir
-  - [ ] consider removing all deletions of FreeRTOS objects and switching to heap_1
+  - [ ] split out various things i'm proud of as their own librar(ies)
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
   - [ ] Vendor all 3rd party libraries
@@ -139,6 +138,9 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] consider removing all deletions of FreeRTOS objects and switching to heap_1
+  - I considered it. it's not gonna happen
+- [x] move/redirect config headers to a config/ dir
 - [x] (?!) display fails self-test during startup if usb-serial output not present
   - the issue was it needed some time to boot up after poweron before accepting commands
 - [x] LVGL driver for HX8357
