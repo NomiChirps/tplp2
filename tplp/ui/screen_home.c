@@ -1,6 +1,6 @@
 #include "lvgl/lvgl.h"
-#include "tplp/ui/screens/home_screen.h"
-#include "tplp/ui/screens/settings.h"
+#include "tplp/ui/screen_home.h"
+#include "tplp/ui/screen_settings.h"
 
 static lv_obj_t * ui_header_create(lv_obj_t * parent);
 static lv_obj_t * ui_contents_create(lv_obj_t * parent);
@@ -11,7 +11,7 @@ static void update_label(void);
 static int counter = 0;
 static lv_obj_t * label = NULL;
 
-lv_obj_t * ui_home_screen_create(lv_obj_t * parent)
+lv_obj_t * ui_screen_home_create(lv_obj_t * parent)
 {
     lv_obj_t * root = lv_obj_create(parent);
     lv_obj_set_layout(root, LV_LAYOUT_FLEX);
@@ -60,7 +60,7 @@ static lv_obj_t * ui_contents_create(lv_obj_t * parent)
 static void settings_click(lv_event_t * e)
 {
     lv_obj_t * scr = lv_obj_create(NULL);
-    ui_settings_create(scr);
+    ui_screen_settings_create(scr);
 
     lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, true);
 }

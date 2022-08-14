@@ -5,11 +5,22 @@ package(default_visibility = ["//tplp/ui:__subpackages__"])
 
 cc_library(
     name = "main",
-    srcs = ["main.c"],
-    hdrs = ["main.h"],
+    srcs = [
+        "main.c",
+        "screen_home.c",
+        "screen_settings.c",
+        "settings_i2c_devices.c",
+        "settings_test_content.c",
+    ],
+    hdrs = [
+        "main.h",
+        "screen_home.h",
+        "screen_settings.h",
+        "settings_i2c_devices.h",
+        "settings_test_content.h",
+    ],
     visibility = ["//visibility:public"],
     deps = [
-        "//tplp/ui/screens",
         "@lvgl",
     ],
 )

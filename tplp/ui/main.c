@@ -1,7 +1,7 @@
 #include "lvgl/lvgl.h"
-#include "tplp/ui/screens/home_screen.h"
+#include "tplp/ui/screen_home.h"
 
 void ui_main()
 {
-    ui_home_screen_create(lv_scr_act());
+    ui_screen_home_create(lv_scr_act());
 }

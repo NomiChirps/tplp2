@@ -1,19 +1,11 @@
 #include "lvgl/lvgl.h"
-#include "tplp/ui/screens/settings.h"
-#include "tplp/ui/screens/home_screen.h"
+#include "tplp/ui/screen_settings.h"
+#include "tplp/ui/screen_home.h"
+#include "tplp/ui/settings_i2c_devices.h"
+#include "tplp/ui/settings_test_content.h"
 
-static lv_obj_t * ui_test_content_create(lv_obj_t * parent);
-static lv_obj_t * ui_i2c_content_create(lv_obj_t * parent);
 static void back_clicked(lv_event_t * e);
 static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char * txt);
-static void inc_click(lv_event_t * e);
-static void i2c_refresh_clicked(lv_event_t * e);
-static void update_label(void);
-static void update_i2c_list(void);
-
-static int counter = 0;
-static lv_obj_t * label = NULL;
-static lv_obj_t * i2c_devices_label = NULL;
 
 typedef struct {
     char * icon;
@@ -22,11 +14,11 @@ typedef struct {
 } settings_section;
 
 static const settings_section sections[] = {
-    { LV_SYMBOL_SETTINGS, "Test", ui_test_content_create},
-    { LV_SYMBOL_USB, "I2C", ui_i2c_content_create},
+    { LV_SYMBOL_SETTINGS, "Test", ui_settings_test_content_create},
+    { LV_SYMBOL_USB, "I2C", ui_settings_i2c_devices_create},
 };
 
-lv_obj_t * ui_settings_create(lv_obj_t * parent)
+lv_obj_t * ui_screen_settings_create(lv_obj_t * parent)
 {
     lv_obj_t * menu = lv_menu_create(parent);
 
@@ -55,50 +47,6 @@ lv_obj_t * ui_settings_create(lv_obj_t * parent)
     lv_event_send(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED, NULL);
 
     return menu;
-}
-
-static lv_obj_t * ui_test_content_create(lv_obj_t * parent)
-{
-    lv_obj_t * content = lv_obj_create(parent);
-    lv_obj_remove_style_all(content);
-    lv_obj_set_layout(content, LV_LAYOUT_FLEX);
-
-    lv_obj_set_size(content, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
-
-    label = lv_label_create(content);
-    update_label();
-
-    lv_obj_t * inc_btn = lv_btn_create(content);
-    lv_obj_t * inc_label = lv_label_create(inc_btn);
-    lv_label_set_text(inc_label, "+1");
-    lv_obj_add_event_cb(inc_btn, inc_click, LV_EVENT_CLICKED, NULL);
-
-    return content;
-}
-
-static lv_obj_t * ui_i2c_content_create(lv_obj_t * parent)
-{
-    lv_obj_t * content = lv_obj_create(parent);
-    lv_obj_remove_style_all(content);
-    lv_obj_set_layout(content, LV_LAYOUT_FLEX);
-
-    lv_obj_set_size(content, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
-
-    lv_obj_t * button = lv_btn_create(content);
-    lv_obj_t * img = lv_img_create(button);
-    lv_img_set_src(img, LV_SYMBOL_REFRESH);
-    lv_obj_add_event_cb(button, i2c_refresh_clicked, LV_EVENT_CLICKED, NULL);
-
-    lv_obj_t * device_list = lv_obj_create(content);
-    lv_obj_set_size(device_list, LV_PCT(100), LV_SIZE_CONTENT);
-
-    i2c_devices_label = lv_label_create(device_list);
-
-    update_i2c_list();
-
-    return content;
 }
 
 static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char * txt)
@@ -130,29 +78,8 @@ static void back_clicked(lv_event_t * e)
 
     if(lv_menu_back_btn_is_root(menu, obj)) {
         lv_obj_t * scr = lv_obj_create(NULL);
-        ui_home_screen_create(scr);
+        ui_screen_home_create(scr);
 
         lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_OUT, 300, 0, true);
     }
-}
-
-static void inc_click(lv_event_t * e)
-{
-    counter++;
-    update_label();
-}
-
-static void i2c_refresh_clicked(lv_event_t * e)
-{
-    // TODO: add command to refresh list
-}
-
-static void update_label(void)
-{
-    lv_label_set_text_fmt(label, "The button has been pressed %d times", counter);
-}
-
-static void update_i2c_list(void)
-{
-    lv_label_set_text_fmt(i2c_devices_label, "I2C Device 1\nI2C Device 2\nI2C Device 3");
 }
