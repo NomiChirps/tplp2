@@ -13,3 +13,16 @@ cc_library(
         "@rules_pico//pico:hardware_irq",
     ],
 )
+
+cc_library(
+    name = "lvgl_driver",
+    srcs = ["lvgl_driver.cc"],
+    hdrs = ["lvgl_driver.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":TSC2007",
+        "//picolog",
+        "//tplp/graphics:lvgl_mutex",
+        "@lvgl",
+    ],
+)

@@ -6,11 +6,13 @@ cc_library(
     deps = [
         ":lvgl_mutex",
         "//picolog",
-        "//tplp/config:tplp_config",
         "//tplp/HX8357",
         "//tplp/HX8357:lvgl_driver",
         "//tplp/SharpLCD",
         "//tplp/SharpLCD:lvgl_driver",
+        "//tplp/TSC2007",
+        "//tplp/TSC2007:lvgl_driver",
+        "//tplp/config:tplp_config",
         "@FreeRTOS",
         "@lvgl",
     ],
@@ -22,7 +24,7 @@ cc_library(
     hdrs = ["lvgl_mutex.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "@FreeRTOS",
         "//picolog",
+        "@FreeRTOS",
     ],
 )

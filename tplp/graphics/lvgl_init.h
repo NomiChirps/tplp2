@@ -3,16 +3,26 @@
 
 #include "tplp/HX8357/HX8357.h"
 #include "tplp/SharpLCD/SharpLCD.h"
+#include "tplp/TSC2007/TSC2007.h"
 
 namespace tplp {
 
-// Starts FreeRTOS tasks etc and returns.
-// Caller retains ownership of `display`.
-void InitLvgl(SharpLCD* display);
+class LvglInit {
+ public:
+  explicit LvglInit();
 
-// Starts FreeRTOS tasks etc and returns.
-// Caller retains ownership of `display`.
-void InitLvgl(HX8357* display);
+  // Call this first, then set devices, then Start()
+  void BaseInit();
+
+  void SetDisplay(SharpLCD* display);
+  void SetDisplay(HX8357* display);
+  void SetTouchscreen(TSC2007* touchscreen);
+
+  void Start();
+
+ private:
+  TaskHandle_t timer_task_;
+};
 
 // Draws something interesting on a loop.
 // Argument is ignored. Does not return.

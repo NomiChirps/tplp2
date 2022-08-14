@@ -48,7 +48,26 @@ void lvgl_print_cb_impl(const char* msg) {
   LOG(INFO) << msg;
 }
 
-void InitLvglImpl(const std::function<lv_disp_t*()> init_display) {
+TaskHandle_t CreateTimerHandlerTask() {
+  TaskHandle_t result;
+  CHECK(xTaskCreate(&LvglTimerHandlerTask, "LVGL",
+                    TaskStacks::kLvglTimerHandler, nullptr,
+                    TaskPriorities::kLvglTimerHandler, &result));
+  return result;
+}
+
+void FinishDisplaySetup(lv_disp_t* display) {
+  lv_theme_t* theme = lv_theme_default_init(
+      display, lv_palette_main(LV_PALETTE_BLUE),
+      lv_palette_main(LV_PALETTE_RED), LV_THEME_DEFAULT_DARK, LV_FONT_DEFAULT);
+  lv_disp_set_theme(display, theme);
+}
+
+}  // namespace
+
+LvglInit::LvglInit() : timer_task_(nullptr) {}
+
+void LvglInit::BaseInit() {
   LvglMutex::InitOnce();
   LvglMutex lock;
   // LVGL documentation says:
@@ -62,44 +81,29 @@ void InitLvglImpl(const std::function<lv_disp_t*()> init_display) {
   lv_log_register_print_cb(&lvgl_print_cb_impl);
   lv_init();
 
-  lv_disp_t* display = init_display();
-  CHECK_NOTNULL(display);
-
-  lv_theme_t* theme = lv_theme_default_init(
-      display, lv_palette_main(LV_PALETTE_BLUE),
-      lv_palette_main(LV_PALETTE_RED), LV_THEME_DEFAULT_DARK, LV_FONT_DEFAULT);
-  lv_disp_set_theme(display, theme);
-
-  // TODO: register input device driver(s)
-
+  // Task will wait until we xTaskNotifyGive() it.
+  timer_task_ = CreateTimerHandlerTask();
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.
   static_assert(LV_TICK_CUSTOM);
 }
 
-TaskHandle_t CreateTimerHandlerTask() {
-  TaskHandle_t result;
-  CHECK(xTaskCreate(&LvglTimerHandlerTask, "lv_timer_handler",
-                    TaskStacks::kLvglTimerHandler, nullptr,
-                    TaskPriorities::kLvglTimerHandler, &result));
-  return result;
+void LvglInit::SetDisplay(SharpLCD* raw_display) {
+  lv_disp_t* display = RegisterDisplayDriver_SharpLCD(raw_display);
+  FinishDisplaySetup(display);
 }
 
-}  // namespace
-
-void InitLvgl(SharpLCD* raw_display) {
-  TaskHandle_t lv_timer_task = CreateTimerHandlerTask();
-  InitLvglImpl(
-      [raw_display]() { return RegisterDisplayDriver_SharpLCD(raw_display); });
-  xTaskNotifyGive(lv_timer_task);
+void LvglInit::SetDisplay(HX8357* raw_display) {
+  CHECK(timer_task_) << "call BaseInit() first";
+  lv_disp_t* display =
+      RegisterDisplayDriver_HX8357(raw_display, timer_task_);
+  FinishDisplaySetup(display);
 }
 
-void InitLvgl(HX8357* raw_display) {
-  TaskHandle_t lv_timer_task = CreateTimerHandlerTask();
-  InitLvglImpl([raw_display, lv_timer_task]() {
-    return RegisterDisplayDriver_HX8357(raw_display, lv_timer_task);
-  });
-  xTaskNotifyGive(lv_timer_task);
+void LvglInit::SetTouchscreen(TSC2007* touchscreen) {
+  // TODO!
 }
+
+void LvglInit::Start() { xTaskNotifyGive(timer_task_); }
 
 void RunLvglDemo(void*) {
   LOG(INFO) << "RunLvglDemo task started.";

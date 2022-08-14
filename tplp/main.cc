@@ -109,13 +109,9 @@ void StartupTask(void*) {
   }
   LOG(INFO) << "Begin startup...";
 
-  StartRuntimeStatsReportingTask(TaskPriorities::kRuntimeStats);
-
   I2cController* i2c0_controller =
       I2cController::Init(TaskPriorities::kI2cController0, i2c0, Pins::I2C0_SCL,
                           Pins::I2C0_SDA, 100'000);
-
-  I2cTest::Start(i2c0_controller);
 
   SpiManager* spi1_manager = SpiManager::Init(
       TaskPriorities::kSpiManager1, spi1, HX8357::kNominalMaxSpiFrequency,
@@ -126,33 +122,41 @@ void StartupTask(void*) {
   display->Begin();
   if (!display->SelfTest()) {
     // TODO: flash out an error code on something? board LED?
-    LOG(ERROR) << "HX8357 self test failed! Continuing anyway...";
+    LOG(FATAL) << "HX8357 self test failed";
   }
   // Rotate to widescreen and so it's the right way around on my workbench.
   display->SetRotation(0, 1, 1);
   LOG(INFO) << "HX8357 setup OK";
-
-  InitLvgl(display);
-  LOG(INFO) << "InitLvgl() OK";
-
-  // Create GUI screens.
-  {
-    LvglMutex mutex;
-    ui_main();
-  }
 
   // Touchscreen reader.
   TSC2007* touchscreen = CHECK_NOTNULL(new TSC2007(
       I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kTSC2007)));
   status = touchscreen->Setup();
   LOG_IF(INFO, status.ok()) << "TSC2007 setup OK";
-  // TODO: with the GUI up, we can fail more gracefully by displaying a message
+  // TODO: if we bring the lvgl display up first, we can fail more gracefully by
+  //       displaying a message
   LOG_IF(FATAL, !status.ok()) << "TSC2007 setup failed: " << status;
   touchscreen->StartTask(Pins::TOUCHSCREEN_PENINT,
                          [](const TSC2007::TouchInfo& touch) {
                            LOG(INFO) << "Touch @ (" << touch.x << "," << touch.y
                                      << ") " << touch.z1 << ":" << touch.z2;
                          });
+
+  LvglInit lvgl;
+  lvgl.BaseInit();
+  lvgl.SetDisplay(display);
+  lvgl.SetTouchscreen(touchscreen);
+  lvgl.Start();
+
+  // Create GUI screens.
+  {
+    LvglMutex mutex;
+    ui_main();
+  }
+  LOG(INFO) << "User interface setup OK";
+
+  StartRuntimeStatsReportingTask(TaskPriorities::kRuntimeStats);
+  I2cTest::Start(i2c0_controller);
 
   LOG(INFO) << "Startup complete.";
   vTaskDelete(nullptr);
