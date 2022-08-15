@@ -23,11 +23,14 @@ class TplpInterfaceImpl : public ui::TplpInterface {
 
  private:
   static void TaskFn(void*);
+  void PushWork(const std::function<void()>&);
 
  private:
   TaskHandle_t task_;
   HX8357* const display_;
   I2cController* const i2c0_controller_;
+
+  QueueHandle_t work_queue_;
 };
 
 }  // namespace ui

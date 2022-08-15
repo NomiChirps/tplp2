@@ -67,11 +67,12 @@ void StartupTask(void*) {
   lvgl.Start();
 
   // Create GUI screens.
+  ui::TplpInterfaceImpl* ui_adapter =
+      CHECK_NOTNULL(new ui::TplpInterfaceImpl(display, i2c0_controller));
+  ui_adapter->StartTask(TaskPriorities::kUiWorker, TaskStacks::kUiWorker);
   {
-    ui::TplpInterface* tplp =
-        CHECK_NOTNULL(new ui::TplpInterfaceImpl(display, i2c0_controller));
     LvglMutex mutex;
-    ui::ui_main(tplp);
+    ui::ui_main(ui_adapter);
   }
   LOG(INFO) << "User interface setup OK";
 

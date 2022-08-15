@@ -122,6 +122,7 @@ cc_library(
         "//picolog",
         "//tplp:I2cController",
         "//tplp/HX8357",
+        "//tplp/graphics:lvgl_mutex",
         "//tplp/ui:TplpInterface",
         "@FreeRTOS",
     ],
