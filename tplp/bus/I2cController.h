@@ -1,5 +1,5 @@
-#ifndef TPLP_I2CCONTROLLER_H_
-#define TPLP_I2CCONTROLLER_H_
+#ifndef TPLP_BUS_I2CCONTROLLER_H_
+#define TPLP_BUS_I2CCONTROLLER_H_
 
 #include <vector>
 
@@ -9,7 +9,7 @@
 #include "hardware/dma.h"
 #include "hardware/i2c.h"
 #include "picolog/status.h"
-#include "tplp/types.h"
+#include "tplp/bus/types.h"
 
 namespace tplp {
 
@@ -154,4 +154,4 @@ class I2cDeviceHandle {
 
 }  // namespace tplp
 
-#endif  // TPLP_I2CCONTROLLER_H_
+#endif  // TPLP_BUS_I2CCONTROLLER_H_

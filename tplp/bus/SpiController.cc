@@ -1,4 +1,4 @@
-#include "tplp/SpiController.h"
+#include "tplp/bus/SpiController.h"
 
 #include <cstdio>
 #include <experimental/source_location>

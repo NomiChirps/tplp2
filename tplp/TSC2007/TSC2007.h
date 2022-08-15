@@ -3,7 +3,7 @@
 
 #include <functional>
 
-#include "tplp/I2cController.h"
+#include "tplp/bus/I2cController.h"
 
 namespace tplp {
 

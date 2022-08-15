@@ -2,7 +2,7 @@
 #define TPLP_CONFIG_PINS_H_
 
 #include "pico/config_autogen.h"  // for board identifier
-#include "tplp/types.h"
+#include "tplp/bus/types.h"
 
 namespace tplp {
 

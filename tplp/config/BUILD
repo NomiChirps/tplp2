@@ -4,7 +4,7 @@ cc_library(
     # For loose coupling reasons, only the startup task should have direct references to all the pin assignments.
     visibility = ["//tplp/main:__pkg__"],
     deps = [
-        "//tplp:types",
+        "//tplp/bus:types",
     ],
 )
 

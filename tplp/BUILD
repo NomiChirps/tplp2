@@ -36,40 +36,9 @@ cc_library(
 
 cc_library(
     name = "types",
-    srcs = ["types.cc"],
     hdrs = ["types.h"],
     deps = [
         "@NamedType",
-    ],
-)
-
-cc_library(
-    name = "SpiController",
-    srcs = ["SpiController.cc"],
-    hdrs = ["SpiController.h"],
-    deps = [
-        ":rtos_util",
-        ":types",
-        "//picolog",
-        "@FreeRTOS",
-        "@rules_pico//pico:hardware_dma",
-        "@rules_pico//pico:hardware_gpio",
-        "@rules_pico//pico:hardware_spi",
-    ],
-)
-
-cc_library(
-    name = "I2cController",
-    srcs = ["I2cController.cc"],
-    hdrs = ["I2cController.h"],
-    deps = [
-        ":rtos_util",
-        ":types",
-        "//picolog",
-        "//picolog:status_macros",
-        "@rules_pico//pico:hardware_dma",
-        "@rules_pico//pico:hardware_gpio",
-        "@rules_pico//pico:hardware_i2c",
     ],
 )
 
@@ -120,7 +89,7 @@ cc_library(
     hdrs = ["TplpInterfaceImpl.h"],
     deps = [
         "//picolog",
-        "//tplp:I2cController",
+        "//tplp/bus:I2cController",
         "//tplp/HX8357",
         "//tplp/graphics:lvgl_mutex",
         "//tplp/ui:TplpInterface",

@@ -1,5 +1,5 @@
-#ifndef TPLP_SPIMANAGER_H_
-#define TPLP_SPIMANAGER_H_
+#ifndef TPLP_BUS_SPICONTROLLER_H_
+#define TPLP_BUS_SPICONTROLLER_H_
 
 #include <memory>
 #include <optional>
@@ -9,7 +9,7 @@
 #include "FreeRTOS/task.h"
 #include "hardware/dma.h"
 #include "hardware/spi.h"
-#include "tplp/types.h"
+#include "tplp/bus/types.h"
 
 namespace tplp {
 
@@ -237,4 +237,4 @@ std::ostream& operator<<(std::ostream&, const SpiTransaction::Result&);
 
 }  // namespace tplp
 
-#endif  // TPLP_SPIMANAGER_H_
+#endif  // TPLP_BUS_SPICONTROLLER_H_

@@ -6,7 +6,7 @@ cc_library(
     deps = [
         "//picolog",
         "//picolog:status_macros",
-        "//tplp:I2cController",
+        "//tplp/bus:I2cController",
         "@FreeRTOS",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_irq",

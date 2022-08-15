@@ -1,4 +1,4 @@
-#include "tplp/I2cController.h"
+#include "tplp/bus/I2cController.h"
 
 #include "FreeRTOS/semphr.h"
 #include "hardware/gpio.h"

@@ -2,7 +2,7 @@
 #define TPLP_TPLPINTERFACEIMPL_H_
 
 #include "tplp/HX8357/HX8357.h"
-#include "tplp/I2cController.h"
+#include "tplp/bus/I2cController.h"
 #include "tplp/ui/TplpInterface.h"
 
 namespace tplp {
