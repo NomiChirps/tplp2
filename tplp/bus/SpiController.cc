@@ -151,11 +151,10 @@ SpiController* SpiController::Init(int priority, int stack_depth,
       spi, irq_index, irq_number, dma_tx, dma_rx, actual_freq_hz,
       transaction_mutex, event_queue, flush_sem, mosi, miso);
 
-  // task_name remains allocated forever
-  char* task_name = new char[16];
-  snprintf(task_name, 16, "SPI %d", spi_get_index(spi));
-  CHECK(xTaskCreate(&SpiController::TaskFn, task_name, stack_depth, that,
-                    priority, &that->task_));
+  std::ostringstream task_name;
+  task_name << "SPI" << spi_get_index(spi);
+  CHECK(xTaskCreate(&SpiController::TaskFn, task_name.str().c_str(),
+                    stack_depth, that, priority, &that->task_));
   LOG(INFO) << "SPI" << spi_get_index(spi) << " initialization complete.";
   return that;
 }

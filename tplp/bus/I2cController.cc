@@ -345,9 +345,9 @@ struct I2cController::Event {
   }
 };
 
-I2cController* I2cController::Init(int priority, int stack_depth, i2c_inst_t* i2c_instance,
-                                   gpio_pin_t scl, gpio_pin_t sda,
-                                   int baudrate) {
+I2cController* I2cController::Init(int priority, int stack_depth,
+                                   i2c_inst_t* i2c_instance, gpio_pin_t scl,
+                                   gpio_pin_t sda, int baudrate) {
   const int i2c_instance_index = i2c_hw_index(i2c_instance);
   CHECK_GT(baudrate, 0);
   // i2c_init configures it for fast mode, which the hardware considers
@@ -410,10 +410,10 @@ I2cController* I2cController::Init(int priority, int stack_depth, i2c_inst_t* i2
   hw_set_bits(&self->i2c_->hw->con, I2C_IC_CON_TX_EMPTY_CTRL_BITS);
   self->i2c_->hw->tx_tl = 0;
 
-  char* task_name = new char[8];
-  snprintf(task_name, 16, "I2C %d", i2c_instance_index);
-  xTaskCreate(&TaskFn, task_name, stack_depth, self,
-              priority, &self->task_);
+  std::ostringstream task_name;
+  task_name << "I2C" << i2c_instance_index;
+  xTaskCreate(&TaskFn, task_name.str().c_str(), stack_depth, self, priority,
+              &self->task_);
 
   return self;
 }
