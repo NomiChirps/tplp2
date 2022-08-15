@@ -1,4 +1,4 @@
-#include "tplp/rtos_utils.h"
+#include "tplp/rtos_util.h"
 
 #include "pico/time.h"
 

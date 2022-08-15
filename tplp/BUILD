@@ -12,7 +12,6 @@ pico_binary(
         ":SpiController",
         ":TplpInterfaceImpl",
         ":hook_impl",
-        ":time",
         ":types",
         "//tplp/HX8357",
         "//tplp/SharpLCD",
@@ -37,21 +36,11 @@ cc_library(
 )
 
 cc_library(
-    name = "time",
-    hdrs = [
-        "time.h",
-    ],
-    deps = [
-        "@FreeRTOS//config:FreeRTOSConfig",
-    ],
-)
-
-cc_library(
     name = "RuntimeStats",
     srcs = ["RuntimeStats.cc"],
     hdrs = ["RuntimeStats.h"],
     deps = [
-        ":time",
+        ":rtos_util",
         "//picolog",
         "//tplp/config:tplp_config",
         "@FreeRTOS",
@@ -75,7 +64,7 @@ cc_library(
     hdrs = ["SpiController.h"],
     visibility = [":__subpackages__"],
     deps = [
-        ":time",
+        ":rtos_util",
         ":types",
         "//picolog",
         "//tplp/config:tplp_config",
@@ -92,7 +81,7 @@ cc_library(
     hdrs = ["I2cController.h"],
     visibility = [":__subpackages__"],
     deps = [
-        ":rtos_utils",
+        ":rtos_util",
         ":types",
         "//picolog",
         "//picolog:status_macros",
@@ -136,9 +125,9 @@ cc_library(
 )
 
 cc_library(
-    name = "rtos_utils",
-    srcs = ["rtos_utils.cc"],
-    hdrs = ["rtos_utils.h"],
+    name = "rtos_util",
+    srcs = ["rtos_util.cc"],
+    hdrs = ["rtos_util.h"],
     visibility = ["//visibility:public"],
     deps = [
         "//picolog",

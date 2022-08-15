@@ -1,14 +1,12 @@
 #include "tplp/I2cController.h"
 
-#include <chrono>
-
 #include "FreeRTOS/semphr.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
 #include "picolog/picolog.h"
 #include "picolog/status_macros.h"
 #include "tplp/config/tplp_config.h"
-#include "tplp/rtos_utils.h"
+#include "tplp/rtos_util.h"
 
 namespace tplp {
 namespace {

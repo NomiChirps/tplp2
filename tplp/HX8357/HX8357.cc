@@ -1,16 +1,12 @@
 #include "tplp/HX8357/HX8357.h"
 
-#include <chrono>
 #include <iomanip>
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "hardware/gpio.h"
 #include "picolog/picolog.h"
-#include "tplp/time.h"
-#include "tplp/rtos_utils.h"
-
-using std::chrono_literals::operator""ms;
+#include "tplp/rtos_util.h"
 
 #define CHECK_TXN_OK(expr) CHECK_EQ((expr), SpiTransaction::Result::OK)
 
@@ -316,7 +312,7 @@ void HX8357::SendInitSequence() {
     }
     if (x & 0x80) {  // If high bit set...
       // numArgs is actually a delay time in milliseconds
-      int t = as_ticks_ceil(std::chrono::milliseconds(numArgs * 5));
+      int t = MillisToTicks(numArgs * 5);
       VLOG(1) << "Sleep at least " << (numArgs * 5)
               << "ms <= " << t * portTICK_PERIOD_MS << "ms as ticks";
       vTaskDelay(t);
@@ -370,7 +366,7 @@ uint8_t HX8357::RDDSDR() {
 bool HX8357::SelfTest() {
   uint8_t dsdr1 = RDDSDR();
   SendCommand(HX8357_SLPOUT);
-  vTaskDelay(as_ticks_ceil(140ms));
+  vTaskDelay(MillisToTicks(140));
   uint8_t dsdr2 = RDDSDR();
 
   // DSDR register protocol is that a successful self-test of a module inverts

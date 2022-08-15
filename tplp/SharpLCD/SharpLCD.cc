@@ -1,15 +1,12 @@
 #include "tplp/SharpLCD/SharpLCD.h"
 
-#include <chrono>
 #include <cstdio>
 #include <utility>
 #include <vector>
 
 #include "picolog/picolog.h"
 #include "tplp/config/tplp_config.h"
-#include "tplp/time.h"
-
-using std::chrono_literals::operator""ms;
+#include "tplp/rtos_util.h"
 
 namespace tplp {
 namespace {
@@ -216,7 +213,7 @@ void SharpLCD::WriteBufferBlocking(const uint8_t* buffer, unsigned len) {
           .tx_buf = buffer,
           .len = len,
       },
-      as_ticks(1000ms), as_ticks(1000ms));
+      MillisToTicks(1000), MillisToTicks(1000));
   if (ret != SpiTransaction::Result::OK) {
     LOG(ERROR) << "WriteBufferBlocking() timed out. ret="
                << static_cast<int>(ret);
@@ -262,7 +259,7 @@ void SharpLCD::ToggleVcomTask(void* param) {
   LOG(INFO) << "SharpLCD::ToggleVcomTask started.";
   for (;;) {
     static_cast<SharpLCD*>(param)->ToggleVCOM();
-    vTaskDelay(as_ticks(std::chrono::minutes(60)));
+    vTaskDelay(MillisToTicks(3.6e6));
   }
 }
 

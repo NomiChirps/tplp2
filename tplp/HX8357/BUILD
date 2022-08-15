@@ -5,7 +5,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//tplp:SpiController",
-        "//tplp:rtos_utils",
+        "//tplp:rtos_util",
         "//tplp:types",
         "@FreeRTOS",
         "@rules_pico//pico:hardware_gpio",

@@ -16,10 +16,10 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
-- [ ] forget the std::duration stuff.. really not worth the hassle.
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
 - [ ] Create a front panel UI (assignee: wembly :)
+  - [ ] fatal error handler to display the stack trace before crashing
+    - will require support from picolog. make sure picolog prevents the crashed task from proceeding, and has a watchdog or something to finish crashing the device if the fatal error handler doesn't finish in time.
   - [ ] runtime stats / logging screen
   - [ ] manual peripheral control screen
   - [ ] parameters screen
@@ -45,6 +45,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Transfer from breadboard to permaproto
   - [x] Add bus capacitors
 - Nice-to-haves
+  - [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
   - [ ] StatusOr
   - [ ] SpiController could use improvement - we're not getting full utilization of the bus
     - use 2 dma channels in each direction and chain them so there's no stall when swapping buffers
@@ -149,6 +150,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] forget the std::duration stuff.. really not worth the hassle.
 - [x] rename SpiManager -> SpiController
 - [x] insert appropriate delays in TSC2007 read cycle; we have noise problems
 - [x] consider removing all deletions of FreeRTOS objects and switching to heap_1

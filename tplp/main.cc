@@ -1,6 +1,5 @@
 #include "tplp/ui/main.h"
 
-#include <chrono>
 #include <cstdarg>
 #include <cstdio>
 #include <memory>
@@ -20,10 +19,8 @@
 #include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_init.h"
 #include "tplp/graphics/lvgl_mutex.h"
-#include "tplp/time.h"
+#include "tplp/rtos_util.h"
 #include "tplp/types.h"
-
-using std::chrono_literals::operator""ms;
 
 namespace tplp {
 

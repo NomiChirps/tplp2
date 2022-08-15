@@ -1,6 +1,5 @@
 #include "tplp/graphics/lvgl_init.h"
 
-#include <chrono>
 #include <functional>
 
 #include "FreeRTOS/FreeRTOS.h"
@@ -13,9 +12,7 @@
 #include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/graphics/mouse_cursor_icon.h"
-#include "tplp/time.h"
-
-using std::chrono_literals::operator""ms;
+#include "tplp/rtos_util.h"
 
 namespace tplp {
 namespace {
@@ -135,12 +132,12 @@ void RunLvglDemo(void*) {
   }
   for (;;) {
     VLOG(1) << "RunLvglDemo loop";
-    vTaskDelay(as_ticks(400ms));
+    vTaskDelay(MillisToTicks(400));
     {
       LvglMutex lock;
       lv_obj_align(label1, LV_ALIGN_CENTER, -10, 0);
     }
-    vTaskDelay(as_ticks(400ms));
+    vTaskDelay(MillisToTicks(400));
     {
       LvglMutex lock;
       lv_obj_align(label1, LV_ALIGN_CENTER, 10, 0);

@@ -1,6 +1,5 @@
 #include "tplp/SpiController.h"
 
-#include <chrono>
 #include <cstdio>
 #include <experimental/source_location>
 #include <iomanip>
@@ -14,9 +13,7 @@
 #include "hardware/irq.h"
 #include "picolog/picolog.h"
 #include "tplp/config/tplp_config.h"
-#include "tplp/time.h"
-
-using std::chrono_literals::operator""ms;
+#include "tplp/rtos_util.h"
 
 namespace tplp {
 struct SpiController::Event {
@@ -337,7 +334,7 @@ void SpiController::DoTransfer(const Event& event) {
   // Wait for the DMA to complete before processing any more events. Set a
   // generous timeout- no reasonable DMA or SPI transfer should take longer.
   CHECK_EQ(1u, ulTaskNotifyTakeIndexed(kDmaFinishedNotificationIndex, true,
-                                       as_ticks(1'000ms)))
+                                       MillisToTicks(1'000)))
       << "missed a DMA notification, or timed out waiting. tx_busy="
       << dma_channel_is_busy(dma_tx_)
       << " rx_busy=" << dma_channel_is_busy(dma_rx_);

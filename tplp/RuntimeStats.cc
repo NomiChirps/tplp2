@@ -11,9 +11,7 @@
 #include "lvgl/lvgl.h"  // for heap monitoring
 #include "picolog/picolog.h"
 #include "tplp/config/tplp_config.h"
-#include "tplp/time.h"
-
-using std::chrono_literals::operator""ms;
+#include "tplp/rtos_util.h"
 
 namespace tplp {
 
@@ -85,7 +83,7 @@ class StatsTask {
                     << std::setw(0) << " bytes";
         }
       }
-      vTaskDelay(as_ticks(30'000ms));
+      vTaskDelay(MillisToTicks(30'000));
     }
   }
 

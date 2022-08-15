@@ -1,5 +1,5 @@
-#ifndef TPLP_RTOS_UTILS_H_
-#define TPLP_RTOS_UTILS_H_
+#ifndef TPLP_RTOS_UTIL_H_
+#define TPLP_RTOS_UTIL_H_
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/semphr.h"
@@ -49,6 +49,18 @@ class ScopedSemaphoreReleaser {
 // Scheduler must be running.
 void EnsureTimeSinceBootMillis(int wait_until);
 
+// Integer division, rounding up.
+template <typename Int>
+inline Int intdiv_ceil(Int x, Int y) {
+  return (x / y) + (x % y != 0);
+}
+
+// Always rounds up, under the assumption that this is being used to calculate a
+// delay time.
+inline TickType_t MillisToTicks(TickType_t ms) {
+  return intdiv_ceil<TickType_t>(ms * configTICK_RATE_HZ, 1000);
+}
+
 }  // namespace tplp
 
-#endif  // TPLP_RTOS_UTILS_H_
+#endif  // TPLP_RTOS_UTIL_H_
