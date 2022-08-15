@@ -70,10 +70,7 @@ void DisplayRefreshTask(void* param) {
     // Wait for a frame to be ready.
     auto* fb = reinterpret_cast<SharpLCD::FrameBuffer*>(
         ulTaskNotifyTake(true, portMAX_DELAY));
-    data->display->DrawFrameBuffer(*fb, [data]() {
-      // Indicate that we're ready for the next frame.
-      xSemaphoreGive(data->display_ready);
-    });
+    data->display->DrawFrameBufferBlocking(*fb);
   }
 }
 

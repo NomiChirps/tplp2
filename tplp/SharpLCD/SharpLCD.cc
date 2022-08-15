@@ -226,15 +226,6 @@ void SharpLCD::Clear() {
   WriteBufferBlocking(buf, sizeof(buf));
 }
 
-bool SharpLCD::DrawFrameBuffer(const FrameBuffer& fb,
-                               const std::function<void()>& callback) {
-  SpiTransaction txn = spi_device_->StartTransaction();
-  return txn.Transfer({.tx_buf = fb.buffer_,
-                       .len = FrameBuffer::kSizeofFramebufferForAlloc,
-                       .run_after = callback},
-                      /*ticks_to_wait=*/0) == SpiTransaction::Result::OK;
-}
-
 void SharpLCD::DrawFrameBufferBlocking(const FrameBuffer& fb) {
   WriteBufferBlocking(fb.buffer_, FrameBuffer::kSizeofFramebufferForAlloc);
 }

@@ -89,14 +89,8 @@ class SharpLCD {
   // framebuffer.
   void Clear();
 
-  // Pushes the given framebuffer out to the display over SPI, returning
-  // immediately. Returns true if successful. Returns false if the frame was
-  // dropped due to the transmit queue being full.
-  bool DrawFrameBuffer(const FrameBuffer& fb,
-                       const std::function<void()>& callback = nullptr);
-
   // Pushes the given framebuffer out to the display over SPI,
-  // waiting until finished.
+  // blocking until finished.
   void DrawFrameBufferBlocking(const FrameBuffer& fb);
 
   // Toggle the VCOM mode of the LCD; it is recommended to trigger this

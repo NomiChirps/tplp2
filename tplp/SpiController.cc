@@ -23,8 +23,6 @@ struct SpiController::Event {
   const uint8_t* tx_buf = nullptr;
   uint8_t* rx_buf = nullptr;
   size_t len = 0;
-  std::function<void()> run_before;
-  std::function<void()> run_after;
   // Waited on by SpiTransaction::TransferBlocking
   SemaphoreHandle_t txn_unblock_sem = nullptr;
 
@@ -292,11 +290,8 @@ void SpiController::DoTransfer(const Event& event) {
   CHECK(!dma_channel_is_busy(dma_rx_));
   CHECK(!spi_is_busy(spi_));
 
-  if (event.run_before) event.run_before();
-
   if (event.len == 0) {
     VLOG(1) << "Skipping zero-length transfer";
-    if (event.run_after) event.run_after();
     return;
   }
 
@@ -353,7 +348,6 @@ void SpiController::DoTransfer(const Event& event) {
   }
   VLOG(1) << "DMA transfer finished";
 
-  if (event.run_after) event.run_after();
   if (event.txn_unblock_sem) xSemaphoreGive(event.txn_unblock_sem);
 }
 
@@ -429,8 +423,6 @@ SpiTransaction::Result SpiTransaction::Transfer(const TransferConfig& req,
       .tx_buf = req.tx_buf,
       .rx_buf = req.rx_buf,
       .len = req.len,
-      .run_before = req.run_before,
-      .run_after = req.run_after,
   });
   if (xQueueSendToBack(device_->spi_->event_queue_, &event, ticks_to_wait)) {
     return Result::OK;
@@ -451,8 +443,6 @@ SpiTransaction::Result SpiTransaction::TransferBlocking(
       .tx_buf = req.tx_buf,
       .rx_buf = req.rx_buf,
       .len = req.len,
-      .run_before = req.run_before,
-      .run_after = req.run_after,
       .txn_unblock_sem = device_->blocking_sem_,
   });
   if (!xQueueSendToBack(device_->spi_->event_queue_, &event,

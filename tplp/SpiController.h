@@ -118,10 +118,6 @@ class SpiTransaction {
     uint8_t* rx_buf;
     // Number of bytes to transfer.
     uint32_t len;
-    // Optional callback to be run just before setting CS active.
-    std::function<void()> run_before;
-    // Optional callback to be run just after setting CS inactive.
-    std::function<void()> run_after;
   };
 
   enum class Result {
