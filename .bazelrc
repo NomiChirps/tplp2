@@ -59,7 +59,7 @@ build:picodebug --@rules_pico//pico/config:stdio_usb=False
 # Disable CR/LF conversion on stdout. This is useless overhead.
 build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
 # Wait for someone to monitor serial output
-#build:iterate --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=0"
+build:iterate --copt="-DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=1000"
 # Wait a moment after usb-serial connection before sending data
 build:iterate --copt="-DPICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=50"
 #build --copt="-DPICO_DEBUG_MALLOC=1"

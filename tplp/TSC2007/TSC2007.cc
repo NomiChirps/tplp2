@@ -54,7 +54,7 @@ static gpio_pin_t global_penirq;
 void PenIrqHandlerISR() {
   if (gpio_get_irq_event_mask(global_penirq) & GPIO_IRQ_EDGE_FALL) {
     gpio_acknowledge_irq(global_penirq, GPIO_IRQ_EDGE_FALL);
-    BaseType_t higher_priority_task_woken;
+    BaseType_t higher_priority_task_woken = 0;
     vTaskNotifyGiveFromISR(global_task, &higher_priority_task_woken);
     portYIELD_FROM_ISR(higher_priority_task_woken);
   }
