@@ -294,8 +294,8 @@ class [[nodiscard]] Status final {
   // by printing a warning) if it is not.
   Status(util::StatusCode code, std::string_view msg);
 
-  // XXX: Copy not supported because ARMv6-M lacks synchronization primitives
-  //      for the reference-counting implementation.
+  // NB: Copy not supported because ARMv6-M lacks synchronization primitives
+  //     for the reference-counting implementation.
   Status(const Status&) = delete;
   Status& operator=(const Status& x) = delete;
 
