@@ -14,6 +14,10 @@ bazel build //tplp:firmware.uf2 -c opt
 ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
+## Shopping list
+
+- 2 more TB6612 drivers (1 for the other steppie, 1 for DC motors)
+
 ## TODO / Notes
 
 - [ ] figure out who's allowed to call xTaskCreate. centralize it.
