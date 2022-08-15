@@ -36,6 +36,8 @@ struct Pins {
 struct I2cPeripheralAddress {
   // TSC2007 touchscreen reader.
   static constexpr i2c_address_t kTSC2007 = i2c_address_t(0x48);
+  // AW9523 GPIO expander.
+  static constexpr i2c_address_t kAW9523 = i2c_address_t(0x58);
 };
 
 }  // namespace tplp
