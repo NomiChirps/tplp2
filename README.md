@@ -46,7 +46,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [x] Sharp LCD display + LVGL driver
 - [ ] Finish the electronics hardware
   - [ ] Power everything from the 12v bus
-  - [ ] Install jumpers on the stepper drivers (to configure internal 5v power supply)
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto, or ask wembly to whip up a pcb
@@ -157,6 +156,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] Install jumpers on the stepper drivers (to configure internal 5v power supply)
 - [x] figure out who's allowed to call xTaskCreate. centralize it.
 - [x] forget the std::duration stuff.. really not worth the hassle.
 - [x] rename SpiManager -> SpiController
