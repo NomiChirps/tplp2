@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "picolog/picolog.h"
-#include "tplp/config/tplp_config.h"
 #include "tplp/rtos_util.h"
 
 namespace tplp {
@@ -194,11 +193,12 @@ SharpLCD::SharpLCD(SpiController* spi) : spi_(spi) {
   CHECK_LE(spi_->GetActualFrequency(), 2'000'000);
 }
 
-void SharpLCD::Begin(gpio_pin_t cs, int toggle_vcom_task_priority) {
+void SharpLCD::Begin(gpio_pin_t cs, int toggle_vcom_task_priority,
+                     int toggle_vcom_task_stack_depth) {
   spi_device_ = spi_->AddDevice(cs, "SharpLCD");
   CHECK(xTaskCreate(&SharpLCD::ToggleVcomTask, "SharpLCD::ToggleVCOM",
-                    TaskStacks::kSharpLCD, this, toggle_vcom_task_priority,
-                    nullptr));
+                    toggle_vcom_task_stack_depth, this,
+                    toggle_vcom_task_priority, nullptr));
 }
 
 SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {

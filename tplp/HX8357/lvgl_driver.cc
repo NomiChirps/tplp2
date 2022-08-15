@@ -2,7 +2,6 @@
 
 #include "hardware/sync.h"
 #include "picolog/picolog.h"
-#include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_mutex.h"
 
 namespace tplp {
@@ -41,11 +40,11 @@ static void wait_cb_impl(lv_disp_drv_t* driver) {
   xTaskNotifyWait(0, 0, nullptr, portMAX_DELAY);
 }
 
-// Blitting is split off into a different task because SpiController's transaction
-// interface requires the calling task to wait for the transaction to complete,
-// and we don't want to block flush_cb_impl. I mean, we *could* block it, but
-// because it's run from the main LVGL timer task, LVGL wouldn't be able to do
-// any more work until the blit finished, defeating the purpose of
+// Blitting is split off into a different task because SpiController's
+// transaction interface requires the calling task to wait for the transaction
+// to complete, and we don't want to block flush_cb_impl. I mean, we *could*
+// block it, but because it's run from the main LVGL timer task, LVGL wouldn't
+// be able to do any more work until the blit finished, defeating the purpose of
 // double-buffering.
 static void BlitTask(void* param) {
   LOG(INFO) << "BlitTask started";
@@ -73,7 +72,8 @@ static void BlitTask(void* param) {
 
 }  // namespace
 
-lv_disp_t* RegisterDisplayDriver_HX8357(HX8357* display,
+lv_disp_t* RegisterDisplayDriver_HX8357(int priority, int stack_depth,
+                                        HX8357* display,
                                         TaskHandle_t lv_timer_task) {
   LvglMutex mutex;
   // LVGL docs recommend 1/10 screen size as the maximum useful drawbuf size.
@@ -89,8 +89,8 @@ lv_disp_t* RegisterDisplayDriver_HX8357(HX8357* display,
 
   BlitInfo* blit_info = CHECK_NOTNULL(new BlitInfo);
   blit_info->lv_timer_task = lv_timer_task;
-  CHECK(xTaskCreate(&BlitTask, "HX8357", TaskStacks::kHX8357, blit_info,
-                    TaskPriorities::kHX8357, &blit_info->blit_task));
+  CHECK(xTaskCreate(&BlitTask, "HX8357", stack_depth, blit_info, priority,
+                    &blit_info->blit_task));
 
   lv_disp_drv_t* driver = CHECK_NOTNULL(new lv_disp_drv_t);
   lv_disp_drv_init(driver);

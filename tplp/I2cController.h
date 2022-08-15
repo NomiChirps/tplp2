@@ -54,7 +54,9 @@ class I2cTransaction {
   util::Status Write(const uint8_t* buf, size_t len, bool stop = false);
   util::Status Read(uint8_t* buf, size_t len, bool stop = false);
 
-  // Flags that the next Read or Write of this transaction should be preceded by a RESTART condition on the I2C bus. This flag is cleared after any call to Read or Write.
+  // Flags that the next Read or Write of this transaction should be preceded by
+  // a RESTART condition on the I2C bus. This flag is cleared after any call to
+  // Read or Write.
   void Restart();
 
   // TODO: document nicely.
@@ -85,9 +87,10 @@ class I2cTransaction {
 // Only supports 7-bit addressing (for now?)
 class I2cController {
  public:
-  // Initializes the I2C and DMA hardware.
-  static I2cController* Init(int task_priority, i2c_inst_t* i2c_instance,
-                             gpio_pin_t scl, gpio_pin_t sda, int baudrate);
+  // Initializes the I2C and DMA hardware and starts a task to service it.
+  static I2cController* Init(int priority, int stack_depth,
+                             i2c_inst_t* i2c_instance, gpio_pin_t scl,
+                             gpio_pin_t sda, int baudrate);
 
   util::Status ScanBus(std::vector<i2c_address_t>* detected_addresses);
 

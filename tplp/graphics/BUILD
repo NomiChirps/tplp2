@@ -13,7 +13,6 @@ cc_library(
         "//tplp/SharpLCD:lvgl_driver",
         "//tplp/TSC2007",
         "//tplp/TSC2007:lvgl_driver",
-        "//tplp/config:tplp_config",
         "@FreeRTOS",
         "@lvgl",
     ],

@@ -8,7 +8,7 @@
 
 namespace tplp {
 
-lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display);
+lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display, int priority, int stack_depth);
 
 }  // namespace tplp
 

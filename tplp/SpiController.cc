@@ -12,7 +12,6 @@
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
 #include "picolog/picolog.h"
-#include "tplp/config/tplp_config.h"
 #include "tplp/rtos_util.h"
 
 namespace tplp {
@@ -40,8 +39,8 @@ struct SpiController::Event {
 
 namespace {
 // Notification index 0 is reserved by the FreeRTOS message buffer
-// implementation, so we use the next one. This index of the SpiController task is
-// notified from `TransferDone::ISR` whenever a send or receive DMA finishes.
+// implementation, so we use the next one. This index of the SpiController task
+// is notified from `TransferDone::ISR` whenever a send or receive DMA finishes.
 static constexpr int kDmaFinishedNotificationIndex = 1;
 
 // The RP2040 DMA unit provides 2 IRQs to which each of the 12 DMA channels can
@@ -102,9 +101,11 @@ static uint32_t GetDmaTransferCount(dma_channel_t channel) {
 
 }  // namespace
 
-SpiController* SpiController::Init(int task_priority, spi_inst_t* spi, int freq_hz,
-                             gpio_pin_t sclk, std::optional<gpio_pin_t> mosi,
-                             std::optional<gpio_pin_t> miso) {
+SpiController* SpiController::Init(int priority, int stack_depth,
+                                   spi_inst_t* spi, int freq_hz,
+                                   gpio_pin_t sclk,
+                                   std::optional<gpio_pin_t> mosi,
+                                   std::optional<gpio_pin_t> miso) {
   const int spi_index = spi_get_index(spi);
   const int actual_freq_hz = spi_init(spi, freq_hz);
   LOG(INFO) << "SPI" << spi_index << " clock set to " << actual_freq_hz << "Hz";
@@ -148,15 +149,15 @@ SpiController* SpiController::Init(int task_priority, spi_inst_t* spi, int freq_
 
   SemaphoreHandle_t transaction_mutex = CHECK_NOTNULL(xSemaphoreCreateMutex());
   SemaphoreHandle_t flush_sem = CHECK_NOTNULL(xSemaphoreCreateBinary());
-  SpiController* that =
-      new SpiController(spi, irq_index, irq_number, dma_tx, dma_rx, actual_freq_hz,
-                     transaction_mutex, event_queue, flush_sem, mosi, miso);
+  SpiController* that = new SpiController(
+      spi, irq_index, irq_number, dma_tx, dma_rx, actual_freq_hz,
+      transaction_mutex, event_queue, flush_sem, mosi, miso);
 
   // task_name remains allocated forever
   char* task_name = new char[16];
   snprintf(task_name, 16, "SPI %d", spi_get_index(spi));
-  CHECK(xTaskCreate(&SpiController::TaskFn, task_name, TaskStacks::kSpiController,
-                    that, task_priority, &that->task_));
+  CHECK(xTaskCreate(&SpiController::TaskFn, task_name, stack_depth, that,
+                    priority, &that->task_));
   LOG(INFO) << "SPI" << spi_get_index(spi) << " initialization complete.";
   return that;
 }
@@ -176,13 +177,12 @@ static dma_channel_config MakeChannelConfig(spi_inst_t* spi, dma_channel_t dma,
   return c;
 }
 
-SpiController::SpiController(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
-                       dma_irq_number_t dma_irq_number, dma_channel_t dma_tx,
-                       dma_channel_t dma_rx, int actual_frequency,
-                       SemaphoreHandle_t transaction_mutex,
-                       QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
-                       std::optional<gpio_pin_t> mosi,
-                       std::optional<gpio_pin_t> miso)
+SpiController::SpiController(
+    spi_inst_t* spi, dma_irq_index_t dma_irq_index,
+    dma_irq_number_t dma_irq_number, dma_channel_t dma_tx, dma_channel_t dma_rx,
+    int actual_frequency, SemaphoreHandle_t transaction_mutex,
+    QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
+    std::optional<gpio_pin_t> mosi, std::optional<gpio_pin_t> miso)
     : spi_(spi),
       dma_irq_index_(dma_irq_index),
       dma_irq_number_(dma_irq_number),

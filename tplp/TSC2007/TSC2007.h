@@ -36,7 +36,7 @@ class TSC2007 {
   // before the "real" touch event. They usually seem to have garbage x,y data.
   //
   // This will CHECK-fail if called more than once.
-  void ReceiveTouchEvents(const TouchCallback& callback);
+  void ReceiveTouchEvents(int priority, int stack_depth, const TouchCallback& callback);
 
   util::Status ReadPosition(int16_t* x, int16_t* y, int16_t* z1 = nullptr,
                             int16_t* z2 = nullptr);

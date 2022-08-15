@@ -1,10 +1,20 @@
 cc_library(
-    name = "tplp_config",
-    hdrs = ["tplp_config.h"],
-    visibility = ["//tplp:__subpackages__"],
+    name = "pins",
+    hdrs = ["pins.h"],
+    # For loose coupling reasons, only the startup task should have direct references to all the pin assignments.
+    visibility = ["//tplp/main:__pkg__"],
+    deps = [
+        "//tplp:types",
+    ],
+)
+
+cc_library(
+    name = "tasks",
+    hdrs = ["tasks.h"],
+    # For loose coupling reasons, only the startup task should have direct references to all the tasks' config info.
+    visibility = ["//tplp/main:__pkg__"],
     deps = [
         ":FreeRTOSConfig",
-        "//tplp:types",
     ],
 )
 

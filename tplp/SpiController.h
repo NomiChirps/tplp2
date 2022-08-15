@@ -24,10 +24,10 @@ class SpiController {
 
  public:
   // Initializes the SPI hardware and any necessary FreeRTOS structures.
-  // `task_priority` is a FreeRTOS priority value.
-  static SpiController* Init(int task_priority, spi_inst_t* spi, int freq_hz,
-                          gpio_pin_t sclk, std::optional<gpio_pin_t> mosi,
-                          std::optional<gpio_pin_t> miso);
+  static SpiController* Init(int priority, int stack_depth, spi_inst_t* spi,
+                             int freq_hz, gpio_pin_t sclk,
+                             std::optional<gpio_pin_t> mosi,
+                             std::optional<gpio_pin_t> miso);
 
   // We use software chip-select (GPIO), so cs can be any pin.
   SpiDevice* AddDevice(gpio_pin_t cs, std::string_view name);
@@ -37,12 +37,12 @@ class SpiController {
 
  private:
   explicit SpiController(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
-                      dma_irq_number_t dma_irq_number, dma_channel_t dma_tx,
-                      dma_channel_t dma_rx, int actual_frequency,
-                      SemaphoreHandle_t transaction_mutex,
-                      QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
-                      std::optional<gpio_pin_t> mosi,
-                      std::optional<gpio_pin_t> miso);
+                         dma_irq_number_t dma_irq_number, dma_channel_t dma_tx,
+                         dma_channel_t dma_rx, int actual_frequency,
+                         SemaphoreHandle_t transaction_mutex,
+                         QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
+                         std::optional<gpio_pin_t> mosi,
+                         std::optional<gpio_pin_t> miso);
   SpiController(const SpiController&) = delete;
   SpiController& operator=(const SpiController&) = delete;
   ~SpiController() = delete;

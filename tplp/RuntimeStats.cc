@@ -10,7 +10,6 @@
 #include "FreeRTOS/task.h"
 #include "lvgl/lvgl.h"  // for heap monitoring
 #include "picolog/picolog.h"
-#include "tplp/config/tplp_config.h"
 #include "tplp/rtos_util.h"
 
 namespace tplp {
@@ -93,8 +92,8 @@ class StatsTask {
 TaskStatus_t StatsTask::task_status[];
 uint32_t StatsTask::total_run_time;
 
-void StartRuntimeStatsReportingTask(int priority) {
-  CHECK(xTaskCreate(&StatsTask::stats_task, "RuntimeStats", TaskStacks::kRuntimeStats,
+void StartRuntimeStatsReportingTask(int priority, int stack_depth) {
+  CHECK(xTaskCreate(&StatsTask::stats_task, "RuntimeStats", stack_depth,
                     nullptr, priority, nullptr));
 }
 }  // namespace tplp

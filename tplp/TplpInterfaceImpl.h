@@ -13,12 +13,19 @@ class TplpInterfaceImpl : public ui::TplpInterface {
   explicit TplpInterfaceImpl(HX8357* display, I2cController* i2c0_controller);
   virtual ~TplpInterfaceImpl();
 
+  // Starts the UI background work task.
+  void StartTask(int priority, int stack_depth);
+
   virtual void FlashScreen();
 
   virtual void ScanI2cBus(
       const std::function<void(const I2cScanResult&)>& callback);
 
  private:
+  static void TaskFn(void*);
+
+ private:
+  TaskHandle_t task_;
   HX8357* const display_;
   I2cController* const i2c0_controller_;
 };

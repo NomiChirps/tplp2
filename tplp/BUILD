@@ -1,26 +1,13 @@
 load("@rules_pico//pico:defs.bzl", "pico_add_map_output", "pico_add_uf2_output", "pico_binary", "pico_pio_header")
 
+package(default_visibility = ["//tplp:__subpackages__"])
+
 pico_binary(
     name = "firmware.elf",
-    srcs = [
-        "main.cc",
-    ],
-    visibility = ["//visibility:private"],
+    srcs = [],
     deps = [
-        ":I2cController",
-        ":RuntimeStats",
-        ":SpiController",
-        ":TplpInterfaceImpl",
         ":hook_impl",
-        ":types",
-        "//tplp/HX8357",
-        "//tplp/SharpLCD",
-        "//tplp/TSC2007",
-        "//tplp/config:tplp_config",
-        "//tplp/graphics:lvgl_init",
-        "//tplp/ui:main",
-        "@FreeRTOS",
-        "@rules_pico//pico:pico_stdlib",
+        "//tplp/main",
     ],
 )
 
@@ -42,7 +29,6 @@ cc_library(
     deps = [
         ":rtos_util",
         "//picolog",
-        "//tplp/config:tplp_config",
         "@FreeRTOS",
         "@lvgl",
     ],
@@ -52,7 +38,6 @@ cc_library(
     name = "types",
     srcs = ["types.cc"],
     hdrs = ["types.h"],
-    visibility = [":__subpackages__"],
     deps = [
         "@NamedType",
     ],
@@ -62,12 +47,10 @@ cc_library(
     name = "SpiController",
     srcs = ["SpiController.cc"],
     hdrs = ["SpiController.h"],
-    visibility = [":__subpackages__"],
     deps = [
         ":rtos_util",
         ":types",
         "//picolog",
-        "//tplp/config:tplp_config",
         "@FreeRTOS",
         "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",
@@ -79,13 +62,11 @@ cc_library(
     name = "I2cController",
     srcs = ["I2cController.cc"],
     hdrs = ["I2cController.h"],
-    visibility = [":__subpackages__"],
     deps = [
         ":rtos_util",
         ":types",
         "//picolog",
         "//picolog:status_macros",
-        "//tplp/config:tplp_config",
         "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_i2c",
@@ -95,7 +76,6 @@ cc_library(
 pico_add_uf2_output(
     name = "firmware.uf2",
     input = "firmware.elf",
-    visibility = ["//visibility:public"],
 )
 
 # TODO: check this out
@@ -128,7 +108,6 @@ cc_library(
     name = "rtos_util",
     srcs = ["rtos_util.cc"],
     hdrs = ["rtos_util.h"],
-    visibility = ["//visibility:public"],
     deps = [
         "//picolog",
         "@FreeRTOS",
@@ -140,8 +119,10 @@ cc_library(
     srcs = ["TplpInterfaceImpl.cc"],
     hdrs = ["TplpInterfaceImpl.h"],
     deps = [
-        "//tplp/HX8357",
+        "//picolog",
         "//tplp:I2cController",
+        "//tplp/HX8357",
         "//tplp/ui:TplpInterface",
+        "@FreeRTOS",
     ],
 )

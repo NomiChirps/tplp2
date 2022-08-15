@@ -9,7 +9,6 @@
 #include "tplp/HX8357/lvgl_driver.h"
 #include "tplp/SharpLCD/lvgl_driver.h"
 #include "tplp/TSC2007/lvgl_driver.h"
-#include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/graphics/mouse_cursor_icon.h"
 #include "tplp/rtos_util.h"
@@ -46,11 +45,10 @@ void lvgl_print_cb_impl(const char* msg) {
   LOG(INFO) << msg;
 }
 
-TaskHandle_t CreateTimerHandlerTask() {
+TaskHandle_t CreateTimerHandlerTask(int priority, int stack_depth) {
   TaskHandle_t result;
-  CHECK(xTaskCreate(&LvglTimerHandlerTask, "LVGL",
-                    TaskStacks::kLvglTimerHandler, nullptr,
-                    TaskPriorities::kLvglTimerHandler, &result));
+  CHECK(xTaskCreate(&LvglTimerHandlerTask, "LVGL", stack_depth, nullptr,
+                    priority, &result));
   return result;
 }
 
@@ -71,7 +69,7 @@ struct LvglInit::Objects {
 
 LvglInit::LvglInit() : stuff_(CHECK_NOTNULL(new Objects)) {}
 
-void LvglInit::BaseInit() {
+void LvglInit::BaseInit(int priority, int stack_depth) {
   LvglMutex::InitOnce();
   LvglMutex lock;
   // LVGL documentation says:
@@ -86,20 +84,22 @@ void LvglInit::BaseInit() {
   lv_init();
 
   // Task will wait until we xTaskNotifyGive() it.
-  stuff_->timer_task = CreateTimerHandlerTask();
+  stuff_->timer_task = CreateTimerHandlerTask(priority, stack_depth);
   // No need for a lv_tick_inc() interrupt because we're using LV_TICK_CUSTOM.
   static_assert(LV_TICK_CUSTOM);
 }
 
-void LvglInit::SetDisplay(SharpLCD* raw_display) {
-  lv_disp_t* display = RegisterDisplayDriver_SharpLCD(raw_display);
+void LvglInit::SetDisplay(SharpLCD* raw_display, int priority,
+                          int stack_depth) {
+  lv_disp_t* display =
+      RegisterDisplayDriver_SharpLCD(raw_display, priority, stack_depth);
   FinishDisplaySetup(display);
 }
 
-void LvglInit::SetDisplay(HX8357* raw_display) {
+void LvglInit::SetDisplay(HX8357* raw_display, int priority, int stack_depth) {
   CHECK(stuff_->timer_task) << "call BaseInit() first";
-  lv_disp_t* display =
-      RegisterDisplayDriver_HX8357(raw_display, stuff_->timer_task);
+  lv_disp_t* display = RegisterDisplayDriver_HX8357(
+      priority, stack_depth, raw_display, stuff_->timer_task);
   FinishDisplaySetup(display);
 }
 

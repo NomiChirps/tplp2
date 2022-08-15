@@ -10,7 +10,6 @@ cc_library(
     deps = [
         "//picolog",
         "//tplp:SpiController",
-        "//tplp/config:tplp_config",
     ],
 )
 
@@ -22,7 +21,6 @@ cc_library(
     deps = [
         ":SharpLCD",
         "//picolog",
-        "//tplp/config:tplp_config",
         "//tplp/graphics:lvgl_mutex",
         "@lvgl",
     ],

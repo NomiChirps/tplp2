@@ -3,7 +3,7 @@
 
 namespace tplp {
 
-void StartRuntimeStatsReportingTask(int priority);
+void StartRuntimeStatsReportingTask(int priority, int stack_depth);
 
 }  // namespace tplp
 

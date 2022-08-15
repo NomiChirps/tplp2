@@ -1,13 +1,24 @@
 #include "tplp/TplpInterfaceImpl.h"
 
+#include "FreeRTOS/FreeRTOS.h"
+#include "FreeRTOS/task.h"
+#include "picolog/picolog.h"
+
 namespace tplp {
 namespace ui {
 
 TplpInterfaceImpl::TplpInterfaceImpl(HX8357* display,
                                      I2cController* i2c0_controller)
-    : display_(display), i2c0_controller_(i2c0_controller) {}
+    : task_(nullptr), display_(display), i2c0_controller_(i2c0_controller) {}
 
 TplpInterfaceImpl::~TplpInterfaceImpl() {}
+
+void TplpInterfaceImpl::StartTask(int priority, int stack_depth) {
+  CHECK(!task_) << "already started";
+  CHECK(xTaskCreate(&TaskFn, "UI Worker", stack_depth, this, priority, &task_));
+}
+
+void TplpInterfaceImpl::TaskFn(void* task_param) {}
 
 void TplpInterfaceImpl::FlashScreen() {
   display_->SetInvertedColors(true);

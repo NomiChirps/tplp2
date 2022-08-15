@@ -7,7 +7,6 @@
 #include "hardware/gpio.h"
 #include "picolog/picolog.h"
 #include "picolog/status_macros.h"
-#include "tplp/config/tplp_config.h"
 
 namespace tplp {
 namespace {
@@ -82,7 +81,8 @@ class ScopedDisablePenIrq {
 
 }  // namespace
 
-TSC2007::TSC2007(I2cDeviceHandle device, gpio_pin_t penirq) : i2c_(device), penirq_(penirq), callback_(nullptr) {}
+TSC2007::TSC2007(I2cDeviceHandle device, gpio_pin_t penirq)
+    : i2c_(device), penirq_(penirq), callback_(nullptr) {}
 
 util::Status TSC2007::Setup() {
   I2cTransaction txn = i2c_.StartTransaction();
@@ -136,12 +136,13 @@ util::Status TSC2007::ReadPosition(int16_t* x, int16_t* y, int16_t* z1,
   return Command(txn, MEASURE_TEMP0, POWERDOWN_IRQON, ADC_12BIT, true);
 }
 
-void TSC2007::ReceiveTouchEvents(const TouchCallback& callback) {
+void TSC2007::ReceiveTouchEvents(int priority, int stack_depth,
+                                 const TouchCallback& callback) {
   CHECK(!callback_) << "Callback already set";
   CHECK(!global_task)
       << "Sorry, I was lazy and only 1 instance of TSC2007 is allowed";
-  CHECK(xTaskCreate(&TSC2007::TaskFn, "TSC2007", TaskStacks::kTSC2007, this,
-                    TaskPriorities::kTSC2007, &global_task));
+  CHECK(xTaskCreate(&TSC2007::TaskFn, "TSC2007", stack_depth, this, priority,
+                    &global_task));
   global_penirq = penirq_;
   callback_ = callback;
 

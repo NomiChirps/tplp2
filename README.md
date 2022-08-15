@@ -20,8 +20,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] figure out who's allowed to call xTaskCreate. centralize it.
 - [ ] Create a front panel UI (assignee: wembly :)
+  - [ ] make the touch target for the settings back button bigger...
   - [ ] fatal error handler to display the stack trace before crashing
     - will require support from picolog. make sure picolog prevents the crashed task from proceeding, and has a watchdog or something to finish crashing the device if the fatal error handler doesn't finish in time.
   - [ ] runtime stats / logging screen
@@ -154,6 +154,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] figure out who's allowed to call xTaskCreate. centralize it.
 - [x] forget the std::duration stuff.. really not worth the hassle.
 - [x] rename SpiManager -> SpiController
 - [x] insert appropriate delays in TSC2007 read cycle; we have noise problems

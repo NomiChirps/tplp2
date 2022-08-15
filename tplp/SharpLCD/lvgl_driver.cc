@@ -4,7 +4,6 @@
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
 #include "picolog/picolog.h"
-#include "tplp/config/tplp_config.h"
 #include "tplp/graphics/lvgl_mutex.h"
 
 namespace tplp {
@@ -80,7 +79,8 @@ void DisplayRefreshTask(void* param) {
 
 }  // namespace
 
-lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display) {
+lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display, int priority,
+                                          int stack_depth) {
   // Doesn't actually need to be screen-sized, but we get better "vsync" if it
   // is, since we don't need to coalesce multiple flush_cb calls to update the
   // entire framebuffer. It also ends up being way more efficient.
@@ -100,9 +100,8 @@ lv_disp_t* RegisterDisplayDriver_SharpLCD(SharpLCD* display) {
       .display_ready = xSemaphoreCreateBinary(),
   };
   TaskHandle_t refresh_task;
-  CHECK(xTaskCreate(&DisplayRefreshTask, "SharpLCD", TaskStacks::kSharpLCD,
-                    task_param, TaskPriorities::kSharpLCD,
-                    &refresh_task));
+  CHECK(xTaskCreate(&DisplayRefreshTask, "SharpLCD", stack_depth, task_param,
+                    priority, &refresh_task));
 
   lv_disp_drv_t* driver = new lv_disp_drv_t;
   lv_disp_drv_init(driver);

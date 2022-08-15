@@ -5,7 +5,6 @@
 #include "hardware/i2c.h"
 #include "picolog/picolog.h"
 #include "picolog/status_macros.h"
-#include "tplp/config/tplp_config.h"
 #include "tplp/rtos_util.h"
 
 namespace tplp {
@@ -346,7 +345,7 @@ struct I2cController::Event {
   }
 };
 
-I2cController* I2cController::Init(int task_priority, i2c_inst_t* i2c_instance,
+I2cController* I2cController::Init(int priority, int stack_depth, i2c_inst_t* i2c_instance,
                                    gpio_pin_t scl, gpio_pin_t sda,
                                    int baudrate) {
   const int i2c_instance_index = i2c_hw_index(i2c_instance);
@@ -413,8 +412,8 @@ I2cController* I2cController::Init(int task_priority, i2c_inst_t* i2c_instance,
 
   char* task_name = new char[8];
   snprintf(task_name, 16, "I2C %d", i2c_instance_index);
-  xTaskCreate(&TaskFn, task_name, TaskStacks::kI2cController, self,
-              task_priority, &self->task_);
+  xTaskCreate(&TaskFn, task_name, stack_depth, self,
+              priority, &self->task_);
 
   return self;
 }
