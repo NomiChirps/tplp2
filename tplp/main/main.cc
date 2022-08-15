@@ -2,9 +2,12 @@
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
-#include "pico/stdio_usb.h"
 #include "tplp/config/tasks.h"
 #include "tplp/main/startup.h"
+
+#if LIB_PICO_STDIO_USB
+#include "pico/stdio_usb.h"
+#endif
 
 int main() {
 #if LIB_PICO_STDIO_USB

@@ -5,6 +5,7 @@ cc_library(
     deps = [
         ":startup",
         "@FreeRTOS",
+        "@rules_pico//pico:pico_stdlib",
     ],
 )
 
