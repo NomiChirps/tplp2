@@ -38,6 +38,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
   - [ ] MicroSD card reader
+    - we may want two. the one in the display is very difficult to access, so it's more suited to being the internal storage.
+    - alternatively, forget using SD cards to upload and go ahead with the wi-fi interface, haha
+      - an embedded target and a command-line client tool, in the same project? time for bazel to shine ~
   - [x] Shiny new front panel display + LVGL driver
   - [x] touchscreen input (SPI breakout)
   - [x] Sharp LCD display + LVGL driver
@@ -46,7 +49,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Install jumpers on the stepper drivers (to configure internal 5v power supply)
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
-  - [ ] Transfer from breadboard to permaproto
+  - [ ] Transfer from breadboard to permaproto, or ask wembly to whip up a pcb
   - [x] Add bus capacitors
 - Nice-to-haves
   - [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
