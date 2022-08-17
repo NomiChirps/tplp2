@@ -10,10 +10,8 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
-#include "pico/bootrom.h"
-#include "pico/stdio.h"
-#include "pico/time.h"
-#include "picolog/backtrace.h"
+#include "picolog/hal/backtrace.h"
+#include "picolog/hal/hal.h"
 
 namespace picolog {
 namespace {
@@ -65,7 +63,7 @@ struct LogMessage::LogMessageData {
   size_t num_chars_to_log_;  // # of chars of msg to send to log
   bool has_been_flushed_;    // TODO: move to LogMessage
   bool first_fatal_;         // true => this was first fatal msg
-  backtrace_frame_t backtrace_[kMaxBacktraceLength];
+  hal::backtrace_frame_t backtrace_[kMaxBacktraceLength];
   int backtrace_length_;
 
  private:
@@ -76,24 +74,74 @@ struct LogMessage::LogMessageData {
 // Globals
 namespace {
 using QueueContent = LogMessage::LogMessageData;
-static constexpr int kQueueLength = 8;
-static uint8_t queue_storage[kQueueLength * sizeof(QueueContent)];
-static StaticQueue_t queue_structure;
+static constexpr int kQueueLength = 4;
 static QueueHandle_t queue;
 
+#if configSUPPORT_STATIC_ALLOCATION
+static StaticQueue_t queue_structure;
+static uint8_t queue_storage[kQueueLength * sizeof(QueueContent)];
+#else
 static_assert(sizeof(QueueContent) * kQueueLength * 4 < configTOTAL_HEAP_SIZE,
               "Log queue would take up more than 1/4 of the FreeRTOS heap; "
               "are you sure that's reasonable?");
+#endif
+
+static void PrintStackTrace(const hal::backtrace_frame_t* frames, int count) {
+  // __cxa_demangle claims to automatically realloc() the buffer if it's not
+  // large enough. wild.
+  char* demangled = static_cast<char*>(malloc(40));
+  size_t demangled_len = 40;
+  int status = 1;
+  for (int i = 0; i < count; ++i) {
+    demangled =
+        abi::__cxa_demangle(frames[i].name, demangled, &demangled_len, &status);
+    if (status == 0) {
+      printf("    @ %p %.*s\n", frames[i].ip, static_cast<int>(demangled_len),
+             demangled);
+    } else {
+      // demangling failed
+      printf("    @ %p %s\n", frames[i].ip, frames[i].name);
+    }
+  }
+  if (count == kMaxBacktraceLength) {
+    printf("  <backtrace limit reached>\n");
+  }
+  free(demangled);
+}
+
+// Process a log message immediately, with no scheduler involvement.
+void ProcessImmediate(const LogMessage::LogMessageData& data) {
+  // We disabled stdout's buffering earlier, so this should go straight to the
+  // pico-sdk _write() function, which always flushes.
+  fwrite(data.message_text_, data.num_chars_to_log_, 1, stdout);
+
+  if (data.severity_ == PICOLOG_FATAL) {
+    vTaskSuspendAll();
+    printf("\n*** Aborted at %lluus since boot ***\n",
+           static_cast<long long unsigned>(hal::get_us_since_boot()));
+    PrintStackTrace(data.backtrace_, data.backtrace_length_);
+    fflush(stdout);  // just in case
+    // TODO: other behaviors on fatal, like reset
+    hal::panic("Fatal error");
+    for (;;)
+      ;
+  }
+}
+
 }  // namespace
 
 // As a belt-and-suspenders move, ask GCC to run this before main().
 // Just in case the user forgot.
 [[gnu::constructor]] void InitLogging() {
   if (!queue) {
+#if configSUPPORT_STATIC_ALLOCATION
     queue = xQueueCreateStatic(kQueueLength, sizeof(QueueContent),
                                queue_storage, &queue_structure);
+#else
+    queue = xQueueCreate(kQueueLength, sizeof(QueueContent));
+#endif
     if (!queue) {
-      panic("Failed to create picolog event queue");
+      hal::panic("Failed to create picolog event queue");
     }
 
     // disable newlib's stdout buffering
@@ -127,9 +175,8 @@ static LogMessage::LogMessageData* NewLogMessageData() {
 }
 
 void LogMessage::Init(const char* file, int line, LogSeverity severity) {
-  absolute_time_t timestamp_now = get_absolute_time();
   data_ = NewLogMessageData();
-  data_->logmsgtime_ = LogMessageTime(to_us_since_boot(timestamp_now));
+  data_->logmsgtime_ = LogMessageTime(hal::get_us_since_boot());
   data_->severity_ = severity;
   data_->line_ = line;
   data_->num_chars_to_log_ = 0;
@@ -206,9 +253,13 @@ void LogMessage::Flush() {
   }
   data_->message_text_[data_->num_chars_to_log_] = '\0';
 
-  if (xQueueSendToBack(queue, data_, 0) != pdTRUE) {
-    // TODO: maybe keep a count of dropped messages somewhere.
-    // thread-local counters that are summed by the log task ?
+  if (xTaskGetSchedulerState() == taskSCHEDULER_NOT_STARTED) {
+    ProcessImmediate(*data_);
+  } else {
+    if (xQueueSendToBack(queue, data_, 0) != pdTRUE) {
+      // TODO: maybe keep a count of dropped messages somewhere.
+      // thread-local counters that are summed by the log task ?
+    }
   }
 
   if (append_newline) {
@@ -227,7 +278,7 @@ void LogMessage::Fail() {
   if (self) {
     for (;;) taskYIELD();
   }
-  panic("Fatal error");
+  hal::panic("Fatal error");
 }
 
 LogMessageFatal::LogMessageFatal(const char* file, int line)
@@ -260,28 +311,6 @@ int LogMessageTime::usec() const {
   return usecs_since_boot_ % kMicrosecondsPerSecond;
 }
 
-static void PrintStackTrace(const backtrace_frame_t* frames, int count) {
-  // __cxa_demangle claims to automatically realloc() the buffer if it's not
-  // large enough. wild.
-  char* demangled = static_cast<char*>(malloc(40));
-  size_t demangled_len = 40;
-  int status = 1;
-  for (int i = 0; i < count; ++i) {
-    demangled =
-        abi::__cxa_demangle(frames[i].name, demangled, &demangled_len, &status);
-    if (status == 0) {
-      printf("    @ %p %.*s\n", frames[i].ip, demangled_len, demangled);
-    } else {
-      // demangling failed
-      printf("    @ %p %s\n", frames[i].ip, frames[i].name);
-    }
-  }
-  if (count == kMaxBacktraceLength) {
-    printf("  <backtrace limit reached>\n");
-  }
-  free(demangled);
-}
-
 void BackgroundTask(void*) {
   static LogMessage::LogMessageData data;
 
@@ -296,29 +325,7 @@ void BackgroundTask(void*) {
       // queue is empty, instead? maybe inefficient to check the queue's status
       // twice every loop.
     }
-    // We disabled stdout's buffering earlier, so this should go straight to the
-    // pico-sdk _write() function, which always flushes.
-    fwrite(data.message_text_, data.num_chars_to_log_, 1, stdout);
-
-    if (data.severity_ == PICOLOG_FATAL) {
-      vTaskSuspendAll();
-      printf("\n*** Aborted at %lluus since boot ***\n",
-             to_us_since_boot(get_absolute_time()));
-      PrintStackTrace(data.backtrace_, data.backtrace_length_);
-      fflush(stdout);  // just in case
-      // TODO: other behaviors on fatal, like reset
-#if PICOLOG_RESET_TO_BOOTLOADER_ON_FATAL
-      // TODO maybe there's a better way to configure this
-      printf("\n*** Attempting to reset into Pico bootloader!\n");
-      vTaskSuspendAll();
-      // TODO: this fails sometimes. is there something else we should stop or
-      // reset first?
-      reset_usb_boot(0, 0);
-#endif
-      panic("panic");
-      for (;;)
-        ;
-    }
+    ProcessImmediate(data);
   }
 }
 

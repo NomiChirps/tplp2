@@ -17,12 +17,13 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
 - [ ] arena storage for LogMessageData to avoid malloc (still requires mutex)
 - [ ] DCHECK
 - [ ] LOG level toggles at runtime, maybe per-task and/or per-module
-- [ ] soften the hard dependency on pico-sdk, so we can run tests and use it in the simulator, with FreeRTOS's posix port
 - [ ] ^-- leads to: unit/etc tests
 - [ ] Trap hard faults so we can get stack traces for a nullptr dereference :)
   - https://github.com/yocto-8/yocto-8/blob/main/src/arch/pico/extmem/faulthandler.cpp#L12
   - https://forums.raspberrypi.com/viewtopic.php?t=318745
 - [ ] support other log targets than stdout, e.g. flash, sd, or custom.
+- [x] support immediate logging before the FreeRTOS scheduler starts
+- [x] soften the hard dependency on pico-sdk, so we can run tests and use it in the simulator, with FreeRTOS's posix port
 - [x] Status object and CHECK_OK
 - [x] per-file VLOG toggles at compile time (use a constexpr function for string comparison with `__FILE__`, probably)
 - [x] test for VLOG_IS_ON

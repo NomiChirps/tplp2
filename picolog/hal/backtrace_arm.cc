@@ -1,9 +1,9 @@
-#include "picolog/backtrace.h"
-
 #include <unwind.h>
 
-//#include <cstdio>
+#include "picolog/hal/backtrace.h"
 
+namespace picolog {
+namespace hal {
 namespace {
 
 // From GCC implementation comments for -mpoke-function-name:
@@ -134,3 +134,6 @@ int TakeBacktrace(backtrace_frame_t* buffer, int size) {
   _Unwind_Backtrace(&trace_func, &param);
   return param.count;
 }
+
+}  // namespace hal
+}  // namespace picolog

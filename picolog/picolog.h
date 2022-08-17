@@ -33,8 +33,8 @@ namespace picolog {
 void InitLogging();
 
 // Run this function as a task under FreeRTOS in order for log messages to
-// actually go somewhere.
-// TODO: support logging before the scheduler starts
+// be processed asynchronously. Otherwise they'll be flushed in-line with
+// your tasks' execution.
 [[noreturn]] void BackgroundTask(void* ignored);
 
 // Returns true if the system is in the midst of crashing due to a fatal error.

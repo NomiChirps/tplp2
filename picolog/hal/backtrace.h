@@ -1,12 +1,15 @@
-#ifndef TPLP_BACKTRACE_H_
-#define TPLP_BACKTRACE_H_
+#ifndef PICOLOG_HAL_BACKTRACE_H_
+#define PICOLOG_HAL_BACKTRACE_H_
+
+namespace picolog {
+namespace hal {
 
 struct backtrace_frame_t {
   // Instruction pointer.
   const void* ip;
   // Name of the surrounding function. Never null. Does not need to be freed.
   // Guaranteed to be null-terminated. If this is "<unknown>" all the time, you
-  // might need `-mpoke-function-name`
+  // might need `-mpoke-function-name` (on ARM)
   const char* name;
 };
 
@@ -15,4 +18,7 @@ struct backtrace_frame_t {
 // TakeBacktrace() function itself.
 int TakeBacktrace(backtrace_frame_t* buffer, int buffer_length);
 
-#endif  // TPLP_BACKTRACE_H_
+}  // namespace hal
+}  // namespace picolog
+
+#endif  // PICOLOG_HAL_BACKTRACE_H_
