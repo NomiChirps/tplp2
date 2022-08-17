@@ -5,7 +5,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":types",
+        "//picolog",
         "@FreeRTOS",
+        "@rules_pico//pico:hardware_dma",
     ],
 )
 
@@ -15,11 +17,11 @@ cc_library(
     hdrs = ["SpiController.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":DmaController",
         ":types",
         "//picolog",
         "//tplp:rtos_util",
         "@FreeRTOS",
-        "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_spi",
     ],
@@ -48,5 +50,17 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "@NamedType",
+    ],
+)
+
+cc_library(
+    name = "WIP_dma",
+    srcs = [],
+    hdrs = ["dma.h"],
+    deps = [
+        ":types",
+        "//picolog",
+        "@FreeRTOS",
+        "@rules_pico//pico:hardware_dma",
     ],
 )

@@ -371,8 +371,10 @@ I2cController* I2cController::Init(int priority, int stack_depth,
   self->shared_blocking_sem_ = CHECK_NOTNULL(xSemaphoreCreateBinary());
   self->dma_rx_ = dma_channel_t(dma_claim_unused_channel(false));
   LOG_IF(FATAL, self->dma_rx_ < 0) << "No free DMA channels available";
+  LOG(INFO) << "Claimed DMA channel " << self->dma_rx_ << " for RX";
   self->dma_tx_ = dma_channel_t(dma_claim_unused_channel(false));
   LOG_IF(FATAL, self->dma_tx_ < 0) << "No free DMA channels available";
+  LOG(INFO) << "Claimed DMA channel " << self->dma_tx_ << " for TX";
 
   // Arbitrarily assign DMA_IRQ_0 to I2C0 and DMA_IRQ_1 to I2C1.
   self->dma_irq_index_ = dma_irq_index_t(i2c_instance_index);

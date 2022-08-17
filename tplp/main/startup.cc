@@ -1,5 +1,6 @@
 #include "tplp/main/startup.h"
 
+#include "hardware/gpio.h"
 #include "hardware/i2c.h"
 #include "hardware/spi.h"
 #include "picolog/picolog.h"
@@ -29,14 +30,11 @@ void StartupTask(void*) {
   }
   LOG(INFO) << "Begin startup...";
 
-  I2cController* i2c0_controller = I2cController::Init(
-      TaskPriorities::kI2cController0, TaskStacks::kI2cController, i2c0,
-      Pins::I2C0_SCL, Pins::I2C0_SDA, 100'000);
-
+  DmaController* dma1_controller = DmaController::Init(kDma1);
   SpiController* spi1_manager = SpiController::Init(
       TaskPriorities::kSpiController1, TaskStacks::kSpiController, spi1,
       HX8357::kNominalMaxSpiFrequency, Pins::SPI1_SCLK, Pins::SPI1_MOSI,
-      Pins::SPI1_MISO);
+      Pins::SPI1_MISO, dma1_controller);
   LOG(INFO) << "SpiController::Init() OK";
 
   HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
@@ -49,14 +47,18 @@ void StartupTask(void*) {
   display->SetRotation(0, 1, 1);
   LOG(INFO) << "HX8357 setup OK";
 
+  I2cController* i2c0_controller = I2cController::Init(
+      TaskPriorities::kI2cController0, TaskStacks::kI2cController, i2c0,
+      Pins::I2C0_SCL, Pins::I2C0_SDA, 100'000);
+
   // Touchscreen reader.
   TSC2007* touchscreen = CHECK_NOTNULL(new TSC2007(
       I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kTSC2007),
       Pins::TOUCHSCREEN_PENIRQ));
   status = touchscreen->Setup();
   LOG_IF(INFO, status.ok()) << "TSC2007 setup OK";
-  // TODO: if we bring the lvgl display up first, we can fail more gracefully by
-  //       displaying a message
+  // TODO: if we bring the lvgl display up first, we can fail more gracefully
+  // by displaying a message
   LOG_IF(FATAL, !status.ok()) << "TSC2007 setup failed: " << status;
 
   LvglInit lvgl;

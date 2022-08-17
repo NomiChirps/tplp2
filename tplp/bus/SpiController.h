@@ -9,6 +9,7 @@
 #include "FreeRTOS/task.h"
 #include "hardware/dma.h"
 #include "hardware/spi.h"
+#include "tplp/bus/DmaController.h"
 #include "tplp/bus/types.h"
 
 namespace tplp {
@@ -27,7 +28,8 @@ class SpiController {
   static SpiController* Init(int priority, int stack_depth, spi_inst_t* spi,
                              int freq_hz, gpio_pin_t sclk,
                              std::optional<gpio_pin_t> mosi,
-                             std::optional<gpio_pin_t> miso);
+                             std::optional<gpio_pin_t> miso,
+                             DmaController* dma);
 
   // We use software chip-select (GPIO), so cs can be any pin.
   SpiDevice* AddDevice(gpio_pin_t cs, std::string_view name);
@@ -36,9 +38,8 @@ class SpiController {
   int GetActualFrequency() const { return actual_frequency_; }
 
  private:
-  explicit SpiController(spi_inst_t* spi, dma_irq_index_t dma_irq_index,
-                         dma_irq_number_t dma_irq_number, dma_channel_t dma_tx,
-                         dma_channel_t dma_rx, int actual_frequency,
+  explicit SpiController(spi_inst_t* spi, DmaController* dma,
+                         int actual_frequency,
                          SemaphoreHandle_t transaction_mutex,
                          QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
                          std::optional<gpio_pin_t> mosi,
@@ -61,17 +62,9 @@ class SpiController {
 
  private:
   spi_inst_t* const spi_;
-  const dma_irq_index_t dma_irq_index_;
-  const dma_irq_number_t dma_irq_number_;
-  const dma_channel_t dma_tx_;
-  const dma_channel_t dma_rx_;
+  DmaController* const dma_;
   const int actual_frequency_;
   TaskHandle_t task_;
-
-  const dma_channel_config dma_tx_config_;
-  const dma_channel_config dma_tx_null_config_;
-  const dma_channel_config dma_rx_config_;
-  const dma_channel_config dma_rx_null_config_;
 
   // Primary event queue.
   QueueHandle_t event_queue_;

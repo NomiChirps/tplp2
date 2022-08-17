@@ -8,10 +8,10 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/semphr.h"
-#include "hardware/dma.h"
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
 #include "picolog/picolog.h"
+#include "tplp/bus/DmaController.h"
 #include "tplp/rtos_util.h"
 
 namespace tplp {
@@ -36,74 +36,16 @@ struct SpiController::Event {
 };
 
 namespace {
-// Notification index 0 is reserved by the FreeRTOS message buffer
-// implementation, so we use the next one. This index of the SpiController task
-// is notified from `TransferDone::ISR` whenever a send or receive DMA finishes.
-static constexpr int kDmaFinishedNotificationIndex = 1;
-
-// The RP2040 DMA unit provides 2 IRQs to which each of the 12 DMA channels can
-// be assigned.
-static constexpr int kNumDmaIrqs = 2;
 // This limit is mostly arbitrary.
 static constexpr int kEventQueueDepth = 8;
-
-class DmaFinishedNotifier {
- private:
-  struct ManagerTaskInfo {
-    dma_channel_t dma_rx;
-    TaskHandle_t task = nullptr;
-  };
-  static ManagerTaskInfo manager_tasks[kNumDmaIrqs];
-
- public:
-  template <int irq_index>
-  static void ISR() {
-    static_assert(irq_index >= 0 && irq_index < kNumDmaIrqs, "bad irq_index");
-    if (dma_irqn_get_channel_status(irq_index,
-                                    manager_tasks[irq_index].dma_rx)) {
-      dma_irqn_acknowledge_channel(irq_index, manager_tasks[irq_index].dma_rx);
-      BaseType_t higher_priority_task_woken = 0;
-      vTaskNotifyGiveIndexedFromISR(manager_tasks[irq_index].task,
-                                    kDmaFinishedNotificationIndex,
-                                    &higher_priority_task_woken);
-      portYIELD_FROM_ISR(higher_priority_task_woken);
-    }
-  }
-
-  static void RegisterManagerTask(dma_irq_index_t irq_index,
-                                  dma_channel_t dma_rx, TaskHandle_t task) {
-    CHECK_GE(irq_index, 0);
-    CHECK_LT(irq_index, kNumDmaIrqs);
-    CHECK_EQ(manager_tasks[irq_index].task, nullptr)
-        << "SPI manager task on DMA IRQ index " << irq_index
-        << " already exists?";
-    manager_tasks[irq_index] = {.dma_rx = dma_rx, .task = task};
-  }
-};
-
-DmaFinishedNotifier::ManagerTaskInfo
-    DmaFinishedNotifier::manager_tasks[kNumDmaIrqs] = {};
-
-template void DmaFinishedNotifier::ISR<0>();
-template void DmaFinishedNotifier::ISR<1>();
-
-static uint8_t* GetDmaReadAddress(dma_channel_t channel) {
-  return reinterpret_cast<uint8_t*>(dma_channel_hw_addr(channel)->read_addr);
-}
-static uint8_t* GetDmaWriteAddress(dma_channel_t channel) {
-  return reinterpret_cast<uint8_t*>(dma_channel_hw_addr(channel)->write_addr);
-}
-static uint32_t GetDmaTransferCount(dma_channel_t channel) {
-  return dma_channel_hw_addr(channel)->transfer_count;
-}
-
 }  // namespace
 
 SpiController* SpiController::Init(int priority, int stack_depth,
                                    spi_inst_t* spi, int freq_hz,
                                    gpio_pin_t sclk,
                                    std::optional<gpio_pin_t> mosi,
-                                   std::optional<gpio_pin_t> miso) {
+                                   std::optional<gpio_pin_t> miso,
+                                   DmaController* dma) {
   const int spi_index = spi_get_index(spi);
   const int actual_freq_hz = spi_init(spi, freq_hz);
   LOG(INFO) << "SPI" << spi_index << " clock set to " << actual_freq_hz << "Hz";
@@ -116,40 +58,15 @@ SpiController* SpiController::Init(int priority, int stack_depth,
   if (mosi) {
     gpio_set_function(*mosi, GPIO_FUNC_SPI);
   }
-  dma_channel_t dma_tx = dma_channel_t(dma_claim_unused_channel(false));
-  LOG_IF(FATAL, dma_tx < 0) << "No free DMA channels available";
   if (miso) {
     gpio_set_function(*miso, GPIO_FUNC_SPI);
   }
-  dma_channel_t dma_rx = dma_channel_t(dma_claim_unused_channel(false));
-  LOG_IF(FATAL, dma_rx < 0) << "No free DMA channels available";
-
-  // We're gonna use DMA_IRQ_0 for SPI0 and DMA_IRQ_1 for SPI1,
-  // but this correspondence is not actually required. Each DMA channel can be
-  // assigned to either IRQ.
-  dma_irq_index_t irq_index;
-  dma_irq_number_t irq_number;
-  if (spi_index == 0) {
-    irq_index = dma_irq_index_t(0);
-    irq_number = dma_irq_number_t(DMA_IRQ_0);
-    irq_add_shared_handler(irq_number, &DmaFinishedNotifier::ISR<0>,
-                           PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
-  } else if (spi_index == 1) {
-    irq_index = dma_irq_index_t(1);
-    irq_number = dma_irq_number_t(DMA_IRQ_1);
-    irq_add_shared_handler(irq_number, &DmaFinishedNotifier::ISR<1>,
-                           PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
-  } else {
-    LOG(FATAL) << "spi index out of expected range: " << spi_index;
-  }
-  // The IRQ will only be enabled when the task starts up.
-  // There is no particularly strong reason to do it there instead of here.
 
   SemaphoreHandle_t transaction_mutex = CHECK_NOTNULL(xSemaphoreCreateMutex());
   SemaphoreHandle_t flush_sem = CHECK_NOTNULL(xSemaphoreCreateBinary());
-  SpiController* that = new SpiController(
-      spi, irq_index, irq_number, dma_tx, dma_rx, actual_freq_hz,
-      transaction_mutex, event_queue, flush_sem, mosi, miso);
+  SpiController* that =
+      new SpiController(spi, dma, actual_freq_hz, transaction_mutex,
+                        event_queue, flush_sem, mosi, miso);
 
   std::ostringstream task_name;
   task_name << "SPI" << spi_get_index(spi);
@@ -159,39 +76,16 @@ SpiController* SpiController::Init(int priority, int stack_depth,
   return that;
 }
 
-static dma_channel_config MakeChannelConfig(spi_inst_t* spi, dma_channel_t dma,
-                                            bool is_tx, bool read_increment,
-                                            bool write_increment,
-                                            bool irq_quiet) {
-  dma_channel_config c = dma_channel_get_default_config(dma);
-  channel_config_set_dreq(&c, spi_get_dreq(spi, is_tx));
-  VLOG(1) << "DMA channel " << dma << " will be connected to SPI"
-          << spi_get_index(spi) << " DREQ " << spi_get_dreq(spi, is_tx);
-  channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
-  channel_config_set_read_increment(&c, read_increment);
-  channel_config_set_write_increment(&c, write_increment);
-  channel_config_set_irq_quiet(&c, irq_quiet);
-  return c;
-}
-
-SpiController::SpiController(
-    spi_inst_t* spi, dma_irq_index_t dma_irq_index,
-    dma_irq_number_t dma_irq_number, dma_channel_t dma_tx, dma_channel_t dma_rx,
-    int actual_frequency, SemaphoreHandle_t transaction_mutex,
-    QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
-    std::optional<gpio_pin_t> mosi, std::optional<gpio_pin_t> miso)
+SpiController::SpiController(spi_inst_t* spi, DmaController* dma,
+                             int actual_frequency,
+                             SemaphoreHandle_t transaction_mutex,
+                             QueueHandle_t event_queue,
+                             SemaphoreHandle_t flush_sem,
+                             std::optional<gpio_pin_t> mosi,
+                             std::optional<gpio_pin_t> miso)
     : spi_(spi),
-      dma_irq_index_(dma_irq_index),
-      dma_irq_number_(dma_irq_number),
-      dma_tx_(dma_tx),
-      dma_rx_(dma_rx),
+      dma_(dma),
       actual_frequency_(actual_frequency),
-      dma_tx_config_(MakeChannelConfig(spi, dma_tx, true, true, false, true)),
-      dma_tx_null_config_(
-          MakeChannelConfig(spi, dma_tx, true, false, false, true)),
-      dma_rx_config_(MakeChannelConfig(spi, dma_rx, false, false, true, false)),
-      dma_rx_null_config_(
-          MakeChannelConfig(spi, dma_rx, false, false, false, false)),
       event_queue_(event_queue),
       transaction_mutex_(transaction_mutex),
       flush_sem_(flush_sem),
@@ -221,21 +115,7 @@ SpiTransaction SpiDevice::StartTransaction() {
 void SpiController::TaskFn(void* task_param) {
   SpiController* self = static_cast<SpiController*>(task_param);
   LOG(INFO) << "SpiController task started.";
-
-  DmaFinishedNotifier::RegisterManagerTask(self->dma_irq_index_, self->dma_rx_,
-                                           self->task_);
-
-  // Enable only the RX DMA IRQ for DmaFinishedNotifier. Since we always run in
-  // full-duplex mode, with both DMAs active, we only need one to notify us that
-  // the transfer is done. The receive one is better because when it's done, the
-  // SPI RX FIFO will already be empty. Contrariwise, when the TX DMA is done,
-  // the SPI TX FIFO will still be full.
-  dma_irqn_set_channel_enabled(self->dma_irq_index_, self->dma_tx_, false);
-  dma_irqn_set_channel_enabled(self->dma_irq_index_, self->dma_rx_, true);
-
-  // TODO: set irq priority? the default middle-priority is probably fine
-  irq_set_enabled(self->dma_irq_number_, true);
-  LOG(INFO) << "IRQ " << self->dma_irq_number_ << " enabled.";
+  CHECK_EQ(self->task_, xTaskGetCurrentTaskHandle());
 
   Event event;
   for (;;) {
@@ -280,13 +160,11 @@ void SpiController::DoTransfer(const Event& event) {
 
   VLOG(1) << "TRANSFER device=" << event.device->name_;
   CHECK_EQ(active_device_, event.device)
-      << "Got TransmitEvent for device=" << event.device->name_
+      << "Got transfer for device=" << event.device->name_
       << " while a transaction is already in progress on device="
       << active_device_->name_;
   CHECK_EQ(event.device->spi_, this);
 
-  CHECK(!dma_channel_is_busy(dma_tx_));
-  CHECK(!dma_channel_is_busy(dma_rx_));
   CHECK(!spi_is_busy(spi_));
 
   if (event.len == 0) {
@@ -294,57 +172,64 @@ void SpiController::DoTransfer(const Event& event) {
     return;
   }
 
-  VLOG(1) << "Start DMA SPI transfer dma_tx=" << dma_tx_
-          << " tx_buf=" << static_cast<const void*>(event.tx_buf)
-          << " dma_rx=" << dma_rx_
-          << " rx_buf=" << static_cast<const void*>(event.rx_buf)
-          << " len=" << event.len;
-
   volatile io_rw_32* spi_dr = &spi_get_hw(spi_)->dr;
-  // TODO: increase transfer width (8b,16b,32b) if buf is big and the right
-  // size? alternatively, change tx_buf/rx_buf to void* and let caller choose.
-  // what does the datasheet say about how long it takes to switch?
+  DmaController::Request req{
+      // Both are always enabled, since our transfer are always full-duplex.
+      .tx_enable = true,
+      .tx_dreq = spi_get_dreq(spi_, true),
+      .tx_write = spi_dr,
+      .tx_write_incr = false,
+
+      .rx_enable = true,
+      .rx_dreq = spi_get_dreq(spi_, false),
+      .rx_read = spi_dr,
+      .rx_read_incr = false,
+
+      // TODO: increase transfer width (8b,16b,32b) if buf is big and the right
+      // size? alternatively, change tx_buf/rx_buf to void* and let caller
+      // choose.
+      .transfer_width = DmaController::TransferWidth::k8,
+      .transfer_count = event.len,
+
+      .action =
+          {
+              .notify_task = task_,
+              .notify_action = eIncrement,
+          },
+  };
+
   if (event.tx_buf) {
     CHECK(mosi_)
         << "Cannot transmit on an SpiController with no configured MOSI pin";
-    dma_channel_configure(dma_tx_, &dma_tx_config_, spi_dr, event.tx_buf,
-                          event.len, false);
+    req.tx_read = event.tx_buf;
+    req.tx_read_incr = true;
   } else {
-    dma_channel_configure(dma_tx_, &dma_tx_null_config_, spi_dr,
-                          &kDummyTxBuffer, event.len, false);
+    req.tx_read = &kDummyTxBuffer;
+    req.tx_read_incr = false;
   }
+
   if (event.rx_buf) {
     CHECK(miso_)
         << "Cannot receive on an SpiController with no configured MISO pin";
-    dma_channel_configure(dma_rx_, &dma_rx_config_, event.rx_buf, spi_dr,
-                          event.len, false);
+    req.rx_write = event.rx_buf;
+    req.rx_write_incr = true;
   } else {
-    dma_channel_configure(dma_rx_, &dma_rx_null_config_, &kDummyRxBuffer,
-                          spi_dr, event.len, false);
+    req.rx_write = &kDummyRxBuffer;
+    req.rx_write_incr = false;
   }
   // Start TX and RX simultaneously so the SPI FIFOs don't overflow.
-  dma_start_channel_mask((1u << dma_tx_) | (1u << dma_rx_));
+  CHECK_NOTNULL(dma_)->Transfer(req);
 
   // Wait for the DMA to complete before processing any more events. Set a
   // generous timeout- no reasonable DMA or SPI transfer should take longer.
-  CHECK_EQ(1u, ulTaskNotifyTakeIndexed(kDmaFinishedNotificationIndex, true,
-                                       MillisToTicks(1'000)))
-      << "missed a DMA notification, or timed out waiting. tx_busy="
-      << dma_channel_is_busy(dma_tx_)
-      << " rx_busy=" << dma_channel_is_busy(dma_rx_);
-  // Since our notification comes from the RX DMA, the SPI's FIFOs should
-  // already be empty by the time that DMA is finished.
+  CHECK_EQ(1u, ulTaskNotifyTake(true, MillisToTicks(5'000)))
+      << "missed a DMA notification?";
+  // Since our notification comes only after the RX DMA has finished, the SPI's
+  // FIFOs should already be empty by the time.
+  uint32_t fifo_status = spi_get_hw(spi_)->sr;
+  CHECK(!(fifo_status & SPI_SSPSR_RNE_BITS)) << "Receive FIFO not empty";
+  CHECK(fifo_status & SPI_SSPSR_TFE_BITS) << "Transmit FIFO not empty";
   CHECK(!spi_is_busy(spi_));
-  CHECK_EQ(GetDmaTransferCount(dma_tx_), 0u) << "DMA TX incomplete";
-  CHECK_EQ(GetDmaTransferCount(dma_rx_), 0u) << "DMA RX incomplete";
-  if (event.tx_buf) {
-    CHECK_EQ(GetDmaReadAddress(dma_tx_), event.tx_buf + event.len)
-        << "DMA TX misaligned?";
-  }
-  if (event.rx_buf) {
-    CHECK_EQ(GetDmaWriteAddress(dma_rx_), event.rx_buf + event.len)
-        << "DMA RX misaligned?";
-  }
   VLOG(1) << "DMA transfer finished";
 
   if (event.txn_unblock_sem) xSemaphoreGive(event.txn_unblock_sem);
