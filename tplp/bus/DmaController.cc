@@ -41,17 +41,15 @@ template <int irq_index>
     uint32_t ints = irq_index ? dma_hw->ints1 : dma_hw->ints0;
 
     if (ints & (1u << head->tx)) {
-      // SDK bug workaround! dma_irqn_acknowledge uses hw_set_bits,
-      // which is buggy for the DMA INTS0/1 registers.
-      (irq_index ? dma_hw->ints1 : dma_hw->ints0) = 1u << head->tx;
+      // Workaround for https://github.com/raspberrypi/pico-sdk/issues/974
       // dma_irqn_acknowledge_channel(irq_index, head->tx);
+      (irq_index ? dma_hw->ints1 : dma_hw->ints0) = 1u << head->tx;
       head->tx_done = true;
     }
     if (ints & (1u << head->rx)) {
-      // SDK bug workaround! dma_irqn_acknowledge uses hw_set_bits,
-      // which is buggy for the DMA INTS0/1 registers.
-      (irq_index ? dma_hw->ints1 : dma_hw->ints0) = 1u << head->rx;
+      // Workaround for https://github.com/raspberrypi/pico-sdk/issues/974
       // dma_irqn_acknowledge_channel(irq_index, head->rx);
+      (irq_index ? dma_hw->ints1 : dma_hw->ints0) = 1u << head->rx;
       head->rx_done = true;
     }
     if (head->tx_done && head->rx_done) {
