@@ -54,8 +54,8 @@ cc_library(
 )
 
 cc_library(
-    name = "WIP_dma",
-    srcs = [],
+    name = "dma",
+    srcs = ["dma.cc"],
     hdrs = ["dma.h"],
     deps = [
         ":types",
