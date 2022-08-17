@@ -7,8 +7,6 @@
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/semphr.h"
-#include "hardware/dma.h"
-#include "tplp/bus/types.h"
 
 namespace tplp {
 

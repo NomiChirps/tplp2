@@ -73,7 +73,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] write a stress test for SpiController. lotsa tasks, lotsa devices, all hammering away
   - [ ] hook up tft backlight pin and add an adjustable brightness setting (PWM)
   - [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
-    - this will also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
+    - this may also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
   - [ ] split out various things i'm proud of as their own librar(ies)
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size

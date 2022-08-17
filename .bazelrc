@@ -74,6 +74,8 @@ build --@FreeRTOS//config:FreeRTOSConfig=//tplp/config:FreeRTOSConfig
 build --@FreeRTOS//config:port=GCC_RP2040
 build:simulate --@FreeRTOS//config:FreeRTOSConfig=//simulator/config:FreeRTOSConfig
 build:simulate --@FreeRTOS//config:port=GCC_POSIX
+test --@FreeRTOS//config:FreeRTOSConfig=//testing:FreeRTOSConfig
+test --@FreeRTOS//config:port=GCC_POSIX
 
 # Flags needed for //picolog:backtrace
 build:picodebug --copt="-mpoke-function-name"

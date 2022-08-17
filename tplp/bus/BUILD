@@ -59,8 +59,19 @@ cc_library(
     hdrs = ["dma.h"],
     deps = [
         ":types",
-        "//picolog",
         "@FreeRTOS",
-        "@rules_pico//pico:hardware_dma",
     ],
+)
+
+cc_test(
+    name = "dma_test",
+    srcs = ["dma_test.cc"],
+    deps = [
+        ":dma",
+        "@com_google_googletest//:gtest_main",
+    ],
+    target_compatible_with = select({
+        "@platforms//os:none": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
