@@ -2,7 +2,7 @@
 
 Experimental, ambitiously-named [glog-style](https://github.com/google/glog) C++ logging library for the Raspberry Pi Pico under gcc + pico-sdk + FreeRTOS.
 
-At present, does not function at all without the FreeRTOS scheduler running.
+Logs are collected in a FreeRTOS queue and flushed to the output asynchronously; unless the FreeRTOS scheduler hasn't been started yet, in which case they are processed immediately.
 
 Not tested with FreeRTOS-SMP or with pico_multicore.
 
@@ -42,10 +42,12 @@ B1.5.8 Exception return behavior
 | 0xFFFFFFFD | Return to Thread Mode. Exception return gets state from the Process stack. On return execution uses the Process Stack. |
 
 In the case of a memory fault when recovering the xPSR, if the EXC_RETURN value indicates that the exception return:
+
 - must use the Main stack, SP_main, a lockup at HardFault priority occurs.
 - must use the Process stack, SP_process, a Pending HardFault exception is generated
 
 hmmmm
+
 - what is xPSR?
 - exception return operation checks SCR.SLEEPONEXIT
 - pg. 200 is the handler pseudocode we must satisfy in order to restore into a normal stack
@@ -65,6 +67,7 @@ external system resource. The system components that are reset by this request a
 Local reset is required as part of a system reset request.
 Setting the SYSRESETREQ bit to 1 does not guarantee that the reset takes place immediately. A typical code
 sequence to synchronize reset following a write to the relevant control bit is:"
+
 ```
      DSB;
 Loop B Loop;
