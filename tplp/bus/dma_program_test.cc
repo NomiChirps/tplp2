@@ -1,4 +1,4 @@
-#include "tplp/bus/dma.h"
+#include "tplp/bus/dma_program.h"
 
 #include "gtest/gtest.h"
 

@@ -54,9 +54,9 @@ cc_library(
 )
 
 cc_library(
-    name = "dma",
-    srcs = ["dma.cc"],
-    hdrs = ["dma.h"],
+    name = "dma_program",
+    srcs = ["dma_program.cc"],
+    hdrs = ["dma_program.h"],
     deps = [
         ":types",
         "@FreeRTOS",
@@ -64,14 +64,14 @@ cc_library(
 )
 
 cc_test(
-    name = "dma_test",
-    srcs = ["dma_test.cc"],
-    deps = [
-        ":dma",
-        "@com_google_googletest//:gtest_main",
-    ],
+    name = "dma_program_test",
+    srcs = ["dma_program_test.cc"],
     target_compatible_with = select({
         "@platforms//os:none": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
+    deps = [
+        ":dma_program",
+        "@com_google_googletest//:gtest_main",
+    ],
 )

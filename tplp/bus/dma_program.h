@@ -1,10 +1,11 @@
-#ifndef TPLP_BUS_DMA_H_
-#define TPLP_BUS_DMA_H_
+#ifndef TPLP_BUS_DMA_PROGRAM_H_
+#define TPLP_BUS_DMA_PROGRAM_H_
 
 #include <optional>
 #include <variant>
 #include <vector>
 
+// XXX: use forward decls and remove dependency?
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/semphr.h"
 
@@ -172,4 +173,4 @@ class DmaProgramCompiler {
 
 }  // namespace tplp
 
-#endif  // TPLP_BUS_DMA_H_
+#endif  // TPLP_BUS_DMA_PROGRAM_H_
