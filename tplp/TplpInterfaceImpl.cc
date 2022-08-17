@@ -60,6 +60,12 @@ void TplpInterfaceImpl::FlashScreen() {
 
 void TplpInterfaceImpl::ScanI2cBus(
     const std::function<void(const I2cScanResult&)>& callback) {
+  if (!i2c0_controller_) {
+    callback({
+        .status = util::FailedPreconditionError("I2C bus not available"),
+    });
+    return;
+  }
   PushWork([this, callback]() {
     I2cScanResult result;
     std::vector<i2c_address_t> addrs;
