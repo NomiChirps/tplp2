@@ -20,6 +20,11 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] Mission: DMA 9000
+  - see new ideas in tplp/bus/dma.h !!!
+  - SpiController needs to take advantage of the new Action stuff to be more nonblocking, and actually make use of the DmaManager queue.
+    - to manage CS easily we might need before-Actions as well as after-Actions!
+  - I2cController needs... uh... idk i don't want to look at it right now
 - [ ] Create a front panel UI (assignee: wembly :)
   - [ ] make the touch target for the settings back button bigger...
   - [ ] fatal error handler to display the stack trace before crashing
@@ -46,6 +51,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [x] Sharp LCD display + LVGL driver
 - [ ] Finish the electronics hardware
   - [ ] Power everything from the 12v bus
+    - remember to power pico thru VSYS, not VBUS, to avoid potentially sending power upstream to the usb host
   - [ ] Stretch goal: add a WiFi module?
   - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto, or ask wembly to whip up a pcb
