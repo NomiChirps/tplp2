@@ -20,6 +20,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] read about the hardware interpolators in rp2040
 - [ ] Mission: DMA 9000
   - see new ideas in tplp/bus/dma.h !!!
   - SpiController needs to take advantage of the new Action stuff to be more nonblocking, and actually make use of the DmaManager queue.
@@ -57,6 +58,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Transfer from breadboard to permaproto, or ask wembly to whip up a pcb
   - [x] Add bus capacitors
 - Nice-to-haves
+  - [ ] JTAG? is that a thing i can do?
   - [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
   - [ ] StatusOr
   - [ ] SpiController could use improvement - we're not getting full utilization of the bus
