@@ -96,31 +96,31 @@ static void PrintStackTrace(const hal::backtrace_frame_t* frames, int count) {
     demangled =
         abi::__cxa_demangle(frames[i].name, demangled, &demangled_len, &status);
     if (status == 0) {
-      printf("    @ %p %.*s\n", frames[i].ip, static_cast<int>(demangled_len),
+      fprintf(stderr, "    @ %p %.*s\n", frames[i].ip, static_cast<int>(demangled_len),
              demangled);
     } else {
       // demangling failed
-      printf("    @ %p %s\n", frames[i].ip, frames[i].name);
+      fprintf(stderr, "    @ %p %s\n", frames[i].ip, frames[i].name);
     }
   }
   if (count == kMaxBacktraceLength) {
-    printf("  <backtrace limit reached>\n");
+    fprintf(stderr, "  <backtrace limit reached>\n");
   }
   free(demangled);
 }
 
 // Process a log message immediately, with no scheduler involvement.
 void ProcessImmediate(const LogMessage::LogMessageData& data) {
-  // We disabled stdout's buffering earlier, so this should go straight to the
+  // We disabled stdio buffering earlier, so this should go straight to the
   // pico-sdk _write() function, which always flushes.
-  fwrite(data.message_text_, data.num_chars_to_log_, 1, stdout);
+  fwrite(data.message_text_, data.num_chars_to_log_, 1, stderr);
 
   if (data.severity_ == PICOLOG_FATAL) {
     vTaskSuspendAll();
-    printf("\n*** Aborted at %lluus since boot ***\n",
+    fprintf(stderr, "\n*** Aborted at %lluus since boot ***\n",
            static_cast<long long unsigned>(hal::get_us_since_boot()));
     PrintStackTrace(data.backtrace_, data.backtrace_length_);
-    fflush(stdout);  // just in case
+    fflush(stderr);  // just in case
     // TODO: other behaviors on fatal, like reset
     hal::panic("Fatal error");
     for (;;)
@@ -144,8 +144,8 @@ void ProcessImmediate(const LogMessage::LogMessageData& data) {
       hal::panic("Failed to create picolog event queue");
     }
 
-    // disable newlib's stdout buffering
-    setvbuf(stdout, nullptr, _IONBF, 0);
+    // disable newlib's stdio buffering
+    setvbuf(stderr, nullptr, _IONBF, 0);
   }
 }
 
