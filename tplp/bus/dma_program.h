@@ -243,7 +243,7 @@ struct CompiledChain0 {
   uint8_t
       initial_config_write_length[kMaxSimultaneousTransfers];  // number of
                                                                // words, 0 to 3
-  volatile uint32_t* initial_config_write_addr[kMaxSimultaneousTransfers];
+  uint32_t* initial_config_write_addr[kMaxSimultaneousTransfers];
 
   // XXX: not needed after compilation?
   struct AliasInfo {
