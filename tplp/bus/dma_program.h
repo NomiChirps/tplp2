@@ -29,7 +29,7 @@ struct Action {
 
 struct ChannelCtrl {
   enum DataSize {
-    // TODO: static assert to match thing
+    // XXX: static assert to match thing
     k8 = 0,
     k16 = 1,
     k32 = 2
@@ -98,6 +98,8 @@ struct ChannelConfig {
     return !ctrl.has_value() + !read_addr.has_value() +
            !write_addr.has_value() + !trans_count.has_value();
   }
+  // Returns the number of fields that are not nullopt.
+  uint8_t num_fields_set() const { return 4 - num_params(); }
 };
 
 // Caution! Because channels may proceed at different rates, you cannot rely on
@@ -272,6 +274,8 @@ struct CompiledChain1 {
     size_t program_index;
   };
   std::vector<HoleInfo> holes;
+  uint8_t num_params[kMaxSimultaneousTransfers];
+  int chain_length;
 };
 
 class DmaProgram {
@@ -312,26 +316,6 @@ class DmaController {
   DmaProgram NewProgram();
   void Execute(const DmaProgram&);
 };
-
-// a DmaProgram can be compiled into a sequence of DMA control blocks
-// which would use a mix of interrupt handlers and dma chaining, depending on
-// what actions are specified and which transfers are enabled.
-
-// note! chained DmaCommands with dreqs will not necessarily have a sync barrier
-// between them anymore.
-//
-// we have kMaxSimultaneousTransfers channels as execution channels,
-// and the same number of channels reserved as programmers.
-//
-// programmers are configured to read from a sequence of control blocks and
-// write to the corresponding execution channel's config registers, one control
-// block at a time. if the control block specifies chain_to = programmer, then
-// chaining continues. the last control block in a sequence must end the chain,
-// raising an irq_quiet interrupt on that channel.
-//
-// each program needs a number of "holes" for the user to fill in parameters
-// that change at runtime. in compiled form, this can be an array of offsets
-// into the control block sequence!
 
 }  // namespace tplp
 

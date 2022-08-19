@@ -6,11 +6,7 @@
 
 using namespace tplp;
 
-using testing::_;
 using testing::ElementsAre;
-using testing::FieldsAre;
-using testing::IsEmpty;
-using testing::Pointee;
 using testing::SizeIs;
 
 namespace tplp {
@@ -242,6 +238,9 @@ TEST(DmaProgram, NoneProvided) {
   EXPECT_EQ(cc0.program[2], 0xbaadf00d);
   EXPECT_EQ(cc0.program[3], 0xbaadf00d);
   EXPECT_EQ(cc0.program[4], 0);
+  EXPECT_EQ(cc0.program[5], 0);
+  EXPECT_EQ(cc0.program[6], 0);
+  EXPECT_EQ(cc0.program[7], 0);
   // Don't care about the contents of initial_config because
   // the length is zero.
   EXPECT_EQ(cc0.initial_config_write_length[0], 0);
@@ -405,46 +404,52 @@ TEST(DmaProgram, LongChainTwoChannels) {
   EXPECT_EQ(cc0.alias[1].offset, 3);
   EXPECT_THAT(cc1.holes, SizeIs(3 * kChainLength));
   // kChainLength * 2 placeholders for channel 0 holes
-  EXPECT_EQ(cc0.program[0], 0xbaadf00d);
-  EXPECT_EQ(cc0.program[1], 0xbaadf00d);
-  EXPECT_EQ(cc0.program[2], 0xbaadf00d);
-  EXPECT_EQ(cc0.program[3], 0xbaadf00d);
-  EXPECT_EQ(cc0.program[4], 0xbaadf00d);
-  EXPECT_EQ(cc0.program[5], 0xbaadf00d);
+  int pc = 0;
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
   // channel 0 terminator
-  EXPECT_EQ(cc0.program[6], 0);
+  EXPECT_EQ(cc0.program[pc++], 0);
+  EXPECT_EQ(cc0.program[pc++], 0);
+  const int channel1_program_start = pc;
   // kChainLength * 1 placeholders for channel 1 holes
-  EXPECT_EQ(cc0.program[7], 0xbaadf00d);
-  EXPECT_EQ(cc0.program[8], 0xbaadf00d);
-  EXPECT_EQ(cc0.program[9], 0xbaadf00d);
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
+  EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
   // channel 1 terminator
-  EXPECT_EQ(cc0.program[10], 0);
-  ASSERT_EQ(1,0);
+  EXPECT_EQ(cc0.program[pc++], 0);
+
   // holes in channel-major order
   int hole_num = 0;
-  int program_index = 0;
+  pc = 0;
   // check holes for channel 0
   {
     for (int i = 0; i < kChainLength; ++i) {
-      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kReadAddr) << hole_num;
-      EXPECT_EQ(cc1.holes[hole_num].program_index, program_index++);
+      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kReadAddr)
+          << hole_num;
+      EXPECT_EQ(cc1.holes[hole_num].program_index, pc++);
       hole_num++;
-      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kWriteAddr) << hole_num;
-      EXPECT_EQ(cc1.holes[hole_num].program_index, program_index++);
+      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kWriteAddr)
+          << hole_num;
+      EXPECT_EQ(cc1.holes[hole_num].program_index, pc++);
       hole_num++;
     }
   }
   // skip channel 0 terminator
-  program_index++;
+  pc += 2;
   // check holes for channel 1
   {
     for (int i = 0; i < kChainLength; ++i) {
-      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kWriteAddr) << hole_num;
-      EXPECT_EQ(cc1.holes[hole_num].program_index, program_index++);
+      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kWriteAddr)
+          << hole_num;
+      EXPECT_EQ(cc1.holes[hole_num].program_index, pc++);
       hole_num++;
     }
   }
-  ASSERT_EQ(1,0);
+
   EXPECT_THAT(cc0.enable, ElementsAre(1, 1));
   EXPECT_EQ(cc0.initial_config_write_length[0], 2);
   EXPECT_EQ(cc0.initial_config_write_addr[0],
@@ -453,9 +458,9 @@ TEST(DmaProgram, LongChainTwoChannels) {
                                         kExecutorChannels[0] * 0x40 + 0x20));
   EXPECT_EQ(cc0.initial_config_write_length[1], 3);
   EXPECT_EQ(cc0.initial_config_write_addr[1],
-            // channel kExecutorChannels[0], alias 2, offset 0
+            // channel kExecutorChannels[1], alias 2, offset 0
             reinterpret_cast<uint32_t*>(0x50000000 +
-                                        kExecutorChannels[0] * 0x40 + 0x20));
+                                        kExecutorChannels[1] * 0x40 + 0x20));
   EXPECT_EQ(cc0.initial_config[0][0],
             cmd.transfers[0].ctrl->Pack(true, kProgrammerChannels[0], true));
   EXPECT_EQ(cc0.initial_config[0][1], 42);
@@ -467,13 +472,14 @@ TEST(DmaProgram, LongChainTwoChannels) {
   EXPECT_EQ(cc0.programmer_config[0].read_addr,
             static_cast<uint32_t>(reinterpret_cast<intptr_t>(&cc0.program[0])));
   EXPECT_EQ(cc0.programmer_config[1].read_addr,
-            static_cast<uint32_t>(reinterpret_cast<intptr_t>(&cc0.program[0])));
+            static_cast<uint32_t>(reinterpret_cast<intptr_t>(
+                &cc0.program[channel1_program_start])));
   EXPECT_EQ(cc0.programmer_config[0].write_addr,
             // channel kExecutorChannels[0], alias 2, offset 2
             0x50000000 + kExecutorChannels[0] * 0x40 + 0x28);
   EXPECT_EQ(cc0.programmer_config[1].write_addr,
-            // channel kExecutorChannels[0], alias 2, offset 3
-            0x50000000 + kExecutorChannels[0] * 0x40 + 0x2c);
+            // channel kExecutorChannels[1], alias 2, offset 3
+            0x50000000 + kExecutorChannels[1] * 0x40 + 0x2c);
   EXPECT_EQ(cc0.programmer_config[0].trans_count, 2);
   EXPECT_EQ(cc0.programmer_config[1].trans_count, 1);
   uint32_t expected_programmer0_ctrl(
@@ -503,15 +509,28 @@ TEST(DmaProgram, LongChainTwoChannels) {
   EXPECT_EQ(cc0.before, std::nullopt);
   EXPECT_EQ(cc0.after, std::nullopt);
 
-  p.SetArg(0,
-           {
-               {.read_addr = reinterpret_cast<const volatile void*>(0x12345678),
-                .write_addr = reinterpret_cast<volatile void*>(0x03040506)},
-               {.write_addr = reinterpret_cast<volatile void*>(0x11112222)},
-           });
-  EXPECT_EQ(cc0.program[0], 0x12345678);
-  EXPECT_EQ(cc0.program[1], 0x03040506);
-  EXPECT_EQ(cc0.program[2], 0);
-  EXPECT_EQ(cc0.program[3], 0x11112222);
-  EXPECT_EQ(cc0.program[4], 0);
+  p.SetArg(0, {
+                  {.read_addr = reinterpret_cast<const volatile void*>(1),
+                   .write_addr = reinterpret_cast<volatile void*>(2)},
+                  {.read_addr = reinterpret_cast<const volatile void*>(3),
+                   .write_addr = reinterpret_cast<volatile void*>(4)},
+                  {.read_addr = reinterpret_cast<const volatile void*>(5),
+                   .write_addr = reinterpret_cast<volatile void*>(6)},
+                  {.write_addr = reinterpret_cast<volatile void*>(7)},
+                  {.write_addr = reinterpret_cast<volatile void*>(8)},
+                  {.write_addr = reinterpret_cast<volatile void*>(9)},
+              });
+  pc = 0;
+  EXPECT_EQ(cc0.program[pc++], 1);
+  EXPECT_EQ(cc0.program[pc++], 2);
+  EXPECT_EQ(cc0.program[pc++], 3);
+  EXPECT_EQ(cc0.program[pc++], 4);
+  EXPECT_EQ(cc0.program[pc++], 5);
+  EXPECT_EQ(cc0.program[pc++], 6);
+  EXPECT_EQ(cc0.program[pc++], 0);
+  EXPECT_EQ(cc0.program[pc++], 0);
+  EXPECT_EQ(cc0.program[pc++], 7);
+  EXPECT_EQ(cc0.program[pc++], 8);
+  EXPECT_EQ(cc0.program[pc++], 9);
+  EXPECT_EQ(cc0.program[pc++], 0);
 }
