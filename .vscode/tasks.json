@@ -21,6 +21,9 @@
                 "//tplp:firmware.uf2",
                 "--config=iterate",
             ],
+            "presentation": {
+                "clear": true,
+            },
         },
         {
             "label": "[iterate] build & flash",
