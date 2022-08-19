@@ -54,6 +54,20 @@ cc_library(
 )
 
 cc_library(
+    name = "dma",
+    srcs = ["dma.cc"],
+    hdrs = ["dma.h"],
+    deps = [
+        ":dma_program",
+        ":types",
+        "//picolog",
+        "@FreeRTOS",
+        "@rules_pico//pico:hardware_dma",
+        "@rules_pico//pico:hardware_gpio",
+    ],
+)
+
+cc_library(
     name = "dma_program",
     srcs = ["dma_program.cc"],
     hdrs = ["dma_program.h"],

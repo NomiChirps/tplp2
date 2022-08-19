@@ -310,13 +310,6 @@ class DmaProgram {
   std::vector<CompiledChain1> chains_;
 };
 
-// in a different file...
-class DmaController {
- public:
-  DmaProgram NewProgram();
-  void Execute(const DmaProgram&);
-};
-
 }  // namespace tplp
 
 #endif  // TPLP_BUS_DMA_PROGRAM_H_
