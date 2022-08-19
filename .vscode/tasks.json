@@ -80,6 +80,11 @@
             "type": "shell",
         },
         {
+            "label": "[tests] refresh compile_commands",
+            "command": "./tools/refresh_compile_commands_tests.sh",
+            "type": "shell",
+        },
+        {
             "label": "build openocd",
             "command": "bazel",
             "options": {

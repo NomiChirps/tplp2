@@ -12,9 +12,12 @@
 #
 
 # Show full compiler/etc command line when the build fails.
-build --verbose_failures
+build --verbose_failures --test_output=errors
 # Set the C++ standard we're using.
 build --cxxopt=-std=c++17
+
+# Use "build:test" instead of "test" in this file, so we can build tests without running them for refresh_compile_commands.
+test --config=test
 
 # A new Bazel feature required by the FreeRTOS build
 build --experimental_cc_implementation_deps
@@ -26,7 +29,7 @@ build --platforms=@rules_pico//platforms:pico
 build:simulate --platforms=
 # Target platform when running tools is the host or exec platform (referred to by the empty string)
 run --platforms=
-test --platforms=
+build:test --platforms=
 
 # For a debug build, optimize everything except code in this workspace.
 # We can't build with just "-c dbg" because there's not enough flash on the board to store ALL the debug symbols.
@@ -37,9 +40,7 @@ build:iterate -c opt
 
 # picolog config
 # Verbosity
-build --copt="-DPICOLOG_VMODULE=\"SpiController=0,I2cController=0,TSC2007=0,DmaController=0\""
-# Immediately reset to bootloader for faster turnaround after a fatal error
-build:iterate --copt="-DPICOLOG_RESET_TO_BOOTLOADER_ON_FATAL=1"
+build --copt="-DPICOLOG_VMODULE=\"SpiController=0,I2cController=0,TSC2007=0,dma_program=1\""
 # Compile out logs below a certain severity
 #--copt="-DPICOLOG_STRIP_LOG=0"
 
@@ -74,8 +75,8 @@ build --@FreeRTOS//config:FreeRTOSConfig=//tplp/config:FreeRTOSConfig
 build --@FreeRTOS//config:port=GCC_RP2040
 build:simulate --@FreeRTOS//config:FreeRTOSConfig=//simulator/config:FreeRTOSConfig
 build:simulate --@FreeRTOS//config:port=GCC_POSIX
-test --@FreeRTOS//config:FreeRTOSConfig=//testing:FreeRTOSConfig
-test --@FreeRTOS//config:port=GCC_POSIX
+build:test --@FreeRTOS//config:FreeRTOSConfig=//testing:FreeRTOSConfig
+build:test --@FreeRTOS//config:port=GCC_POSIX
 
 # Flags needed for //picolog:backtrace
 build:picodebug --copt="-mpoke-function-name"
