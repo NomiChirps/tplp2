@@ -18,16 +18,34 @@ struct Pins {
   static constexpr gpio_pin_t HX8357_CS = gpio_pin_t(24);
   static constexpr gpio_pin_t HX8357_DC = gpio_pin_t(25);
 #elif defined(RASPBERRYPI_PICO)
+  static constexpr gpio_pin_t UART_TX = gpio_pin_t(0);  // for log output
+  // GP1 free
+  static constexpr gpio_pin_t HX8357_CS = gpio_pin_t(2);
+  static constexpr gpio_pin_t HX8357_DC = gpio_pin_t(3);
+  // GP4 free
+  // GP5 free
+  // GP6 free
+  // GP7 free
+  // GP8 free
+  // GP9 free
   static constexpr gpio_pin_t SPI1_SCLK = gpio_pin_t(10);
   static constexpr gpio_pin_t SPI1_MOSI = gpio_pin_t(11);
   static constexpr gpio_pin_t SPI1_MISO = gpio_pin_t(12);
-  static constexpr gpio_pin_t HX8357_CS = gpio_pin_t(2);
-  static constexpr gpio_pin_t HX8357_DC = gpio_pin_t(3);
-  static constexpr gpio_pin_t UART_TX = gpio_pin_t(0);  // for log output
-  static constexpr gpio_pin_t I2C0_SCL = gpio_pin_t(17);
+  // GP13 free
+  // GP14 free
+  // GP15 free
   static constexpr gpio_pin_t I2C0_SDA = gpio_pin_t(16);
-  static constexpr gpio_pin_t TEST_PUSHBUTTON = gpio_pin_t(28);
+  static constexpr gpio_pin_t I2C0_SCL = gpio_pin_t(17);
   static constexpr gpio_pin_t TOUCHSCREEN_PENIRQ = gpio_pin_t(18);
+  // GP19 free
+  // GP20 free
+  // GP21 free
+  // GP22 free
+  // GP23-24 reserved by Pico
+  // GP25 == PICO_DEFAULT_LED_PIN
+  // GP26 free
+  // GP27 free
+  // GP28 free
 #else
 #error "Board not detected"
 #endif
