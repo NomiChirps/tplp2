@@ -35,7 +35,7 @@ std::ostream& operator<<(std::ostream& out,
 }  // namespace tplp
 
 std::array<uint8_t, kMaxSimultaneousTransfers> kProgrammerChannels = {0x3, 0x4};
-std::array<uint8_t, kMaxSimultaneousTransfers> kExecutorChannels = {0x5, 0x6};
+std::array<uint8_t, kMaxSimultaneousTransfers> kExecutionChannels = {0x5, 0x6};
 
 TEST(ChannelCtrl, Pack1) {
   ChannelCtrl ctrl{
@@ -111,7 +111,7 @@ TEST(ControlAliasAny, field_value) {
 }
 
 TEST(DmaProgram, InvalidCombination) {
-  DmaProgram p(kProgrammerChannels, kExecutorChannels);
+  DmaProgram p(kProgrammerChannels, kExecutionChannels);
   DmaCommand cmd;
   cmd = {
       .enable{1},
@@ -132,7 +132,7 @@ TEST(DmaProgram, InvalidCombination) {
 }
 
 TEST(DmaProgram, AllProvided) {
-  DmaProgram p(kProgrammerChannels, kExecutorChannels);
+  DmaProgram p(kProgrammerChannels, kExecutionChannels);
   DmaCommand cmd;
   cmd = {
       .enable{1},
@@ -168,14 +168,14 @@ TEST(DmaProgram, AllProvided) {
   EXPECT_EQ(cc0.initial_config[0][2], 0xcafebabe);
   EXPECT_EQ(cc0.initial_config_write_length[0], 3);
   EXPECT_EQ(cc0.initial_config_write_addr[0],
-            // channel kExecutorChannels[0], alias 1, offset 0
+            // channel kExecutionChannels[0], alias 1, offset 0
             reinterpret_cast<uint32_t*>(0x50000000 +
-                                        kExecutorChannels[0] * 0x40 + 0x10));
+                                        kExecutionChannels[0] * 0x40 + 0x10));
   EXPECT_EQ(cc0.programmer_config[0].read_addr,
             static_cast<uint32_t>(reinterpret_cast<intptr_t>(&cc0.program[0])));
   EXPECT_EQ(cc0.programmer_config[0].write_addr,
-            // channel kExecutorChannels[0], alias 1, offset 3
-            0x50000000 + kExecutorChannels[0] * 0x40 + 0x1c);
+            // channel kExecutionChannels[0], alias 1, offset 3
+            0x50000000 + kExecutionChannels[0] * 0x40 + 0x1c);
   // 1 word, just the trigger
   EXPECT_EQ(cc0.programmer_config[0].trans_count, 1);
   uint32_t expected_programmer_ctrl(
@@ -189,14 +189,14 @@ TEST(DmaProgram, AllProvided) {
           // write address is wrapped
           .ring_sel = 1,
       }
-          .Pack(true, kExecutorChannels[0], true));
+          .Pack(true, kExecutionChannels[0], true));
   EXPECT_EQ(cc0.programmer_config[0].ctrl_trig, expected_programmer_ctrl);
   EXPECT_EQ(cc0.before, std::nullopt);
   EXPECT_EQ(cc0.after, std::nullopt);
 }
 
 TEST(DmaProgram, NoneProvided) {
-  DmaProgram p(kProgrammerChannels, kExecutorChannels);
+  DmaProgram p(kProgrammerChannels, kExecutionChannels);
   DmaCommand cmd;
   cmd = {
       .enable{1},
@@ -246,13 +246,13 @@ TEST(DmaProgram, NoneProvided) {
   EXPECT_EQ(cc0.initial_config_write_length[0], 0);
   EXPECT_EQ(
       cc0.initial_config_write_addr[0],
-      // channel kExecutorChannels[0], alias 0, offset 0
-      reinterpret_cast<uint32_t*>(0x50000000 + kExecutorChannels[0] * 0x40));
+      // channel kExecutionChannels[0], alias 0, offset 0
+      reinterpret_cast<uint32_t*>(0x50000000 + kExecutionChannels[0] * 0x40));
   EXPECT_EQ(cc0.programmer_config[0].read_addr,
             static_cast<uint32_t>(reinterpret_cast<intptr_t>(&cc0.program[0])));
   EXPECT_EQ(cc0.programmer_config[0].write_addr,
-            // channel kExecutorChannels[0], alias 0, offset 0
-            0x50000000 + kExecutorChannels[0] * 0x40);
+            // channel kExecutionChannels[0], alias 0, offset 0
+            0x50000000 + kExecutionChannels[0] * 0x40);
   // 1 word, just the trigger
   EXPECT_EQ(cc0.programmer_config[0].trans_count, 4);
   uint32_t expected_programmer_ctrl(
@@ -266,7 +266,7 @@ TEST(DmaProgram, NoneProvided) {
           // write address is wrapped
           .ring_sel = 1,
       }
-          .Pack(true, kExecutorChannels[0], true));
+          .Pack(true, kExecutionChannels[0], true));
   EXPECT_EQ(cc0.programmer_config[0].ctrl_trig, expected_programmer_ctrl);
   EXPECT_EQ(cc0.before, std::nullopt);
   EXPECT_EQ(cc0.after, std::nullopt);
@@ -291,7 +291,7 @@ TEST(DmaProgram, NoneProvided) {
 
 // Three is tricky because of the non-power-of-2 alignment.
 TEST(DmaProgram, ThreeProvided) {
-  DmaProgram p(kProgrammerChannels, kExecutorChannels);
+  DmaProgram p(kProgrammerChannels, kExecutionChannels);
   DmaCommand cmd;
   cmd = {
       .enable{1},
@@ -327,9 +327,9 @@ TEST(DmaProgram, ThreeProvided) {
   EXPECT_EQ(cc0.program[1], 0);
   EXPECT_EQ(cc0.initial_config_write_length[0], 3);
   EXPECT_EQ(cc0.initial_config_write_addr[0],
-            // channel kExecutorChannels[0], alias 3, offset 0
+            // channel kExecutionChannels[0], alias 3, offset 0
             reinterpret_cast<uint32_t*>(0x50000000 +
-                                        kExecutorChannels[0] * 0x40 + 0x30));
+                                        kExecutionChannels[0] * 0x40 + 0x30));
   EXPECT_EQ(cc0.initial_config[0][0],
             cmd.transfers[0].ctrl->Pack(true, kProgrammerChannels[0], true));
   EXPECT_EQ(cc0.initial_config[0][1], 0xbeefbabe);
@@ -337,8 +337,8 @@ TEST(DmaProgram, ThreeProvided) {
   EXPECT_EQ(cc0.programmer_config[0].read_addr,
             static_cast<uint32_t>(reinterpret_cast<intptr_t>(&cc0.program[0])));
   EXPECT_EQ(cc0.programmer_config[0].write_addr,
-            // channel kExecutorChannels[0], alias 3, offset 3
-            0x50000000 + kExecutorChannels[0] * 0x40 + 0x3c);
+            // channel kExecutionChannels[0], alias 3, offset 3
+            0x50000000 + kExecutionChannels[0] * 0x40 + 0x3c);
   // 1 word, just the trigger
   EXPECT_EQ(cc0.programmer_config[0].trans_count, 1);
   uint32_t expected_programmer_ctrl(
@@ -352,7 +352,7 @@ TEST(DmaProgram, ThreeProvided) {
           // write address is wrapped
           .ring_sel = 1,
       }
-          .Pack(true, kExecutorChannels[0], true));
+          .Pack(true, kExecutionChannels[0], true));
   EXPECT_EQ(cc0.programmer_config[0].ctrl_trig, expected_programmer_ctrl);
   EXPECT_EQ(cc0.before, std::nullopt);
   EXPECT_EQ(cc0.after, std::nullopt);
@@ -365,7 +365,7 @@ TEST(DmaProgram, ThreeProvided) {
 
 TEST(DmaProgram, LongChainTwoChannels) {
   const int kChainLength = 3;
-  DmaProgram p(kProgrammerChannels, kExecutorChannels);
+  DmaProgram p(kProgrammerChannels, kExecutionChannels);
   DmaCommand cmd;
   cmd = {
       .enable{1, 1},
@@ -453,14 +453,14 @@ TEST(DmaProgram, LongChainTwoChannels) {
   EXPECT_THAT(cc0.enable, ElementsAre(1, 1));
   EXPECT_EQ(cc0.initial_config_write_length[0], 2);
   EXPECT_EQ(cc0.initial_config_write_addr[0],
-            // channel kExecutorChannels[0], alias 2, offset 0
+            // channel kExecutionChannels[0], alias 2, offset 0
             reinterpret_cast<uint32_t*>(0x50000000 +
-                                        kExecutorChannels[0] * 0x40 + 0x20));
+                                        kExecutionChannels[0] * 0x40 + 0x20));
   EXPECT_EQ(cc0.initial_config_write_length[1], 3);
   EXPECT_EQ(cc0.initial_config_write_addr[1],
-            // channel kExecutorChannels[1], alias 2, offset 0
+            // channel kExecutionChannels[1], alias 2, offset 0
             reinterpret_cast<uint32_t*>(0x50000000 +
-                                        kExecutorChannels[1] * 0x40 + 0x20));
+                                        kExecutionChannels[1] * 0x40 + 0x20));
   EXPECT_EQ(cc0.initial_config[0][0],
             cmd.transfers[0].ctrl->Pack(true, kProgrammerChannels[0], true));
   EXPECT_EQ(cc0.initial_config[0][1], 42);
@@ -475,11 +475,11 @@ TEST(DmaProgram, LongChainTwoChannels) {
             static_cast<uint32_t>(reinterpret_cast<intptr_t>(
                 &cc0.program[channel1_program_start])));
   EXPECT_EQ(cc0.programmer_config[0].write_addr,
-            // channel kExecutorChannels[0], alias 2, offset 2
-            0x50000000 + kExecutorChannels[0] * 0x40 + 0x28);
+            // channel kExecutionChannels[0], alias 2, offset 2
+            0x50000000 + kExecutionChannels[0] * 0x40 + 0x28);
   EXPECT_EQ(cc0.programmer_config[1].write_addr,
-            // channel kExecutorChannels[1], alias 2, offset 3
-            0x50000000 + kExecutorChannels[1] * 0x40 + 0x2c);
+            // channel kExecutionChannels[1], alias 2, offset 3
+            0x50000000 + kExecutionChannels[1] * 0x40 + 0x2c);
   EXPECT_EQ(cc0.programmer_config[0].trans_count, 2);
   EXPECT_EQ(cc0.programmer_config[1].trans_count, 1);
   uint32_t expected_programmer0_ctrl(
@@ -492,7 +492,7 @@ TEST(DmaProgram, LongChainTwoChannels) {
           .ring_size = 3,
           .ring_sel = 1,
       }
-          .Pack(true, kExecutorChannels[0], true));
+          .Pack(true, kExecutionChannels[0], true));
   uint32_t expected_programmer1_ctrl(
       ChannelCtrl{
           .high_priority = 0,
@@ -503,7 +503,7 @@ TEST(DmaProgram, LongChainTwoChannels) {
           .ring_size = 2,
           .ring_sel = 1,
       }
-          .Pack(true, kExecutorChannels[1], true));
+          .Pack(true, kExecutionChannels[1], true));
   EXPECT_EQ(cc0.programmer_config[0].ctrl_trig, expected_programmer0_ctrl);
   EXPECT_EQ(cc0.programmer_config[1].ctrl_trig, expected_programmer1_ctrl);
   EXPECT_EQ(cc0.before, std::nullopt);
