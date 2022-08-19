@@ -209,8 +209,8 @@ void DmaProgram::AddCommand(const DmaCommand& cmd) {
     CHECK_LE(num_params, 4);
     cc1.num_params[t] = num_params;
     // a.k.a. programmer's transfer count
-    uint8_t control_block_length;
-    uint8_t ring_size;
+    uint8_t control_block_length = 0;
+    uint8_t ring_size = 0;
     // We can only write in power-of-2 chunks due to ring_size, so promote
     // 3 params to 4. The fixed 4th (0th) value was added to the program
     // above. Also if num_params is zero, we still need to write at least one
@@ -234,6 +234,8 @@ void DmaProgram::AddCommand(const DmaCommand& cmd) {
         ring_size = 4;
         break;
     }
+    CHECK(ring_size);
+    CHECK(control_block_length);
 
     cc0.alias[t] = SelectAlias(cmd.transfers[t]);
     ControlAliasAny initial_config;

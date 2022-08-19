@@ -7,7 +7,7 @@
 
 namespace tplp {
 
-using gpio_pin_t = fluent::NamedType<unsigned int, struct GpioPinTag,
+using gpio_pin_t = fluent::NamedType<int, struct GpioPinTag,
                                      fluent::FunctionCallable>;
 
 using dma_channel_t =

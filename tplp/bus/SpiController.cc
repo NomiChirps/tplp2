@@ -11,7 +11,7 @@
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
 #include "picolog/picolog.h"
-#include "tplp/bus/DmaController.h"
+#include "tplp/bus/dma.h"
 #include "tplp/rtos_util.h"
 
 namespace tplp {
@@ -20,8 +20,8 @@ struct SpiController::Event {
 
   // For TRANSFER events.
   SpiDevice* device;
-  const uint8_t* tx_buf = nullptr;
-  uint8_t* rx_buf = nullptr;
+  const void* tx_buf = nullptr;
+  void* rx_buf = nullptr;
   size_t len = 0;
   // Waited on by SpiTransaction::TransferBlocking
   SemaphoreHandle_t txn_unblock_sem = nullptr;
@@ -101,9 +101,30 @@ SpiDevice* SpiController::AddDevice(gpio_pin_t cs, std::string_view name) {
 }
 
 SpiDevice::SpiDevice(SpiController* spi, gpio_pin_t cs, std::string_view name)
-    : spi_(spi), cs_(cs), name_(name) {
+    : spi_(spi),
+      cs_(cs),
+      name_(name),
+      transfer_program_(spi_->dma_->NewProgram()) {
   blocking_sem_ = xSemaphoreCreateBinary();
   end_transaction_sem_ = xSemaphoreCreateBinary();
+  transfer_program_.AddCommand({
+      .enable = {1, 1},
+      .transfers =
+          {// RX channel
+           ChannelConfig{.ctrl = std::nullopt,
+                         .read_addr = std::nullopt,
+                         .write_addr = std::nullopt,
+                         .trans_count = std::nullopt},
+           // TX channel
+           ChannelConfig{.ctrl = std::nullopt,
+                         .read_addr = std::nullopt,
+                         .write_addr = std::nullopt,
+                         .trans_count = std::nullopt}},
+      .after = Action{
+                      .notify_task = spi_->task_,
+                      .notify_action = eIncrement},
+      .chain_length = 1,
+  });
 }
 
 SpiTransaction SpiDevice::StartTransaction() {
@@ -173,55 +194,44 @@ void SpiController::DoTransfer(const Event& event) {
   }
 
   volatile io_rw_32* spi_dr = &spi_get_hw(spi_)->dr;
-  DmaController::Request req{
-      // Both are always enabled, since our transfer are always full-duplex.
-      .tx_enable = true,
-      .tx_dreq = spi_get_dreq(spi_, true),
-      .tx_write = spi_dr,
-      .tx_write_incr = false,
+  // TODO: increase transfer width (8b,16b,32b) if buf is the right size
+  event.device->transfer_program_.SetArg(
+      0, {
+             // RX
+             ChannelConfig{
+                 .ctrl =
+                     ChannelCtrl{
+                         .data_size = ChannelCtrl::DataSize::k8,
+                         .incr_read = false,
+                         .incr_write = !!event.rx_buf,
+                         .treq_sel =
+                             static_cast<uint8_t>(spi_get_dreq(spi_, false)),
+                     },
+                 .read_addr = spi_dr,
+                 .write_addr = event.rx_buf ?: &kDummyRxBuffer,
+                 .trans_count = event.len,
+             },
+             // TX
+             ChannelConfig{
+                 .ctrl =
+                     ChannelCtrl{
+                         .data_size = ChannelCtrl::DataSize::k8,
+                         .incr_read = !!event.tx_buf,
+                         .incr_write = false,
+                         .treq_sel =
+                             static_cast<uint8_t>(spi_get_dreq(spi_, true)),
+                     },
+                 .read_addr = event.tx_buf ?: &kDummyTxBuffer,
+                 .write_addr = spi_dr,
+                 .trans_count = event.len,
+             },
+         });
 
-      .rx_enable = true,
-      .rx_dreq = spi_get_dreq(spi_, false),
-      .rx_read = spi_dr,
-      .rx_read_incr = false,
-
-      // TODO: increase transfer width (8b,16b,32b) if buf is big and the right
-      // size? alternatively, change tx_buf/rx_buf to void* and let caller
-      // choose.
-      .transfer_width = DmaController::TransferWidth::k8,
-      .transfer_count = event.len,
-
-      .action =
-          {
-              .notify_task = task_,
-              .notify_action = eIncrement,
-          },
-  };
-
-  if (event.tx_buf) {
-    CHECK(mosi_)
-        << "Cannot transmit on an SpiController with no configured MOSI pin";
-    req.tx_read = event.tx_buf;
-    req.tx_read_incr = true;
-  } else {
-    req.tx_read = &kDummyTxBuffer;
-    req.tx_read_incr = false;
-  }
-
-  if (event.rx_buf) {
-    CHECK(miso_)
-        << "Cannot receive on an SpiController with no configured MISO pin";
-    req.rx_write = event.rx_buf;
-    req.rx_write_incr = true;
-  } else {
-    req.rx_write = &kDummyRxBuffer;
-    req.rx_write_incr = false;
-  }
-  // Start TX and RX simultaneously so the SPI FIFOs don't overflow.
-  CHECK_NOTNULL(dma_)->Transfer(req);
+  dma_->Enqueue(&event.device->transfer_program_);
 
   // Wait for the DMA to complete before processing any more events. Set a
   // generous timeout- no reasonable DMA or SPI transfer should take longer.
+  // The program's "after" action will notify us; see SpiDevice.
   CHECK_EQ(1u, ulTaskNotifyTake(true, MillisToTicks(5'000)))
       << "missed a DMA notification?";
   // Since our notification comes only after the RX DMA has finished, the SPI's
