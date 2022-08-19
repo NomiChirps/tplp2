@@ -59,6 +59,7 @@ cc_library(
     hdrs = ["dma_program.h"],
     deps = [
         ":types",
+        "//picolog",
         "@FreeRTOS",
     ],
 )
