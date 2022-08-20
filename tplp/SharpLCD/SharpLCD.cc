@@ -190,20 +190,12 @@ SharpLCD::FrameBuffer::BitBlit(const uint8_t *bitmap,
 }
 
 SharpLCD::SharpLCD(SpiController* spi) : spi_(spi) {
-  CHECK_LE(spi_->actual_frequency(), 2'000'000);
+  CHECK_LE(spi_->GetActualFrequency(), 2'000'000);
 }
 
 void SharpLCD::Begin(gpio_pin_t cs, int toggle_vcom_task_priority,
                      int toggle_vcom_task_stack_depth) {
   spi_device_ = spi_->AddDevice(cs, "SharpLCD");
-  write_buffer_.reset(
-      new SpiTransactionBuilder(spi_device_->NewTransactionBuilder()));
-  // TODO: untested
-  write_buffer_->AddTransfer({
-      .read_addr = std::nullopt,
-      .write_addr = nullptr,
-      .size = std::nullopt,
-  });
   CHECK(xTaskCreate(&SharpLCD::ToggleVcomTask, "SharpLCD::ToggleVCOM",
                     toggle_vcom_task_stack_depth, this,
                     toggle_vcom_task_priority, nullptr));
@@ -215,10 +207,17 @@ SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
 
 void SharpLCD::WriteBufferBlocking(const uint8_t* buffer, unsigned len) {
   CHECK_NOTNULL(spi_device_);
-  CHECK_OK(write_buffer_->RunBlocking({{
-      .read_addr = buffer,
-      .size = len,
-  }}));
+  SpiTransaction txn = spi_device_->StartTransaction();
+  auto ret = txn.TransferBlocking(
+      {
+          .tx_buf = buffer,
+          .len = len,
+      },
+      MillisToTicks(1000), MillisToTicks(1000));
+  if (ret != SpiTransaction::Result::OK) {
+    LOG(ERROR) << "WriteBufferBlocking() timed out. ret="
+               << static_cast<int>(ret);
+  }
 }
 
 void SharpLCD::Clear() {

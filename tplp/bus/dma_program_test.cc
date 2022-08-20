@@ -156,9 +156,9 @@ TEST(DmaProgram, AllProvided) {
   const CompiledChain0& cc0 = cc1.cc0;
   // All fields were provided, but a trigger is still needed. SelectAlias() uses
   // trans_count (even though it's saved between triggers anyway).
-  EXPECT_EQ(cc1.alias[0].num, 1);
-  EXPECT_EQ(cc1.alias[0].offset, 3);
-  EXPECT_THAT(cc1.holes_channel_major, SizeIs(0));
+  EXPECT_EQ(cc0.alias[0].num, 1);
+  EXPECT_EQ(cc0.alias[0].offset, 3);
+  EXPECT_THAT(cc1.holes, SizeIs(0));
   EXPECT_THAT(cc0.enable, ElementsAre(1, 0));
   EXPECT_EQ(cc0.program[0], 42);
   EXPECT_EQ(cc0.program[1], 0);
@@ -219,26 +219,18 @@ TEST(DmaProgram, NoneProvided) {
   const CompiledChain1& cc1 = chains[0];
   const CompiledChain0& cc0 = cc1.cc0;
   // We could use any alias, so zero it is.
-  EXPECT_EQ(cc1.alias[0].num, 0);
-  EXPECT_EQ(cc1.alias[0].offset, 0);
-  EXPECT_THAT(cc1.holes_channel_major, SizeIs(4));
+  EXPECT_EQ(cc0.alias[0].num, 0);
+  EXPECT_EQ(cc0.alias[0].offset, 0);
+  EXPECT_THAT(cc1.holes, SizeIs(4));
   // holes in alias order
-  EXPECT_EQ(cc1.holes_channel_major[0].type, ChannelConfig::Field::kReadAddr);
-  EXPECT_EQ(cc1.holes_channel_major[1].type, ChannelConfig::Field::kWriteAddr);
-  EXPECT_EQ(cc1.holes_channel_major[2].type, ChannelConfig::Field::kTransCount);
-  EXPECT_EQ(cc1.holes_channel_major[3].type, ChannelConfig::Field::kCtrl);
-  EXPECT_EQ(cc1.holes_channel_major[0].program_index, 0);
-  EXPECT_EQ(cc1.holes_channel_major[1].program_index, 1);
-  EXPECT_EQ(cc1.holes_channel_major[2].program_index, 2);
-  EXPECT_EQ(cc1.holes_channel_major[3].program_index, 3);
-  EXPECT_EQ(cc1.holes_chain_major[0].type, ChannelConfig::Field::kReadAddr);
-  EXPECT_EQ(cc1.holes_chain_major[1].type, ChannelConfig::Field::kWriteAddr);
-  EXPECT_EQ(cc1.holes_chain_major[2].type, ChannelConfig::Field::kTransCount);
-  EXPECT_EQ(cc1.holes_chain_major[3].type, ChannelConfig::Field::kCtrl);
-  EXPECT_EQ(cc1.holes_chain_major[0].program_index, 0);
-  EXPECT_EQ(cc1.holes_chain_major[1].program_index, 1);
-  EXPECT_EQ(cc1.holes_chain_major[2].program_index, 2);
-  EXPECT_EQ(cc1.holes_chain_major[3].program_index, 3);
+  EXPECT_EQ(cc1.holes[0].type, ChannelConfig::Field::kReadAddr);
+  EXPECT_EQ(cc1.holes[1].type, ChannelConfig::Field::kWriteAddr);
+  EXPECT_EQ(cc1.holes[2].type, ChannelConfig::Field::kTransCount);
+  EXPECT_EQ(cc1.holes[3].type, ChannelConfig::Field::kCtrl);
+  EXPECT_EQ(cc1.holes[0].program_index, 0);
+  EXPECT_EQ(cc1.holes[1].program_index, 1);
+  EXPECT_EQ(cc1.holes[2].program_index, 2);
+  EXPECT_EQ(cc1.holes[3].program_index, 3);
   EXPECT_THAT(cc0.enable, ElementsAre(1, 0));
   // placeholder value for args
   EXPECT_EQ(cc0.program[0], 0xbaadf00d);
@@ -281,11 +273,10 @@ TEST(DmaProgram, NoneProvided) {
 
   // Make sure the program is filled out correctly.
   ChannelCtrl ctrl_arg{};
-  p.SetArgsChannelMajor(
-      {{.ctrl = ChannelCtrl{},
-        .read_addr = reinterpret_cast<volatile const void*>(0xcafebabe),
-        .write_addr = reinterpret_cast<volatile void*>(0xfeedbeef),
-        .trans_count = 42}});
+  p.SetArg(0, {{.ctrl = ChannelCtrl{},
+                .read_addr = reinterpret_cast<volatile const void*>(0xcafebabe),
+                .write_addr = reinterpret_cast<volatile void*>(0xfeedbeef),
+                .trans_count = 42}});
   // As we're writing to alias 0, they should go in a different
   // order to the ChannelConfigArg field order.
   // read_addr
@@ -325,14 +316,11 @@ TEST(DmaProgram, ThreeProvided) {
   EXPECT_THAT(chains, SizeIs(1));
   const CompiledChain1& cc1 = chains[0];
   const CompiledChain0& cc0 = cc1.cc0;
-  EXPECT_EQ(cc1.alias[0].num, 3);
-  EXPECT_EQ(cc1.alias[0].offset, 3);
-  EXPECT_THAT(cc1.holes_channel_major, SizeIs(1));
-  EXPECT_EQ(cc1.holes_channel_major[0].type, ChannelConfig::Field::kReadAddr);
-  EXPECT_EQ(cc1.holes_channel_major[0].program_index, 0);
-  EXPECT_THAT(cc1.holes_chain_major, SizeIs(1));
-  EXPECT_EQ(cc1.holes_chain_major[0].type, ChannelConfig::Field::kReadAddr);
-  EXPECT_EQ(cc1.holes_chain_major[0].program_index, 0);
+  EXPECT_EQ(cc0.alias[0].num, 3);
+  EXPECT_EQ(cc0.alias[0].offset, 3);
+  EXPECT_THAT(cc1.holes, SizeIs(1));
+  EXPECT_EQ(cc1.holes[0].type, ChannelConfig::Field::kReadAddr);
+  EXPECT_EQ(cc1.holes[0].program_index, 0);
   EXPECT_THAT(cc0.enable, ElementsAre(1, 0));
   // placeholder value for args
   EXPECT_EQ(cc0.program[0], 0xbaadf00d);
@@ -369,8 +357,8 @@ TEST(DmaProgram, ThreeProvided) {
   EXPECT_EQ(cc0.before, std::nullopt);
   EXPECT_EQ(cc0.after, std::nullopt);
 
-  p.SetArgsChannelMajor(
-      {{.read_addr = reinterpret_cast<const volatile void*>(0x12345678)}});
+  p.SetArg(0,
+           {{.read_addr = reinterpret_cast<const volatile void*>(0x12345678)}});
   EXPECT_EQ(cc0.program[0], 0x12345678);
   EXPECT_EQ(cc0.program[1], 0);
 }
@@ -406,18 +394,15 @@ TEST(DmaProgram, LongChainTwoChannels) {
   ASSERT_EQ(cmd.transfers[0].num_params(), 2);
   ASSERT_EQ(cmd.transfers[1].num_params(), 1);
   p.AddCommand(cmd);
-  EXPECT_EQ(p.num_commands(), 1);
-  EXPECT_EQ(p.total_length(), kChainLength);
   const std::vector<CompiledChain1>& chains = p.contents();
   EXPECT_THAT(chains, SizeIs(1));
   const CompiledChain1& cc1 = chains[0];
   const CompiledChain0& cc0 = cc1.cc0;
-  EXPECT_EQ(cc1.alias[0].num, 2);
-  EXPECT_EQ(cc1.alias[0].offset, 2);
-  EXPECT_EQ(cc1.alias[1].num, 2);
-  EXPECT_EQ(cc1.alias[1].offset, 3);
-  EXPECT_THAT(cc1.holes_channel_major, SizeIs(3 * kChainLength));
-  EXPECT_THAT(cc1.holes_chain_major, SizeIs(3 * kChainLength));
+  EXPECT_EQ(cc0.alias[0].num, 2);
+  EXPECT_EQ(cc0.alias[0].offset, 2);
+  EXPECT_EQ(cc0.alias[1].num, 2);
+  EXPECT_EQ(cc0.alias[1].offset, 3);
+  EXPECT_THAT(cc1.holes, SizeIs(3 * kChainLength));
   // kChainLength * 2 placeholders for channel 0 holes
   int pc = 0;
   EXPECT_EQ(cc0.program[pc++], 0xbaadf00d);
@@ -443,13 +428,13 @@ TEST(DmaProgram, LongChainTwoChannels) {
   // check holes for channel 0
   {
     for (int i = 0; i < kChainLength; ++i) {
-      EXPECT_EQ(cc1.holes_channel_major[hole_num].type, ChannelConfig::Field::kReadAddr)
+      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kReadAddr)
           << hole_num;
-      EXPECT_EQ(cc1.holes_channel_major[hole_num].program_index, pc++);
+      EXPECT_EQ(cc1.holes[hole_num].program_index, pc++);
       hole_num++;
-      EXPECT_EQ(cc1.holes_channel_major[hole_num].type, ChannelConfig::Field::kWriteAddr)
+      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kWriteAddr)
           << hole_num;
-      EXPECT_EQ(cc1.holes_channel_major[hole_num].program_index, pc++);
+      EXPECT_EQ(cc1.holes[hole_num].program_index, pc++);
       hole_num++;
     }
   }
@@ -458,39 +443,12 @@ TEST(DmaProgram, LongChainTwoChannels) {
   // check holes for channel 1
   {
     for (int i = 0; i < kChainLength; ++i) {
-      EXPECT_EQ(cc1.holes_channel_major[hole_num].type, ChannelConfig::Field::kWriteAddr)
+      EXPECT_EQ(cc1.holes[hole_num].type, ChannelConfig::Field::kWriteAddr)
           << hole_num;
-      EXPECT_EQ(cc1.holes_channel_major[hole_num].program_index, pc++);
+      EXPECT_EQ(cc1.holes[hole_num].program_index, pc++);
       hole_num++;
     }
   }
-  // holes in chain-major order
-  hole_num = 0;
-  pc = 0;
-  for (int i=0; i<kChainLength; ++i) {
-      // channel 0
-      EXPECT_EQ(cc1.holes_chain_major[hole_num].type, ChannelConfig::Field::kReadAddr)
-          << hole_num;
-      hole_num++;
-      EXPECT_EQ(cc1.holes_chain_major[hole_num].type, ChannelConfig::Field::kWriteAddr)
-          << hole_num;
-      hole_num++;
-      // channel 1
-      EXPECT_EQ(cc1.holes_chain_major[hole_num].type, ChannelConfig::Field::kWriteAddr)
-          << hole_num;
-      hole_num++;
-  } 
-  // program_index is a bitch to compute for chain-major order
-  // so i hope this is correct because i copied it from test output
-  EXPECT_EQ(cc1.holes_chain_major[0].program_index, 0);
-  EXPECT_EQ(cc1.holes_chain_major[1].program_index, 1);
-  EXPECT_EQ(cc1.holes_chain_major[2].program_index, 8);
-  EXPECT_EQ(cc1.holes_chain_major[3].program_index, 2);
-  EXPECT_EQ(cc1.holes_chain_major[4].program_index, 3);
-  EXPECT_EQ(cc1.holes_chain_major[5].program_index, 9);
-  EXPECT_EQ(cc1.holes_chain_major[6].program_index, 4);
-  EXPECT_EQ(cc1.holes_chain_major[7].program_index, 5);
-  EXPECT_EQ(cc1.holes_chain_major[8].program_index, 10);
 
   EXPECT_THAT(cc0.enable, ElementsAre(1, 1));
   EXPECT_EQ(cc0.initial_config_write_length[0], 2);
@@ -551,42 +509,17 @@ TEST(DmaProgram, LongChainTwoChannels) {
   EXPECT_EQ(cc0.before, std::nullopt);
   EXPECT_EQ(cc0.after, std::nullopt);
 
-  p.SetArgsChannelMajor({
-      {.read_addr = reinterpret_cast<const volatile void*>(1),
-       .write_addr = reinterpret_cast<volatile void*>(2)},
-      {.read_addr = reinterpret_cast<const volatile void*>(3),
-       .write_addr = reinterpret_cast<volatile void*>(4)},
-      {.read_addr = reinterpret_cast<const volatile void*>(5),
-       .write_addr = reinterpret_cast<volatile void*>(6)},
-      {.write_addr = reinterpret_cast<volatile void*>(7)},
-      {.write_addr = reinterpret_cast<volatile void*>(8)},
-      {.write_addr = reinterpret_cast<volatile void*>(9)},
-  });
-  pc = 0;
-  EXPECT_EQ(cc0.program[pc++], 1);
-  EXPECT_EQ(cc0.program[pc++], 2);
-  EXPECT_EQ(cc0.program[pc++], 3);
-  EXPECT_EQ(cc0.program[pc++], 4);
-  EXPECT_EQ(cc0.program[pc++], 5);
-  EXPECT_EQ(cc0.program[pc++], 6);
-  EXPECT_EQ(cc0.program[pc++], 0);
-  EXPECT_EQ(cc0.program[pc++], 0);
-  EXPECT_EQ(cc0.program[pc++], 7);
-  EXPECT_EQ(cc0.program[pc++], 8);
-  EXPECT_EQ(cc0.program[pc++], 9);
-  EXPECT_EQ(cc0.program[pc++], 0);
-
-  p.SetArgsChainMajor({
-      {.read_addr = reinterpret_cast<const volatile void*>(1),
-       .write_addr = reinterpret_cast<volatile void*>(2)},
-      {.write_addr = reinterpret_cast<volatile void*>(7)},
-      {.read_addr = reinterpret_cast<const volatile void*>(3),
-       .write_addr = reinterpret_cast<volatile void*>(4)},
-      {.write_addr = reinterpret_cast<volatile void*>(8)},
-      {.read_addr = reinterpret_cast<const volatile void*>(5),
-       .write_addr = reinterpret_cast<volatile void*>(6)},
-      {.write_addr = reinterpret_cast<volatile void*>(9)},
-  });
+  p.SetArg(0, {
+                  {.read_addr = reinterpret_cast<const volatile void*>(1),
+                   .write_addr = reinterpret_cast<volatile void*>(2)},
+                  {.read_addr = reinterpret_cast<const volatile void*>(3),
+                   .write_addr = reinterpret_cast<volatile void*>(4)},
+                  {.read_addr = reinterpret_cast<const volatile void*>(5),
+                   .write_addr = reinterpret_cast<volatile void*>(6)},
+                  {.write_addr = reinterpret_cast<volatile void*>(7)},
+                  {.write_addr = reinterpret_cast<volatile void*>(8)},
+                  {.write_addr = reinterpret_cast<volatile void*>(9)},
+              });
   pc = 0;
   EXPECT_EQ(cc0.program[pc++], 1);
   EXPECT_EQ(cc0.program[pc++], 2);

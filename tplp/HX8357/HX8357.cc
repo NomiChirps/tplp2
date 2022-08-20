@@ -272,60 +272,8 @@ static constexpr uint8_t kInitD[] = {
 
 enum class HX8357::DisplayType { HX8357D = 0xD, HX8357B = 0xB };
 
-HX8357::HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs,
-               gpio_pin_t dc)
-    : type_(type),
-      spi_(spi),
-      spi_device_(spi_->AddDevice(cs, "HX8357")),
-      cs_(cs),
-      dc_(dc),
-      cmd_generic_with_arg_(spi_device_->NewTransactionBuilder()),
-      cmd_generic_without_arg_(spi_device_->NewTransactionBuilder()),
-      cmd_rddsdr_(spi_device_->NewTransactionBuilder()),
-      cmd_blit_(spi_device_->NewTransactionBuilder()) {
-  // SendCommand(cmd[1])
-  // dc = 0
-  cmd_generic_without_arg_.AddTransfer(
-      {.read_addr = std::nullopt, .size = 1});
-
-  // SendCommand(cmd[1], data[len], len)
-  // dc = 0
-  cmd_generic_with_arg_.AddTransfer(
-      {.read_addr = std::nullopt, .size = 1});
-  cmd_generic_with_arg_.AddTransfer(
-      {.read_addr = std::nullopt, .size = std::nullopt},
-      /*before=*/Action{.gpio_toggle = dc_});
-
-  // RDDSDR(*out[1])
-  // dc = 0
-  cmd_rddsdr_.AddTransfer({
-      .read_addr = &HX8357_RDDSDR,
-      .size = 1,
-  });
-  cmd_rddsdr_.AddTransfer(
-      {
-          .write_addr = std::nullopt,
-          .size = 1,
-      },
-      // XXX: is it though?
-      // empty before-action required for sequencing
-      /*before=*/Action{});
-
-  // Blit(xcoords[4], ycoords[4], buf[len], len)
-  // dc=0
-  cmd_blit_.AddTransfer({.read_addr = &HX8357_CASET, .size = 1});
-  cmd_blit_.AddTransfer({.read_addr = std::nullopt, .size = 4},
-                        /*before=*/Action{.gpio_toggle = dc_});
-  cmd_blit_.AddTransfer({.read_addr = &HX8357_PASET, .size = 1},
-                        /*before=*/Action{.gpio_toggle = dc_});
-  cmd_blit_.AddTransfer({.read_addr = std::nullopt, .size = 4},
-                        /*before=*/Action{.gpio_toggle = dc_});
-  cmd_blit_.AddTransfer({.read_addr = &HX8357_RAMWR, .size = 1},
-                        /*before=*/Action{.gpio_toggle = dc_});
-  cmd_blit_.AddTransfer(
-      {.read_addr = std::nullopt, .size = std::nullopt},
-      /*before=*/Action{.gpio_toggle = dc_});
-}
+HX8357::HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
+    : type_(type), spi_(spi), cs_(cs), dc_(dc) {}
 
 HX8357B::HX8357B(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
     : HX8357(DisplayType::HX8357B, spi, cs, dc) {}
@@ -334,6 +282,7 @@ HX8357D::HX8357D(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
     : HX8357(DisplayType::HX8357D, spi, cs, dc) {}
 
 void HX8357::Begin() {
+  spi_device_ = spi_->AddDevice(cs_, "HX8357");
   // Screen dimensions for default rotation (1,1,0)
   width_ = HX8357_TFTWIDTH;
   height_ = HX8357_TFTHEIGHT;
@@ -376,19 +325,39 @@ void HX8357::SendCommand(uint8_t command, const uint8_t* data, uint8_t len) {
   VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "SendCommand(0x"
           << (int)command << ", [" << std::dec << (int)len << " bytes])";
   // DC is low for a command byte, then high for the data.
+  SpiTransaction txn = spi_device_->StartTransaction();
   gpio_put(dc_, 0);
+  CHECK_TXN_OK(txn.TransferBlocking({
+      .tx_buf = &command,
+      .len = 1,
+  }));
   if (data && len) {
-    CHECK_OK(cmd_generic_with_arg_.RunBlocking(
-        {{.read_addr = &command}, {.read_addr = data, .size = len}}));
-  } else {
-    CHECK_OK(cmd_generic_without_arg_.RunBlocking({{.read_addr = &command}}));
+    gpio_put(dc_, 1);
+    CHECK_TXN_OK(txn.Transfer({
+        .tx_buf = data,
+        .len = len,
+    }));
   }
 }
 
 uint8_t HX8357::RDDSDR() {
+  const uint8_t command = HX8357_RDDSDR;
+  // Datasheet claims that the first byte of the reply should be a "dummy read",
+  // with the actual result being in the 2nd byte. I have determined that that
+  // was a lie.
   uint8_t result = 0;
   gpio_put(dc_, 0);
-  CHECK_OK(cmd_rddsdr_.RunBlocking({{.write_addr = &result}}));
+  SpiTransaction txn = spi_device_->StartTransaction();
+  CHECK_TXN_OK(txn.Transfer({
+      .tx_buf = &command,
+      .len = 1,
+  }));
+  CHECK_TXN_OK(txn.Transfer({
+      .rx_buf = &result,
+      .len = 1,
+  }));
+  txn.Dispose();
+  gpio_put(dc_, 1);
   VLOG(1) << std::hex << std::setw(2) << std::setfill('0')
           << "RDDSDR response 0x" << (int)result;
   return result;
@@ -445,18 +414,35 @@ void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
   CHECK_LE(x1, x2);
   CHECK_LE(y1, y2);
 
+  uint64_t t1 = 0;
+  if (VLOG_IS_ON(1)) t1 = to_us_since_boot(get_absolute_time());
+
   const uint8_t xcoords[4] = {upper_half(x1), lower_half(x1), upper_half(x2),
                               lower_half(x2)};
   const uint8_t ycoords[4] = {upper_half(y1), lower_half(y1), upper_half(y2),
                               lower_half(y2)};
-  const uint32_t len = static_cast<uint32_t>(x2 - x1 + 1) *
-                       static_cast<uint32_t>(y2 - y1 + 1) * 2u;
+  SendCommand(HX8357_CASET, xcoords, 4);
+  SendCommand(HX8357_PASET, ycoords, 4);
+  SpiTransaction txn = spi_device_->StartTransaction();
   gpio_put(dc_, 0);
-  util::Status status =
-      cmd_blit_.RunBlocking({{.read_addr = xcoords},
-                             {.read_addr = ycoords},
-                             {.read_addr = pixels, .size = len}});
-  CHECK_OK(status);
+  txn.TransferBlocking({
+      .tx_buf = &HX8357_RAMWR,
+      .len = 1,
+  });
+  gpio_put(dc_, 1);
+  // TODO: use 16-bit transfer width! :) but watch out for byte order
+  uint32_t len = static_cast<uint32_t>(x2 - x1 + 1) *
+                 static_cast<uint32_t>(y2 - y1 + 1) * 2u;
+  txn.Transfer({
+      .tx_buf = reinterpret_cast<const uint8_t*>(pixels),
+      .len = len,
+  });
+  txn.Dispose();
+
+  uint64_t t2 = 0;
+  if (VLOG_IS_ON(1)) t2 = to_us_since_boot(get_absolute_time());
+  VLOG(1) << "Blit() finished in " << (t2 - t1) << "us ~"
+          << ((1'000ll * len) / (t2 - t1)) << "kB/s";
 }
 
 void HX8357::SetRotation(bool mx, bool my, bool mv) {
