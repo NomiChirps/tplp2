@@ -208,16 +208,10 @@ SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
 void SharpLCD::WriteBufferBlocking(const uint8_t* buffer, unsigned len) {
   CHECK_NOTNULL(spi_device_);
   SpiTransaction txn = spi_device_->StartTransaction();
-  auto ret = txn.TransferBlocking(
-      {
-          .tx_buf = buffer,
-          .len = len,
-      },
-      MillisToTicks(1000), MillisToTicks(1000));
-  if (ret != SpiTransaction::Result::OK) {
-    LOG(ERROR) << "WriteBufferBlocking() timed out. ret="
-               << static_cast<int>(ret);
-  }
+  txn.TransferBlocking({
+      .tx_buf = buffer,
+      .len = len,
+  });
 }
 
 void SharpLCD::Clear() {

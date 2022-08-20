@@ -9,7 +9,8 @@
 #include "FreeRTOS/task.h"
 #include "hardware/dma.h"
 #include "hardware/spi.h"
-#include "tplp/bus/DmaController.h"
+#include "picolog/status.h"
+#include "tplp/bus/dma.h"
 #include "tplp/bus/types.h"
 
 namespace tplp {
@@ -25,8 +26,7 @@ class SpiController {
 
  public:
   // Initializes the SPI hardware and any necessary FreeRTOS structures.
-  static SpiController* Init(int priority, int stack_depth, spi_inst_t* spi,
-                             int freq_hz, gpio_pin_t sclk,
+  static SpiController* Init(spi_inst_t* spi, int freq_hz, gpio_pin_t sclk,
                              std::optional<gpio_pin_t> mosi,
                              std::optional<gpio_pin_t> miso,
                              DmaController* dma);
@@ -41,44 +41,21 @@ class SpiController {
   explicit SpiController(spi_inst_t* spi, DmaController* dma,
                          int actual_frequency,
                          SemaphoreHandle_t transaction_mutex,
-                         QueueHandle_t event_queue, SemaphoreHandle_t flush_sem,
                          std::optional<gpio_pin_t> mosi,
                          std::optional<gpio_pin_t> miso);
   SpiController(const SpiController&) = delete;
   SpiController& operator=(const SpiController&) = delete;
   ~SpiController() = delete;
 
-  static void TaskFn(void*);
-
-  // Events that are handled in the event queue.
-  struct Event;
-  void DoTransfer(const Event&);
-  void DoFlush(const Event&);
-  void DoEndTransaction(const Event&);
-
-  // Transaction starts are handled outside the event queue.
-  // Caller must hold transaction_mutex_
-  void DoStartTransaction(SpiDevice* new_device);
-
  private:
   spi_inst_t* const spi_;
   DmaController* const dma_;
   const int actual_frequency_;
-  TaskHandle_t task_;
 
-  // Primary event queue.
-  QueueHandle_t event_queue_;
   // Held for the duration of an `SpiTransaction`. Note that as it's a mutex
   // with priority inheritance (which is important in this case!), it must be
   // returned by the same task that took it.
   SemaphoreHandle_t transaction_mutex_;
-  // Synchronizes with SpiTransaction::Flush().
-  SemaphoreHandle_t flush_sem_;
-
-  // Used for consistency checks.
-  SpiDevice* active_device_;
-  std::optional<gpio_pin_t> mosi_;
-  std::optional<gpio_pin_t> miso_;
 };
 
 // Represents an exclusive lock on the SPI bus while it communicates with one
@@ -113,16 +90,6 @@ class SpiTransaction {
     uint32_t len;
   };
 
-  enum class Result {
-    OK = 0,
-    // Timed out waiting for space in the event queue. The operation will not be
-    // executed.
-    ENQUEUE_TIMEOUT,
-    // Timed out waiting for the operation to finish. It will still be executed
-    // at some point in the future.
-    EXEC_TIMEOUT,
-  };
-
  public:
   // Wait for all pending transfers to complete and releases the transaction's
   // lock on the SPI bus.
@@ -132,47 +99,10 @@ class SpiTransaction {
   // Not stompable.
   SpiTransaction& operator=(SpiTransaction&&) = delete;
 
-  // Attempts to queue the given transfer, then returns without
-  // waiting for it to complete. See `SpiDevice::Transfer` for options.
-  // If `ticks_to_wait` is set to 0, does not block waiting for space in the
-  // queue and returns immediately.
-  //
-  // If set, `msg.tx_buf` and `msg.rx_buf` MUST remain valid until the transfer
-  // is complete.
-  //
-  // Returns `OK` if the message was enqueued, `ENQUEUE_TIMEOUT` otherwise.
-  Result Transfer(const TransferConfig& req,
-                  TickType_t ticks_to_wait = portMAX_DELAY);
+  // TODO: document
+  // XXX: maybe we can also have Transfer() not blocking!!!
+  void TransferBlocking(const TransferConfig& req);
 
-  // Waits until there is space in the queue, enqueues the given
-  // transfer, and waits until it completes. Yields to the scheduler
-  // while waiting. Note that if a nonblocking transfer was previously queued,
-  // this one will be queued behind it and must wait for it to complete.
-  // Not thread-safe.
-  //
-  // Transfer() is more efficient than TransferBlocking(). If you don't need to
-  // do something after the transfer finishes but before ending the transaction,
-  // use Transfer() instead.
-  //
-  // Returns `OK` if the transfer was fully completed.
-  Result TransferBlocking(const TransferConfig& req,
-                          TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
-                          TickType_t ticks_to_wait_transmit = portMAX_DELAY);
-
-  // Returns OK if transfers so far have been completed.
-  // Returns ENQUEUE_TIMEOUT if the event queue was too full to receive the
-  // flush event. In this case, the flush will not be executed. Otherwise
-  // returns EXEC_TIMEOUT. In this case, the flush remains pending and you may
-  // attempt to wait for it again. Any additional transfers queued up in the
-  // interim will also be flushed by this second (3rd, 4th, etc) Flush call.
-  // Note that any pending flushes will be completed in the destructor
-  // regardless. A transfer cannot outlive its containing transaction.
-  Result Flush(TickType_t ticks_to_wait_enqueue = portMAX_DELAY,
-               TickType_t ticks_to_wait_flush = portMAX_DELAY);
-
-  // Waits until all pending transfers are complete and ends the transaction,
-  // releasing its lock on the bus. Calling any other method on this object
-  // after Dispose() returns is an error.
   void Dispose();
 
  private:
@@ -184,7 +114,6 @@ class SpiTransaction {
  private:
   bool moved_from_;
   SpiDevice* const device_;
-  bool flush_pending_;
 
   // Used for consistency checks.
   TaskHandle_t originating_task_;
@@ -216,17 +145,10 @@ class SpiDevice {
   const gpio_pin_t cs_;
   const std::string name_;
 
-  std::optional<SpiTransaction> txn_;
-  // A semaphore used in the implementation of TransmitBlocking. SpiTransaction
-  // uses these, but since only one transaction can be active on a device at a
-  // time, that is fine.
   // TODO: It would be more efficient to use a direct-to-task notification!
+  // XXX: move to SpiController
   SemaphoreHandle_t blocking_sem_;
-  // TODO: It would be more efficient to use a direct-to-task notification!
-  SemaphoreHandle_t end_transaction_sem_;
 };
-
-std::ostream& operator<<(std::ostream&, const SpiTransaction::Result&);
 
 }  // namespace tplp
 

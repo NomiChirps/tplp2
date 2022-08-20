@@ -1,7 +1,7 @@
 cc_library(
-    name = "DmaController",
-    srcs = ["DmaController.cc"],
-    hdrs = ["DmaController.h"],
+    name = "dma",
+    srcs = ["dma.cc"],
+    hdrs = ["dma.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":types",
@@ -17,7 +17,7 @@ cc_library(
     hdrs = ["SpiController.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":DmaController",
+        ":dma",
         ":types",
         "//picolog",
         "//tplp:rtos_util",
@@ -50,43 +50,5 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "@NamedType",
-    ],
-)
-
-cc_library(
-    name = "dma",
-    srcs = ["dma.cc"],
-    hdrs = ["dma.h"],
-    deps = [
-        ":dma_program",
-        ":types",
-        "//picolog",
-        "@FreeRTOS",
-        "@rules_pico//pico:hardware_dma",
-        "@rules_pico//pico:hardware_gpio",
-    ],
-)
-
-cc_library(
-    name = "dma_program",
-    srcs = ["dma_program.cc"],
-    hdrs = ["dma_program.h"],
-    deps = [
-        ":types",
-        "//picolog",
-        "@FreeRTOS",
-    ],
-)
-
-cc_test(
-    name = "dma_program_test",
-    srcs = ["dma_program_test.cc"],
-    target_compatible_with = select({
-        "@platforms//os:none": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    }),
-    deps = [
-        ":dma_program",
-        "@com_google_googletest//:gtest_main",
     ],
 )

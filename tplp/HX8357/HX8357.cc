@@ -8,8 +8,6 @@
 #include "picolog/picolog.h"
 #include "tplp/rtos_util.h"
 
-#define CHECK_TXN_OK(expr) CHECK_EQ((expr), SpiTransaction::Result::OK)
-
 // - see commands and init sequence at
 //   https://github.com/adafruit/Adafruit_HX8357_Library/blob/master/Adafruit_HX8357.h
 // - read diagnostics as in
@@ -327,16 +325,16 @@ void HX8357::SendCommand(uint8_t command, const uint8_t* data, uint8_t len) {
   // DC is low for a command byte, then high for the data.
   SpiTransaction txn = spi_device_->StartTransaction();
   gpio_put(dc_, 0);
-  CHECK_TXN_OK(txn.TransferBlocking({
+  txn.TransferBlocking({
       .tx_buf = &command,
       .len = 1,
-  }));
+  });
   if (data && len) {
     gpio_put(dc_, 1);
-    CHECK_TXN_OK(txn.Transfer({
+    txn.TransferBlocking({
         .tx_buf = data,
         .len = len,
-    }));
+    });
   }
 }
 
@@ -348,14 +346,14 @@ uint8_t HX8357::RDDSDR() {
   uint8_t result = 0;
   gpio_put(dc_, 0);
   SpiTransaction txn = spi_device_->StartTransaction();
-  CHECK_TXN_OK(txn.Transfer({
+  txn.TransferBlocking({
       .tx_buf = &command,
       .len = 1,
-  }));
-  CHECK_TXN_OK(txn.Transfer({
+  });
+  txn.TransferBlocking({
       .rx_buf = &result,
       .len = 1,
-  }));
+  });
   txn.Dispose();
   gpio_put(dc_, 1);
   VLOG(1) << std::hex << std::setw(2) << std::setfill('0')
@@ -433,7 +431,7 @@ void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
   // TODO: use 16-bit transfer width! :) but watch out for byte order
   uint32_t len = static_cast<uint32_t>(x2 - x1 + 1) *
                  static_cast<uint32_t>(y2 - y1 + 1) * 2u;
-  txn.Transfer({
+  txn.TransferBlocking({
       .tx_buf = reinterpret_cast<const uint8_t*>(pixels),
       .len = len,
   });
