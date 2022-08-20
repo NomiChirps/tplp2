@@ -23,8 +23,8 @@ static DmaController* controllers[NUM_DMA_CHANNELS] = {};
 
 void __not_in_flash_func(RunActionFromISR)(
     const Action& action, BaseType_t* higher_priority_task_woken) {
-  if (action.toggle_gpio >= 0) {
-    gpio_put(action.toggle_gpio, !gpio_get(action.toggle_gpio));
+  if (action.gpio_toggle >= 0) {
+    gpio_put(action.gpio_toggle, !gpio_get(action.gpio_toggle));
   }
   if (action.give_semaphore) {
     xSemaphoreGiveFromISR(action.give_semaphore, higher_priority_task_woken);
@@ -41,7 +41,7 @@ const int kDebugGpio = 4;
 
 }  // namespace
 
-
+// FIXME: this handler takes a really long time!
 template <int irq_index>
 [[gnu::hot]] void __not_in_flash_func(DmaController_ProgramFinishedISR)() {
   gpio_put(kDebugGpio, !gpio_get(kDebugGpio));
@@ -53,8 +53,9 @@ template <int irq_index>
     // acknowledge interrupt
     *ints = 1 << ch;
     DmaController* controller = controllers[ch];
-    gpio_put(kDebugGpio, !gpio_get(kDebugGpio));
     if (!--controller->active_chain_pending_channels_) {
+      gpio_put(kDebugGpio, !gpio_get(kDebugGpio));
+      gpio_put(kDebugGpio, !gpio_get(kDebugGpio));
       // This chain is done!
       if (controller->active_chain_->after) {
         RunActionFromISR(*controller->active_chain_->after,
@@ -144,8 +145,44 @@ DmaProgram DmaController::NewProgram() {
 void DmaController::LaunchImmediate(CompiledChain0* cc) {
   CHECK_EQ(active_chain_pending_channels_, 0);
   CHECK_EQ(active_chain_, nullptr);
+  VLOG(1) << "no active chain; launching chain of length " << cc->chain_length;
   BaseType_t ignored;
-  LaunchImmediateFromISR(cc, &ignored);
+  for (int t = 0; t < kMaxSimultaneousTransfers; ++t) {
+    if (cc->enable[t]) {
+      active_chain_pending_channels_ += cc->chain_length;
+    }
+  }
+  VLOG(1) << "active_chain_pending_channels_ = "
+          << active_chain_pending_channels_;
+  active_chain_ = cc;
+  // Make sure we don't trigger any channels before the count is complete!
+  __compiler_memory_barrier();
+
+  if (cc->before) {
+    RunActionFromISR(*cc->before, &ignored);
+  }
+  for (int t = 0; t < kMaxSimultaneousTransfers; ++t) {
+    if (cc->enable[t]) {
+      // Write initial config of execution channel, without triggering it.
+      uint32_t* initial_config_read = cc->initial_config[t];
+      uint32_t* initial_config_write = cc->initial_config_write_addr[t];
+      switch (cc->initial_config_write_length[t]) {
+        case 3:
+          *initial_config_write++ = *initial_config_read++;
+        case 2:
+          *initial_config_write++ = *initial_config_read++;
+        case 1:
+          *initial_config_write++ = *initial_config_read++;
+      }
+
+      // Fully configure and trigger the programmer channel!
+      dma_channel_hw_t* p = dma_channel_hw_addr(programmer_channels_[t]);
+      p->read_addr = cc->programmer_config[t].read_addr;
+      p->write_addr = cc->programmer_config[t].write_addr;
+      p->transfer_count = cc->programmer_config[t].trans_count;
+      p->ctrl_trig = cc->programmer_config[t].ctrl_trig;
+    }
+  }
 }
 
 void __not_in_flash_func(DmaController::LaunchImmediateFromISR)(
@@ -153,7 +190,7 @@ void __not_in_flash_func(DmaController::LaunchImmediateFromISR)(
   // assuming active_chain_pending_channels_ == 0
   for (int t = 0; t < kMaxSimultaneousTransfers; ++t) {
     if (cc->enable[t]) {
-      active_chain_pending_channels_++;
+      active_chain_pending_channels_ += cc->chain_length;
     }
   }
   active_chain_ = cc;
@@ -192,12 +229,11 @@ void DmaController::Enqueue(const DmaProgram* p) {
     const CompiledChain0* ptr = &cc1.cc0;
     CHECK(xQueueSendToBack(queue_, &ptr, portMAX_DELAY));
   }
-  VLOG(1) << p->length() << " chains enqueued";
+  VLOG(1) << p->num_commands() << " chain(s) enqueued";
   if (!active_chain_) {
     VLOG(1) << "taking active_chain_mutex_";
     xSemaphoreTake(active_chain_mutex_, portMAX_DELAY);
     if (!active_chain_) {
-      VLOG(1) << "no active chain; launching";
       CompiledChain0* head;
       if (xQueueReceive(queue_, &head, 0)) {
         LaunchImmediate(head);
@@ -206,6 +242,7 @@ void DmaController::Enqueue(const DmaProgram* p) {
         // pushing our last chain and checking active_chain_. Nothing to do.
       }
     }
+    CHECK_GE(active_chain_pending_channels_, 0);
     xSemaphoreGive(active_chain_mutex_);
     VLOG(1) << "returned active_chain_mutex_";
   }

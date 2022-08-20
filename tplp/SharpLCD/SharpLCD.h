@@ -117,6 +117,7 @@ class SharpLCD {
  private:
   SpiController* const spi_;
   SpiDevice* spi_device_;
+  std::unique_ptr<SpiTransactionBuilder> write_buffer_;
 };
 
 }  // namespace tplp

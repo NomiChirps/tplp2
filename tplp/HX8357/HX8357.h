@@ -6,6 +6,7 @@
 
 namespace tplp {
 
+// Not thread-safe, but thread-compatible. One thread at a time please.
 class HX8357 {
  public:
   static constexpr int kNominalMaxSpiFrequency = 16'000'000;
@@ -69,12 +70,17 @@ class HX8357 {
  private:
   const DisplayType type_;
   SpiController* const spi_;
-  SpiDevice* spi_device_;
+  SpiDevice* const spi_device_;
   const gpio_pin_t cs_;
   const gpio_pin_t dc_;
   // Dimensions as modified by current rotation
   int16_t width_;
   int16_t height_;
+
+  SpiTransactionBuilder cmd_generic_with_arg_;
+  SpiTransactionBuilder cmd_generic_without_arg_;
+  SpiTransactionBuilder cmd_rddsdr_;
+  SpiTransactionBuilder cmd_blit_;
 
   HX8357(const HX8357&) = delete;
   HX8357& operator=(const HX8357&) = delete;

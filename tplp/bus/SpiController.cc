@@ -15,33 +15,8 @@
 #include "tplp/rtos_util.h"
 
 namespace tplp {
-struct SpiController::Event {
-  enum class Tag { NOT_INITIALIZED = 0, TRANSFER, FLUSH, END_TRANSACTION } tag;
 
-  // For TRANSFER events.
-  SpiDevice* device;
-  const void* tx_buf = nullptr;
-  void* rx_buf = nullptr;
-  size_t len = 0;
-  // Waited on by SpiTransaction::TransferBlocking
-  SemaphoreHandle_t txn_unblock_sem = nullptr;
-
-  // Semaphore used in the END_TRANSACTION flow to signal the user's
-  // transaction task that it can now give up SpiController::transaction_mutex_.
-  // We could use this field for FLUSH too, but it's okay for flush to
-  // use the single shared binary semaphore SpiController::flush_sem_ (because
-  // flush does not require priority inheritance on top of that provided by
-  // transaction_mutex_).
-  SemaphoreHandle_t end_transaction_sem;
-};
-
-namespace {
-// This limit is mostly arbitrary.
-static constexpr int kEventQueueDepth = 8;
-}  // namespace
-
-SpiController* SpiController::Init(int priority, int stack_depth,
-                                   spi_inst_t* spi, int freq_hz,
+SpiController* SpiController::Init(spi_inst_t* spi, int freq_hz,
                                    gpio_pin_t sclk,
                                    std::optional<gpio_pin_t> mosi,
                                    std::optional<gpio_pin_t> miso,
@@ -52,9 +27,8 @@ SpiController* SpiController::Init(int priority, int stack_depth,
   spi_set_format(spi, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
   gpio_set_function(sclk, GPIO_FUNC_SPI);
 
-  QueueHandle_t event_queue =
-      CHECK_NOTNULL(xQueueCreate(kEventQueueDepth, sizeof(Event)));
-
+  // TODO: verify that these pins have that function
+  // for the given SPI peripheral index
   if (mosi) {
     gpio_set_function(*mosi, GPIO_FUNC_SPI);
   }
@@ -62,36 +36,23 @@ SpiController* SpiController::Init(int priority, int stack_depth,
     gpio_set_function(*miso, GPIO_FUNC_SPI);
   }
 
-  SemaphoreHandle_t transaction_mutex = CHECK_NOTNULL(xSemaphoreCreateMutex());
-  SemaphoreHandle_t flush_sem = CHECK_NOTNULL(xSemaphoreCreateBinary());
-  SpiController* that =
-      new SpiController(spi, dma, actual_freq_hz, transaction_mutex,
-                        event_queue, flush_sem, mosi, miso);
+  SemaphoreHandle_t bus_mutex = CHECK_NOTNULL(xSemaphoreCreateMutex());
+  SemaphoreHandle_t unblock_semaphore = CHECK_NOTNULL(xSemaphoreCreateBinary());
+  SpiController* self =
+      new SpiController(spi, dma, actual_freq_hz, bus_mutex, unblock_semaphore);
 
-  std::ostringstream task_name;
-  task_name << "SPI" << spi_get_index(spi);
-  CHECK(xTaskCreate(&SpiController::TaskFn, task_name.str().c_str(),
-                    stack_depth, that, priority, &that->task_));
   LOG(INFO) << "SPI" << spi_get_index(spi) << " initialization complete.";
-  return that;
+  return self;
 }
 
 SpiController::SpiController(spi_inst_t* spi, DmaController* dma,
-                             int actual_frequency,
-                             SemaphoreHandle_t transaction_mutex,
-                             QueueHandle_t event_queue,
-                             SemaphoreHandle_t flush_sem,
-                             std::optional<gpio_pin_t> mosi,
-                             std::optional<gpio_pin_t> miso)
+                             int actual_frequency, SemaphoreHandle_t bus_mutex,
+                             SemaphoreHandle_t unblock_semaphore)
     : spi_(spi),
       dma_(dma),
       actual_frequency_(actual_frequency),
-      event_queue_(event_queue),
-      transaction_mutex_(transaction_mutex),
-      flush_sem_(flush_sem),
-      active_device_(nullptr),
-      mosi_(mosi),
-      miso_(miso) {}
+      bus_mutex_(bus_mutex),
+      unblock_semaphore_(unblock_semaphore) {}
 
 SpiDevice* SpiController::AddDevice(gpio_pin_t cs, std::string_view name) {
   gpio_init(cs);
@@ -101,346 +62,106 @@ SpiDevice* SpiController::AddDevice(gpio_pin_t cs, std::string_view name) {
 }
 
 SpiDevice::SpiDevice(SpiController* spi, gpio_pin_t cs, std::string_view name)
-    : spi_(spi),
-      cs_(cs),
-      name_(name),
-      transfer_program_(spi_->dma_->NewProgram()) {
-  blocking_sem_ = xSemaphoreCreateBinary();
-  end_transaction_sem_ = xSemaphoreCreateBinary();
-  transfer_program_.AddCommand({
-      .enable = {1, 1},
-      .transfers =
-          {// RX channel
-           ChannelConfig{.ctrl = std::nullopt,
-                         .read_addr = std::nullopt,
-                         .write_addr = std::nullopt,
-                         .trans_count = std::nullopt},
-           // TX channel
-           ChannelConfig{.ctrl = std::nullopt,
-                         .read_addr = std::nullopt,
-                         .write_addr = std::nullopt,
-                         .trans_count = std::nullopt}},
-      .after = Action{
-                      .notify_task = spi_->task_,
-                      .notify_action = eIncrement},
-      .chain_length = 1,
-  });
-}
+    : spi_(spi), cs_(cs), name_(name) {}
 
-SpiTransaction SpiDevice::StartTransaction() {
-  auto txn = StartTransaction(portMAX_DELAY);
-  LOG_IF(FATAL, !txn) << "Unable to get SpiTransaction after waiting forever?";
-  return std::move(*txn);
-}
+SpiTransactionBuilder::SpiTransactionBuilder(SpiDevice* device)
+    : device_(device), program_(device_->spi_->dma_->NewProgram()) {}
 
-void SpiController::TaskFn(void* task_param) {
-  SpiController* self = static_cast<SpiController*>(task_param);
-  LOG(INFO) << "SpiController task started.";
-  CHECK_EQ(self->task_, xTaskGetCurrentTaskHandle());
-
-  Event event;
-  for (;;) {
-    VLOG(1) << "SpiController waiting for event.";
-    CHECK(xQueueReceive(self->event_queue_, &event, portMAX_DELAY));
-    switch (event.tag) {
-      case Event::Tag::TRANSFER:
-        self->DoTransfer(event);
-        break;
-      case Event::Tag::FLUSH:
-        self->DoFlush(event);
-        break;
-      case Event::Tag::END_TRANSACTION:
-        self->DoEndTransaction(event);
-        break;
-      default:
-        LOG(FATAL) << "Uninitialized/corrupt event. tag="
-                   << static_cast<int>(event.tag);
-    }
-  }
-}
-
-void SpiController::DoStartTransaction(SpiDevice* new_device) {
-  CHECK_EQ(xSemaphoreGetMutexHolder(transaction_mutex_),
-           xTaskGetCurrentTaskHandle());
-  CHECK_EQ(uxQueueMessagesWaiting(event_queue_), 0u);
-  CHECK_EQ(active_device_, nullptr)
-      << "DoStartTransaction() for device=" << new_device->name_
-      << " while a transaction is already in progress on device="
-      << active_device_->name_;
-  CHECK_EQ(new_device->spi_, this);
-
-  // Select the device.
-  active_device_ = new_device;
-  VLOG(1) << "Active device=" << new_device->name_ << "; setting CS low";
-  gpio_put(new_device->cs_, 0);
-}
-
-void SpiController::DoTransfer(const Event& event) {
-  static uint32_t kDummyTxBuffer = 0x0a;
-  static uint32_t kDummyRxBuffer = 0xa0;
-
-  VLOG(1) << "TRANSFER device=" << event.device->name_;
-  CHECK_EQ(active_device_, event.device)
-      << "Got transfer for device=" << event.device->name_
-      << " while a transaction is already in progress on device="
-      << active_device_->name_;
-  CHECK_EQ(event.device->spi_, this);
-
-  CHECK(!spi_is_busy(spi_));
-
-  if (event.len == 0) {
-    VLOG(1) << "Skipping zero-length transfer";
-    return;
-  }
-
-  volatile io_rw_32* spi_dr = &spi_get_hw(spi_)->dr;
+void SpiTransactionBuilder::AddTransfer(const TransferArg& arg,
+                                        std::optional<Action> before,
+                                        std::optional<Action> after) {
+  volatile io_rw_32* spi_dr = &spi_get_hw(device_->spi_->spi_)->dr;
+  bool null_write = arg.write_addr && *arg.write_addr == nullptr;
+  bool null_read = arg.read_addr && *arg.read_addr == nullptr;
+  if (arg.size) CHECK_GT(*arg.size, 0u);
   // TODO: increase transfer width (8b,16b,32b) if buf is the right size
-  event.device->transfer_program_.SetArg(
-      0, {
-             // RX
-             ChannelConfig{
-                 .ctrl =
-                     ChannelCtrl{
-                         .data_size = ChannelCtrl::DataSize::k8,
-                         .incr_read = false,
-                         .incr_write = !!event.rx_buf,
-                         .treq_sel =
-                             static_cast<uint8_t>(spi_get_dreq(spi_, false)),
-                     },
-                 .read_addr = spi_dr,
-                 .write_addr = event.rx_buf ?: &kDummyRxBuffer,
-                 .trans_count = event.len,
-             },
-             // TX
-             ChannelConfig{
-                 .ctrl =
-                     ChannelCtrl{
-                         .data_size = ChannelCtrl::DataSize::k8,
-                         .incr_read = !!event.tx_buf,
-                         .incr_write = false,
-                         .treq_sel =
-                             static_cast<uint8_t>(spi_get_dreq(spi_, true)),
-                     },
-                 .read_addr = event.tx_buf ?: &kDummyTxBuffer,
-                 .write_addr = spi_dr,
-                 .trans_count = event.len,
-             },
-         });
-
-  dma_->Enqueue(&event.device->transfer_program_);
-
-  // Wait for the DMA to complete before processing any more events. Set a
-  // generous timeout- no reasonable DMA or SPI transfer should take longer.
-  // The program's "after" action will notify us; see SpiDevice.
-  CHECK_EQ(1u, ulTaskNotifyTake(true, MillisToTicks(5'000)))
-      << "missed a DMA notification?";
-  // Since our notification comes only after the RX DMA has finished, the SPI's
-  // FIFOs should already be empty by the time.
-  uint32_t fifo_status = spi_get_hw(spi_)->sr;
-  CHECK(!(fifo_status & SPI_SSPSR_RNE_BITS)) << "Receive FIFO not empty";
-  CHECK(fifo_status & SPI_SSPSR_TFE_BITS) << "Transmit FIFO not empty";
-  CHECK(!spi_is_busy(spi_));
-  VLOG(1) << "DMA transfer finished";
-
-  if (event.txn_unblock_sem) xSemaphoreGive(event.txn_unblock_sem);
+  // XXX: AddOrExtendCommand ? for chain_length > 1 ...
+  program_.AddCommand(
+      {
+          .enable = {1, 1},
+          .transfers =
+              {// RX channel
+               ChannelConfig{
+                   .ctrl = ChannelCtrl{.data_size = ChannelCtrl::DataSize::k8,
+                                       .incr_read = false,
+                                       .incr_write = !null_write,
+                                       .treq_sel =
+                                           static_cast<uint8_t>(spi_get_dreq(
+                                               device_->spi_->spi_, false))},
+                   .read_addr = spi_dr,
+                   .write_addr = null_write ? &dummy_write_ : arg.write_addr,
+                   .trans_count = arg.size},
+               // TX channel
+               ChannelConfig{
+                   .ctrl = ChannelCtrl{.data_size = ChannelCtrl::DataSize::k8,
+                                       .incr_read = !null_read,
+                                       .incr_write = false,
+                                       .treq_sel =
+                                           static_cast<uint8_t>(spi_get_dreq(
+                                               device_->spi_->spi_, true))},
+                   .read_addr = null_read ? &dummy_read_ : arg.read_addr,
+                   .write_addr = spi_dr,
+                   .trans_count = arg.size}},
+          .before = before,
+          .after = after,
+          .chain_length = 1,
+      });
+  args_.emplace_back();
+  args_.emplace_back();
 }
 
-void SpiController::DoFlush(const Event& event) {
-  VLOG(1) << "FLUSH device=" << event.device->name_;
-  CHECK_EQ(active_device_, event.device)
-      << "active_device_->name_=" << active_device_->name_
-      << "; event.device->name_=" << event.device->name_;
-
-  // Allow Flush() to proceed in the task that enqueued this event.
-  VLOG(1) << "Returning flush_sem_";
-  CHECK(xSemaphoreGive(flush_sem_));
-}
-
-void SpiController::DoEndTransaction(const Event& event) {
-  VLOG(1) << "END_TRANSACTION device=" << event.device->name_;
-  CHECK_EQ(active_device_, event.device)
-      << "active_device_->name_=" << active_device_->name_
-      << "; event.device->name_=" << event.device->name_;
-  CHECK_EQ(uxQueueMessagesWaiting(event_queue_), 0u)
-      << "Transaction finished but there are still events in the queue.";
-
-  // Deselect the device.
-  gpio_put(active_device_->cs_, 1);
-  active_device_ = nullptr;
-
-  // Signal the originating task to continue, so it can release
-  // transaction_mutex_.
-  VLOG(1) << "CS is set high; returning end_transaction_sem";
-  CHECK(xSemaphoreGive(event.end_transaction_sem));
-}
-
-std::optional<SpiTransaction> SpiDevice::StartTransaction(
-    TickType_t ticks_to_wait) {
-  VLOG(1) << "StartTransaction() device=" << name_
-          << " waiting for transaction_mutex_";
-  CHECK_NE(xSemaphoreGetMutexHolder(spi_->transaction_mutex_),
-           xTaskGetCurrentTaskHandle())
-      << "Transaction on SPI" << spi_get_index(spi_->spi_)
-      << " already active in this task - would deadlock";
-  if (!xSemaphoreTake(spi_->transaction_mutex_, ticks_to_wait)) {
-    // timed out
-    return std::nullopt;
+util::Status SpiTransactionBuilder::RunBlocking(
+    std::initializer_list<TransferArg> args, TickType_t ticks_to_wait) {
+  CHECK_EQ(program_.total_length(), args.size());
+  int arg_index = 0;
+  for (const TransferArg& arg : args) {
+  bool null_write = arg.write_addr && *arg.write_addr == nullptr;
+  bool null_read = arg.read_addr && *arg.read_addr == nullptr;
+    if (arg.size) CHECK_GT(*arg.size, 0u);
+    // Channel 0: RX
+    args_[arg_index++] = {
+        .write_addr = null_write ? std::nullopt : arg.write_addr,
+        .trans_count = arg.size,
+    };
+    // Channel 1: TX
+    args_[arg_index++] = {
+        .read_addr = null_read ? std::nullopt : arg.read_addr,
+        .trans_count = arg.size,
+    };
   }
-
-  spi_->DoStartTransaction(this);
-
-  return SpiTransaction(this);
-}
-
-SpiTransaction::SpiTransaction(SpiDevice* device)
-    : moved_from_(false),
-      device_(device),
-      flush_pending_(false),
-      originating_task_(CHECK_NOTNULL(xTaskGetCurrentTaskHandle())) {}
-
-SpiTransaction::SpiTransaction(SpiTransaction&& other)
-    : moved_from_(false),
-      device_(other.device_),
-      flush_pending_(other.flush_pending_),
-      originating_task_(other.originating_task_) {
-  other.moved_from_ = true;
-}
-
-SpiTransaction::Result SpiTransaction::Transfer(const TransferConfig& req,
-                                                TickType_t ticks_to_wait) {
-  VLOG(1) << "Transfer() device=" << device_->name_ << " len=" << req.len;
-  CHECK(!moved_from_);
-  CHECK_EQ(device_->spi_->active_device_, device_);
-  SpiController::Event event(SpiController::Event{
-      .tag = SpiController::Event::Tag::TRANSFER,
-      .device = device_,
-      .tx_buf = req.tx_buf,
-      .rx_buf = req.rx_buf,
-      .len = req.len,
-  });
-  if (xQueueSendToBack(device_->spi_->event_queue_, &event, ticks_to_wait)) {
-    return Result::OK;
-  }
-  return Result::ENQUEUE_TIMEOUT;
-}
-
-SpiTransaction::Result SpiTransaction::TransferBlocking(
-    const TransferConfig& req, TickType_t ticks_to_wait_enqueue,
-    TickType_t ticks_to_wait_transmit) {
-  VLOG(1) << "TransferBlocking() device=" << device_->name_
-          << " len=" << req.len;
-  CHECK(!moved_from_);
-  CHECK_EQ(device_->spi_->active_device_, device_);
-  SpiController::Event event(SpiController::Event{
-      .tag = SpiController::Event::Tag::TRANSFER,
-      .device = device_,
-      .tx_buf = req.tx_buf,
-      .rx_buf = req.rx_buf,
-      .len = req.len,
-      .txn_unblock_sem = device_->blocking_sem_,
-  });
-  if (!xQueueSendToBack(device_->spi_->event_queue_, &event,
-                        ticks_to_wait_enqueue)) {
-    return Result::ENQUEUE_TIMEOUT;
-  }
-  VLOG(1) << "TransferBlocking() enqueued device=" << device_->name_
-          << " len=" << req.len;
-  if (!xSemaphoreTake(device_->blocking_sem_, ticks_to_wait_transmit)) {
-    return Result::EXEC_TIMEOUT;
-  }
-  VLOG(1) << "TransferBlocking() complete device=" << device_->name_
-          << " len=" << req.len;
-  return Result::OK;
-}
-
-SpiTransaction::~SpiTransaction() { Dispose(); }
-
-void SpiTransaction::Dispose() {
-  if (moved_from_) return;
-  VLOG(1) << "Dispose() device=" << device_->name_;
-  CHECK_EQ(originating_task_, xTaskGetCurrentTaskHandle())
-      << "An SpiTransaction must be deleted by the same task that created it!";
-
-  SpiController::Event event(SpiController::Event{
-      .tag = SpiController::Event::Tag::END_TRANSACTION,
-      .device = device_,
-      .end_transaction_sem = device_->end_transaction_sem_,
-  });
-  VLOG(1) << "Dispose() enqueueing transaction end event";
-  CHECK(xQueueSendToBack(device_->spi_->event_queue_, &event, portMAX_DELAY));
-
-  if (flush_pending_) {
-    // We need to consume any pending flush signal, otherwise the semaphore will
-    // go out of sync and SpiController will eventually get stuck.
-    VLOG(1) << "Dispose() waiting to take flush_sem_ for pending flush";
-    CHECK(xSemaphoreTake(device_->spi_->flush_sem_, portMAX_DELAY));
-  }
-
-  // Wait for SpiController to reach the end of the queue and deselect this
-  // device's CS line, before allowing another transaction to begin.
-  VLOG(1) << "Dispose() waiting to take end_transaction_sem_";
-  CHECK(xSemaphoreTake(device_->end_transaction_sem_, portMAX_DELAY));
-  VLOG(1) << "Dispose() returning transaction_mutex_";
-  CHECK(xSemaphoreGive(device_->spi_->transaction_mutex_));
-  VLOG(1) << "Dispose() done";
-  moved_from_ = true;
-}
-
-SpiTransaction::Result SpiTransaction::Flush(TickType_t ticks_to_wait_enqueue,
-                                             TickType_t ticks_to_wait_flush) {
-  VLOG(1) << "Flush() ticks_to_wait_enqueue=" << ticks_to_wait_enqueue
-          << " ticks_to_wait_flush=" << ticks_to_wait_flush;
-  CHECK(!moved_from_);
-  if (!flush_pending_) {
-    SpiController::Event event(SpiController::Event{
-        .tag = SpiController::Event::Tag::FLUSH,
-        .device = device_,
-    });
-    if (xQueueSendToBack(device_->spi_->event_queue_, &event,
-                         ticks_to_wait_enqueue)) {
-      VLOG(1) << "Sync event queued; waiting to take flush_sem_";
-      if (xSemaphoreTake(device_->spi_->flush_sem_, ticks_to_wait_flush)) {
-        VLOG(1) << "Flush OK";
-        return Result::OK;
-      } else {
-        flush_pending_ = true;
-        VLOG(1) << "flush_sem_ timed out; flush is now pending";
-        return Result::EXEC_TIMEOUT;
-      }
-    } else {
-      VLOG(1) << "flush sync event enqueue timed out";
-      return Result::ENQUEUE_TIMEOUT;
-    }
+  program_.SetArgsChainMajor(args_.begin(), args_.end());
+  // piggyback our semaphore onto the last command's Action
+  CHECK_GT(program_.num_commands(), 0u);
+  std::optional<Action>& after = program_.mutable_last_action();
+  std::optional<Action> original_action = after;
+  if (after && after->give_semaphore) {
+    after->give_semaphore = device_->spi_->unblock_semaphore_;
+  } else if (after) {
+    after->give_semaphore = device_->spi_->unblock_semaphore_;
   } else {
-    // A previously timed-out flush is still pending; wait for it to complete
-    // first.
-    TickType_t start = xTaskGetTickCount();
-    VLOG(1) << "Waiting to take flush_sem_ for pending flush";
-    if (!xSemaphoreTake(device_->spi_->flush_sem_, ticks_to_wait_flush)) {
-      return Result::EXEC_TIMEOUT;
-    }
-    flush_pending_ = false;
-    // We'll now need to catch up in case any transmits or receives were queued
-    // up since the last Flush call. This isn't strictly necessary, but
-    // preserves a kind of linearity guarantee for the user: after *any*
-    // successful call to Flush(), all queued operations are finished.
-    TickType_t end = xTaskGetTickCount();
-    VLOG(1) << "Pending flush cleared. Starting another";
-    return Flush(ticks_to_wait_enqueue, ticks_to_wait_flush - (end - start));
+    after = Action{.give_semaphore = device_->spi_->unblock_semaphore_};
   }
+
+  VLOG(1) << "Claiming bus_mutex_ for device=" << device_->name_;
+  if (!xSemaphoreTake(device_->spi_->bus_mutex_, ticks_to_wait)) {
+    return util::UnavailableError("timed out");
+  }
+  gpio_put(device_->cs_, 0);
+  device_->spi_->dma_->Enqueue(&program_);
+  VLOG(1) << "Waiting for unblock_semaphore_";
+  CHECK(xSemaphoreTake(device_->spi_->unblock_semaphore_, ticks_to_wait));
+  if (original_action && original_action->give_semaphore) {
+    CHECK(xSemaphoreGive(original_action->give_semaphore));
+    after->give_semaphore = original_action->give_semaphore;
+  }
+  gpio_put(device_->cs_, 1);
+  VLOG(1) << "Returning bus_mutex_";
+  CHECK(xSemaphoreGive(device_->spi_->bus_mutex_));
+  return util::OkStatus();
 }
 
-std::ostream& operator<<(std::ostream& out, const SpiTransaction::Result& res) {
-  switch (res) {
-    case tplp::SpiTransaction::Result::OK:
-      return out << "OK";
-    case tplp::SpiTransaction::Result::ENQUEUE_TIMEOUT:
-      return out << "ENQUEUE_TIMEOUT";
-    case tplp::SpiTransaction::Result::EXEC_TIMEOUT:
-      return out << "EXEC_TIMEOUT";
-    default:
-      return out << (int)res;
-  }
+SpiTransactionBuilder SpiDevice::NewTransactionBuilder() {
+  return SpiTransactionBuilder(this);
 }
 
 }  // namespace tplp

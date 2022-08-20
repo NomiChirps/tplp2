@@ -6,7 +6,7 @@
 
 namespace tplp {
 namespace {
-CompiledChain0::AliasInfo SelectAlias(const ChannelConfig& cfg) {
+CompiledChain1::AliasInfo SelectAlias(const ChannelConfig& cfg) {
   // mask() gives a bitmask of the fields that are *present*
   // negate to get the omitted ones
   switch ((~cfg.mask()) & 0xf) {
@@ -69,7 +69,7 @@ CompiledChain0::AliasInfo SelectAlias(const ChannelConfig& cfg) {
 }
 
 void PackInitialConfig(const ChannelConfig& cfg,
-                       CompiledChain0::AliasInfo alias, uint8_t chain_to,
+                       CompiledChain1::AliasInfo alias, uint8_t chain_to,
                        ControlAliasAny* out) {
   uint32_t ctrl = cfg.ctrl ? cfg.ctrl->Pack(true, chain_to, true) : 0;
   switch (alias.num) {
@@ -118,76 +118,12 @@ DmaProgram::DmaProgram(
     : programmer_channels_(programmer_channels),
       execution_channels_(execution_channels) {}
 
-void DmaProgram::SetArg(size_t command_index,
-                        std::initializer_list<ChannelConfig> channel_configs) {
-  auto channel_config = channel_configs.begin();
-  int channel_config_index = 0;
-  CHECK_GE(command_index, 0u);
-  CHECK_LT(command_index, chains_.size());
-  CompiledChain1& chain = chains_[command_index];
-  auto hole = chain.holes.begin();
-  int hole_index = 0;
-  int num_enabled_channels = 0;
-  for (int t = 0; t < kMaxSimultaneousTransfers; ++t) {
-    if (chain.cc0.enable[t]) num_enabled_channels++;
+size_t DmaProgram::total_length() const {
+  size_t n = 0;
+  for (const CompiledChain1& cc1 : chains_) {
+    n += cc1.cc0.chain_length;
   }
-  for (int t = 0; t < kMaxSimultaneousTransfers; ++t) {
-    if (!chain.cc0.enable[t]) continue;
-    for (int index_in_chain = 0; index_in_chain < chain.chain_length;
-         ++index_in_chain) {
-      CHECK_NE(channel_config, channel_configs.end())
-          << "Argument list too short: expected exactly "
-          << (num_enabled_channels * chain.chain_length);
-      CHECK_EQ(chain.num_params[t], channel_config->num_fields_set())
-          << "incorrect number of non-nullopt fields in channel_configs["
-          << channel_config_index << "] (configuring channel " << t << ")";
-      for (int n = 0; n < chain.num_params[t]; ++n) {
-        CHECK(hole != chain.holes.end())
-            << "too many arguments; ran out of config holes";
-        switch (hole->type) {
-          case ChannelConfig::Field::kCtrl:
-            CHECK(channel_config->ctrl)
-                << "channel_config[" << channel_config_index
-                << "].ctrl must be set";
-            chain.cc0.program[hole->program_index] =
-                channel_config->ctrl->Pack(true, programmer_channels_[t], true);
-            break;
-          case ChannelConfig::Field::kReadAddr:
-            CHECK(channel_config->read_addr)
-                << "channel_config[" << channel_config_index
-                << "].read_addr must be set";
-            chain.cc0.program[hole->program_index] = static_cast<uint32_t>(
-                reinterpret_cast<intptr_t>(*channel_config->read_addr));
-            break;
-          case ChannelConfig::Field::kWriteAddr:
-            CHECK(channel_config->write_addr)
-                << "channel_config[" << channel_config_index
-                << "].write_addr must be set";
-            chain.cc0.program[hole->program_index] = static_cast<uint32_t>(
-                reinterpret_cast<intptr_t>(*channel_config->write_addr));
-            break;
-          case ChannelConfig::Field::kTransCount:
-            CHECK(channel_config->trans_count)
-                << "channel_config[" << channel_config_index
-                << "].trans_count must be set";
-            chain.cc0.program[hole->program_index] =
-                *channel_config->trans_count;
-            break;
-          case ChannelConfig::Field::kInvalid:
-            LOG(FATAL) << "internal error";
-        }
-        VLOG(1) << "filled hole " << hole_index << " from channel_config["
-                << channel_config_index << "]";
-        ++hole;
-        ++hole_index;
-      }
-      ++channel_config;
-      ++channel_config_index;
-    }
-  }
-  CHECK_EQ(channel_config, channel_configs.end())
-      << "Argument list too long: expected exactly "
-      << (num_enabled_channels * chain.chain_length);
+  return n;
 }
 
 void DmaProgram::AddCommand(const DmaCommand& cmd) {
@@ -195,9 +131,12 @@ void DmaProgram::AddCommand(const DmaCommand& cmd) {
   CompiledChain0& cc0 = cc1.cc0;
   cc0.before = cmd.before;
   cc0.after = cmd.after;
-  cc1.chain_length = cmd.chain_length;
+  cc1.cc0.chain_length = cmd.chain_length;
   std::vector<uint32_t> tmp_program;
   uint32_t program_start_offset[kMaxSimultaneousTransfers];
+  auto holes_chain_major =
+      std::make_unique<std::vector<CompiledChain1::HoleInfo>[]>(
+          cmd.chain_length);
   for (int t = 0; t < kMaxSimultaneousTransfers; ++t) {
     cc0.enable[t] = cmd.enable[t];
     // FIXME ? sure this is right for a disabled channel?
@@ -237,16 +176,16 @@ void DmaProgram::AddCommand(const DmaCommand& cmd) {
     CHECK(ring_size);
     CHECK(control_block_length);
 
-    cc0.alias[t] = SelectAlias(cmd.transfers[t]);
+    cc1.alias[t] = SelectAlias(cmd.transfers[t]);
     ControlAliasAny initial_config;
     // Execution always chains to the programmer channel.
-    PackInitialConfig(cmd.transfers[t], cc0.alias[t], programmer_channels_[t],
+    PackInitialConfig(cmd.transfers[t], cc1.alias[t], programmer_channels_[t],
                       &initial_config);
     // (4 - control_block_length) determines the boundary between the initial
     // config and the runtime config; write of the initial config always
     // starts at the 0th field of the alias.
     cc0.initial_config_write_addr[t] = reinterpret_cast<uint32_t*>(
-        0x50000000 + 0x40 * execution_channels_[t] + 0x10 * cc0.alias[t].num);
+        0x50000000 + 0x40 * execution_channels_[t] + 0x10 * cc1.alias[t].num);
     cc0.initial_config_write_length[t] = 4 - control_block_length;
     std::memcpy(cc0.initial_config[t], &initial_config, 3 * sizeof(uint32_t));
 
@@ -255,13 +194,15 @@ void DmaProgram::AddCommand(const DmaCommand& cmd) {
       VLOG(1) << "writing placeholders for " << std::max(1, num_params)
               << " params";
       for (int param = 0; param < num_params; ++param) {
-        cc1.holes.push_back({
-            .type = ControlAliasAny::field_type(
-                cc1.cc0.alias[t].num, cc1.cc0.alias[t].offset + param),
+        CompiledChain1::HoleInfo hole = {
+            .type = ControlAliasAny::field_type(cc1.alias[t].num,
+                                                cc1.alias[t].offset + param),
             // TODO: these could be pointers too, to save
             //       a tiny bit of arithmetic at runtime
             .program_index = tmp_program.size(),
-        });
+        };
+        cc1.holes_channel_major.push_back(hole);
+        holes_chain_major[index_in_chain].push_back(hole);
         // placeholder value to be filled in at runtime
         tmp_program.push_back(0xbaadf00d);
       }
@@ -270,15 +211,15 @@ void DmaProgram::AddCommand(const DmaCommand& cmd) {
         // Use the one arbitrarily chosen in SelectAlias, which will
         // have been placed into the last slot of initial_config
         // by PackInitialConfig.
-        CHECK_EQ(cc0.alias[t].offset, 3);
-        tmp_program.push_back(initial_config.field_value(cc0.alias[t].num, 3));
+        CHECK_EQ(cc1.alias[t].offset, 3);
+        tmp_program.push_back(initial_config.field_value(cc1.alias[t].num, 3));
       }
       if (num_params == 3) {
         // We need to write an extra, fixed parameter here, because ring_size
         // for the programmer's writes can only be a power of 2. note that in
         // this case the fixed parameter has index 0, so each cycle of the
         // programmer writes: 1, 2, 3(trigger), [ring loops around], 0.
-        tmp_program.push_back(initial_config.field_value(cc0.alias[t].num, 0));
+        tmp_program.push_back(initial_config.field_value(cc1.alias[t].num, 0));
       }
     }
     // Add a dummy control block with a null trigger to terminate the chain.
@@ -292,8 +233,8 @@ void DmaProgram::AddCommand(const DmaCommand& cmd) {
     // See RP2040 datasheet section 2.5.7 for these offsets.
     cc0.programmer_config[t].read_addr = 0;  // filled in afterwards
     cc0.programmer_config[t].write_addr =
-        0x50000000 + 0x40 * execution_channels_[t] + 0x10 * cc0.alias[t].num +
-        0x4 * cc0.alias[t].offset;
+        0x50000000 + 0x40 * execution_channels_[t] + 0x10 * cc1.alias[t].num +
+        0x4 * cc1.alias[t].offset;
     cc0.programmer_config[t].trans_count = control_block_length;
     ChannelCtrl pctrl{
         .high_priority = cmd.transfers[t].ctrl->high_priority,
@@ -308,6 +249,13 @@ void DmaProgram::AddCommand(const DmaCommand& cmd) {
     };
     cc0.programmer_config[t].ctrl_trig =
         pctrl.Pack(true, execution_channels_[t], true);
+  }
+  // Populate the other hole order
+  for (int index_in_chain = 0; index_in_chain < cmd.chain_length;
+       ++index_in_chain) {
+    std::copy(holes_chain_major[index_in_chain].begin(),
+              holes_chain_major[index_in_chain].end(),
+              std::back_inserter(cc1.holes_chain_major));
   }
   // Finalize the program so we can make pointers into it.
   cc0.program = std::make_unique<uint32_t[]>(tmp_program.size());
