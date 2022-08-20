@@ -1,10 +1,23 @@
 cc_library(
+    name = "DmaController",
+    srcs = ["DmaController.cc"],
+    hdrs = ["DmaController.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":types",
+        "//picolog",
+        "@FreeRTOS",
+        "@rules_pico//pico:hardware_dma",
+    ],
+)
+
+cc_library(
     name = "SpiController",
     srcs = ["SpiController.cc"],
     hdrs = ["SpiController.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":dma",
+        ":DmaController",
         ":types",
         "//picolog",
         "//tplp:rtos_util",

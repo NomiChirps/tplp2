@@ -29,6 +29,7 @@ struct Action {
 
 struct ChannelCtrl {
   enum DataSize {
+    // XXX: static assert to match thing
     k8 = 0,
     k16 = 1,
     k32 = 2
@@ -122,6 +123,7 @@ struct ControlAlias0 {
   uint32_t read_addr;
   uint32_t write_addr;
   uint32_t trans_count;
+  // XXX: make sure this case is handled correctly
   uint32_t ctrl_trig;
 
   static ChannelConfig::Field field_type(int index) {
@@ -234,6 +236,7 @@ struct CompiledChain0 {
   // contain pointers into this structure. Do not modify after compilation,
   // as this will invalidate the pointers in programmer_config.
   std::unique_ptr<uint32_t[]> program;
+  // XXX: is this the correct alias? i don't think it matters
   ControlAlias0 programmer_config[kMaxSimultaneousTransfers];
 
   uint32_t initial_config[kMaxSimultaneousTransfers][3];
@@ -259,6 +262,9 @@ struct CompiledChain0 {
 
 // Used in task code to fill in the holes with fresh data before either
 // launching it or adding it to the queue.
+// XXX: use an actual FreeRTOS queue-- it is in fact implemented as a ring
+// buffer with counting semaphore, and doesn't need to be reinvented. you
+// buffoon. <3
 struct CompiledChain1 {
   CompiledChain0 cc0;
 

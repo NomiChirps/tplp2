@@ -22,12 +22,6 @@ int main() {
   // printf("tplp2 built %s at %s", TPLP_BUILD_TIMESTAMP, TPLP_VERSION_ID);
   printf("tplp2 boot. TODO: add a build timestamp\n");
 
-  // TODO: consider overclocking
-  // #include "hardware/clocks.h"
-  // #include "pico/stdlib.h"
-  // clocks_init();
-  // set_sys_clock_khz(250000, true);
-
   xTaskCreate(&tplp::StartupTask, "STARTUP", tplp::TaskStacks::kStartup,
               nullptr, tplp::TaskPriorities::kStartup, nullptr);
   vTaskStartScheduler();

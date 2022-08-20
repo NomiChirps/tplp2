@@ -9,7 +9,7 @@
 #include "FreeRTOS/task.h"
 #include "hardware/dma.h"
 #include "hardware/spi.h"
-#include "tplp/bus/dma.h"
+#include "tplp/bus/DmaController.h"
 #include "tplp/bus/types.h"
 
 namespace tplp {
@@ -105,10 +105,10 @@ class SpiTransaction {
   // and written to simultaneously. The SPI bus will toggle the clock signal
   // exactly `len*8` times regardless of which buffers are provided.
   struct TransferConfig {
-    // Optional buffer to transmit.
-    const void* tx_buf;
-    // Optional buffer to hold received data.
-    void* rx_buf;
+    // Optional bytes to transmit.
+    const uint8_t* tx_buf;
+    // Optional buffer to hold received bytes.
+    uint8_t* rx_buf;
     // Number of bytes to transfer.
     uint32_t len;
   };
@@ -216,7 +216,6 @@ class SpiDevice {
   const gpio_pin_t cs_;
   const std::string name_;
 
-  DmaProgram transfer_program_;
   std::optional<SpiTransaction> txn_;
   // A semaphore used in the implementation of TransmitBlocking. SpiTransaction
   // uses these, but since only one transaction can be active on a device at a
