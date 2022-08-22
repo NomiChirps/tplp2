@@ -31,9 +31,9 @@ void StartupTask(void*) {
   LOG(INFO) << "Begin startup...";
 
   // Overclocking! Whoo! Doubling the nominal frequency seems to work on my
-  // breadboard, surprisingly.
-  // const int kSpi1Frequency = HX8357::kNominalMaxSpiFrequency;
-  const int kSpi1Frequency = 32'000'000;
+  // breadboard, surprisingly. But let's leave it for now...
+  // const int kSpi1Frequency = 32'000'000;
+  const int kSpi1Frequency = HX8357::kNominalMaxSpiFrequency;
   DmaController* dma1_controller0 = DmaController::Init(kDma1);
   SpiController* spi1_manager =
       SpiController::Init(spi1, kSpi1Frequency, Pins::SPI1_SCLK,
