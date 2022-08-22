@@ -34,8 +34,11 @@ SpiController* SpiController::Init(spi_inst_t* spi, int freq_hz,
   }
 
   SemaphoreHandle_t transaction_mutex = CHECK_NOTNULL(xSemaphoreCreateMutex());
-  SpiController* that = new SpiController(spi, dma, actual_freq_hz,
-                                          transaction_mutex, mosi, miso);
+  SemaphoreHandle_t pending_transfers_sem =
+      // maximum count is arbitrary. might as well be INT_MAX
+      CHECK_NOTNULL(xSemaphoreCreateCounting(64, 0));
+  SpiController* that = new SpiController(
+      spi, dma, actual_freq_hz, transaction_mutex, pending_transfers_sem);
 
   LOG(INFO) << "SPI" << spi_get_index(spi) << " initialization complete.";
   return that;
@@ -44,12 +47,12 @@ SpiController* SpiController::Init(spi_inst_t* spi, int freq_hz,
 SpiController::SpiController(spi_inst_t* spi, DmaController* dma,
                              int actual_frequency,
                              SemaphoreHandle_t transaction_mutex,
-                             std::optional<gpio_pin_t> mosi,
-                             std::optional<gpio_pin_t> miso)
+                             SemaphoreHandle_t pending_transfers_sem)
     : spi_(spi),
       dma_(dma),
       actual_frequency_(actual_frequency),
-      transaction_mutex_(transaction_mutex) {}
+      transaction_mutex_(transaction_mutex),
+      pending_transfers_sem_(pending_transfers_sem) {}
 
 SpiDevice* SpiController::AddDevice(gpio_pin_t cs, std::string_view name) {
   gpio_init(cs);
@@ -59,9 +62,7 @@ SpiDevice* SpiController::AddDevice(gpio_pin_t cs, std::string_view name) {
 }
 
 SpiDevice::SpiDevice(SpiController* spi, gpio_pin_t cs, std::string_view name)
-    : spi_(spi), cs_(cs), name_(name) {
-  blocking_sem_ = xSemaphoreCreateBinary();
-}
+    : spi_(spi), cs_(cs), name_(name) {}
 
 SpiTransaction SpiDevice::StartTransaction() {
   auto txn = StartTransaction(portMAX_DELAY);
@@ -86,31 +87,42 @@ std::optional<SpiTransaction> SpiDevice::StartTransaction(
   VLOG(1) << "Active device=" << name_ << "; setting CS low";
   gpio_put(cs_, 0);
 
-  return SpiTransaction(this);
+  return SpiTransaction(spi_->spi_, spi_->dma_, spi_->pending_transfers_sem_,
+                        cs_, spi_->transaction_mutex_);
 }
 
-SpiTransaction::SpiTransaction(SpiDevice* device)
-    : spi_(device->spi_->spi_),
-      moved_from_(false),
-      device_(device),
-      originating_task_(CHECK_NOTNULL(xTaskGetCurrentTaskHandle())) {}
+SpiTransaction::SpiTransaction(spi_inst_t* spi, DmaController* dma,
+                               SemaphoreHandle_t pending_transfers_sem,
+                               gpio_pin_t cs,
+                               SemaphoreHandle_t transaction_mutex)
+    : spi_(spi),
+      dma_(dma),
+      pending_transfers_sem_(pending_transfers_sem),
+      cs_(cs),
+      transaction_mutex_(transaction_mutex),
+      pending_transfer_count_(0),
+      moved_from_(false) {
+  CHECK_EQ(uxSemaphoreGetCount(pending_transfers_sem_), 0u);
+}
 
 SpiTransaction::SpiTransaction(SpiTransaction&& other)
     : spi_(other.spi_),
-      moved_from_(false),
-      device_(other.device_),
-      originating_task_(other.originating_task_) {
+      dma_(other.dma_),
+      pending_transfers_sem_(other.pending_transfers_sem_),
+      cs_(other.cs_),
+      transaction_mutex_(other.transaction_mutex_),
+      pending_transfer_count_(other.pending_transfer_count_),
+      moved_from_(false) {
   other.moved_from_ = true;
 }
 
-void SpiTransaction::TransferBlocking(const TransferConfig& req) {
-  VLOG(1) << "TransferBlocking() device=" << device_->name_
-          << " len=" << req.trans_count;
+void SpiTransaction::Transfer(const TransferConfig& req) {
+  VLOG(1) << "Transfer() trans_count=" << req.trans_count;
 
   static uint32_t kDummyTxBuffer = 0x0a;
   static uint32_t kDummyRxBuffer = 0xa0;
 
-  CHECK(!spi_is_busy(device_->spi_->spi_));
+  CHECK(!spi_is_busy(spi_));
 
   if (req.trans_count == 0) {
     VLOG(1) << "Skipping zero-length transfer";
@@ -136,7 +148,7 @@ void SpiTransaction::TransferBlocking(const TransferConfig& req) {
       .data_size = DmaController::DataSize::k8,
       .trans_count = req.trans_count,
 
-      .action = {.give_semaphore = device_->blocking_sem_},
+      .action = {.give_semaphore = pending_transfers_sem_},
   };
 
   if (req.read_addr) {
@@ -155,26 +167,33 @@ void SpiTransaction::TransferBlocking(const TransferConfig& req) {
     dma_req.c1_write_incr = false;
   }
   // Start TX and RX simultaneously so the SPI FIFOs don't overflow.
-  device_->spi_->dma_->Transfer(dma_req);
+  dma_->Transfer(dma_req);
+  pending_transfer_count_ += 1;
 
-  CHECK(xSemaphoreTake(device_->blocking_sem_, portMAX_DELAY));
-  VLOG(1) << "TransferBlocking() complete device=" << device_->name_
-          << " len=" << req.trans_count;
+  VLOG(1) << "Transfer() queued trans_count=" << req.trans_count;
 }
 
 SpiTransaction::~SpiTransaction() { Dispose(); }
 
 void SpiTransaction::Dispose() {
   if (moved_from_) return;
-  CHECK_EQ(originating_task_, xTaskGetCurrentTaskHandle())
-      << "An SpiTransaction must be deleted by the same task that created it!";
 
+  // Wait for pending transfers.
+  Flush();
   // Deselect the device.
-  VLOG(1) << "Dispose() returning transaction_mutex_; setting CS low";
-  gpio_put(device_->cs_, 1);
-  CHECK(xSemaphoreGive(device_->spi_->transaction_mutex_));
+  VLOG(1) << "Dispose() returning transaction_mutex_; setting CS high";
+  gpio_put(cs_, 1);
+  // Release the bus.
+  CHECK(xSemaphoreGive(transaction_mutex_));
 
   moved_from_ = true;
+}
+
+void SpiTransaction::Flush() {
+  while(pending_transfer_count_) {
+    CHECK(xSemaphoreTake(pending_transfers_sem_, portMAX_DELAY));
+    pending_transfer_count_--;
+  }
 }
 
 }  // namespace tplp

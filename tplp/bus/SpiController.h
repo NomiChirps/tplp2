@@ -16,13 +16,11 @@
 namespace tplp {
 
 class SpiDevice;
-class SpiTransaction;
 
 // Manages a number of devices on one SPI bus.
 // TODO: document
 class SpiController {
   friend class SpiDevice;
-  friend class SpiTransaction;
 
  public:
   // Initializes the SPI hardware and any necessary FreeRTOS structures.
@@ -41,8 +39,7 @@ class SpiController {
   explicit SpiController(spi_inst_t* spi, DmaController* dma,
                          int actual_frequency,
                          SemaphoreHandle_t transaction_mutex,
-                         std::optional<gpio_pin_t> mosi,
-                         std::optional<gpio_pin_t> miso);
+                         SemaphoreHandle_t pending_transfers_sem);
   SpiController(const SpiController&) = delete;
   SpiController& operator=(const SpiController&) = delete;
   ~SpiController() = delete;
@@ -55,7 +52,8 @@ class SpiController {
   // Held for the duration of an `SpiTransaction`. Note that as it's a mutex
   // with priority inheritance (which is important in this case!), it must be
   // returned by the same task that took it.
-  SemaphoreHandle_t transaction_mutex_;
+  const SemaphoreHandle_t transaction_mutex_;
+  const SemaphoreHandle_t pending_transfers_sem_;
 };
 
 // Represents an exclusive lock on the SPI bus while it communicates with one
@@ -96,7 +94,10 @@ class SpiTransaction {
   void Flush();
 
   // Equivalent to Transfer() followed by Flush().
-  void TransferBlocking(const TransferConfig& req);
+  void TransferBlocking(const TransferConfig& req) {
+    Transfer(req);
+    Flush();
+  }
 
   // Flushes pending transfers, closes the transaction, and releases the lock on
   // the SPI bus.
@@ -106,15 +107,19 @@ class SpiTransaction {
   SpiTransaction(const SpiTransaction&) = delete;
   SpiTransaction& operator=(const SpiTransaction&) = delete;
 
-  explicit SpiTransaction(SpiDevice* device);
+  explicit SpiTransaction(spi_inst_t* spi, DmaController* dma,
+                          SemaphoreHandle_t pending_transfers_sem,
+                          gpio_pin_t cs, SemaphoreHandle_t transaction_mutex);
 
  private:
   spi_inst_t* const spi_;
-  bool moved_from_;
-  SpiDevice* const device_;
+  DmaController* const dma_;
+  const SemaphoreHandle_t pending_transfers_sem_;
+  const gpio_pin_t cs_;
+  const SemaphoreHandle_t transaction_mutex_;
 
-  // Used for consistency checks.
-  TaskHandle_t originating_task_;
+  int pending_transfer_count_;
+  bool moved_from_;
 };
 
 class SpiDevice {
@@ -142,10 +147,6 @@ class SpiDevice {
   SpiController* const spi_;
   const gpio_pin_t cs_;
   const std::string name_;
-
-  // TODO: It would be more efficient to use a direct-to-task notification!
-  // XXX: move to SpiController
-  SemaphoreHandle_t blocking_sem_;
 };
 
 }  // namespace tplp
