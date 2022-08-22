@@ -61,19 +61,8 @@ class SpiController {
 // Represents an exclusive lock on the SPI bus while it communicates with one
 // device, allowing full-duplex transfers to be queued up to be DMA'd in/out.
 //
-// Note that although Transfer() is nonblocking, the destructor of
-// SpiTransaction will wait until all pending transfers are complete before
-// returning. This is necessary because the task using an SpiTransaction holds a
-// mutex locking out the SPI bus in order to participate in priority inheritance
-// if other, higher priority tasks need to use it, and FreeRTOS requires that
-// the task releasing such a mutex be the same task that acquired it. Even if it
-// didn't, and enqueueing multiple transactions was allowed, SpiController would
-// then have to implement its own priority inheritance or queue-jumping
-// mechanism in order to provide priority guarantees for access to the bus,
-// which, uh, no thank you. Signed, your humble editor.
-//
 // This class is not thread-safe, and only the task that originally obtained an
-// SpiTransaction may Dispose() of or destroy it.
+// SpiTransaction may Dispose() or destroy it.
 class SpiTransaction {
   friend class SpiDevice;
 
@@ -82,12 +71,12 @@ class SpiTransaction {
   // and written to simultaneously. The SPI bus will toggle the clock signal
   // exactly `len*8` times regardless of which buffers are provided.
   struct TransferConfig {
-    // Optional bytes to transmit.
-    const uint8_t* tx_buf;
+    // Optional data to transmit.
+    const void* read_addr = nullptr;
     // Optional buffer to hold received bytes.
-    uint8_t* rx_buf;
+    void* write_addr = nullptr;
     // Number of bytes to transfer.
-    uint32_t len;
+    uint32_t trans_count = 0;
   };
 
  public:
@@ -99,10 +88,18 @@ class SpiTransaction {
   // Not stompable.
   SpiTransaction& operator=(SpiTransaction&&) = delete;
 
-  // TODO: document
-  // XXX: maybe we can also have Transfer() not blocking!!!
+  // Waits for space in the DMA transfer queue, enqueues the given transfer, and
+  // returns immediately, without waiting for the transfer to finish.
+  void Transfer(const TransferConfig& req);
+
+  // Waits until queued transfers are complete.
+  void Flush();
+
+  // Equivalent to Transfer() followed by Flush().
   void TransferBlocking(const TransferConfig& req);
 
+  // Flushes pending transfers, closes the transaction, and releases the lock on
+  // the SPI bus.
   void Dispose();
 
  private:
@@ -112,6 +109,7 @@ class SpiTransaction {
   explicit SpiTransaction(SpiDevice* device);
 
  private:
+  spi_inst_t* const spi_;
   bool moved_from_;
   SpiDevice* const device_;
 

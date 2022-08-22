@@ -326,14 +326,14 @@ void HX8357::SendCommand(uint8_t command, const uint8_t* data, uint8_t len) {
   SpiTransaction txn = spi_device_->StartTransaction();
   gpio_put(dc_, 0);
   txn.TransferBlocking({
-      .tx_buf = &command,
-      .len = 1,
+      .read_addr = &command,
+      .trans_count = 1,
   });
   if (data && len) {
     gpio_put(dc_, 1);
     txn.TransferBlocking({
-        .tx_buf = data,
-        .len = len,
+        .read_addr = data,
+        .trans_count = len,
     });
   }
 }
@@ -347,12 +347,12 @@ uint8_t HX8357::RDDSDR() {
   gpio_put(dc_, 0);
   SpiTransaction txn = spi_device_->StartTransaction();
   txn.TransferBlocking({
-      .tx_buf = &command,
-      .len = 1,
+      .read_addr = &command,
+      .trans_count = 1,
   });
   txn.TransferBlocking({
-      .rx_buf = &result,
-      .len = 1,
+      .write_addr = &result,
+      .trans_count = 1,
   });
   txn.Dispose();
   gpio_put(dc_, 1);
@@ -424,16 +424,16 @@ void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
   SpiTransaction txn = spi_device_->StartTransaction();
   gpio_put(dc_, 0);
   txn.TransferBlocking({
-      .tx_buf = &HX8357_RAMWR,
-      .len = 1,
+      .read_addr = &HX8357_RAMWR,
+      .trans_count = 1,
   });
   gpio_put(dc_, 1);
   // TODO: use 16-bit transfer width! :) but watch out for byte order
   uint32_t len = static_cast<uint32_t>(x2 - x1 + 1) *
                  static_cast<uint32_t>(y2 - y1 + 1) * 2u;
   txn.TransferBlocking({
-      .tx_buf = reinterpret_cast<const uint8_t*>(pixels),
-      .len = len,
+      .read_addr = reinterpret_cast<const uint8_t*>(pixels),
+      .trans_count = len,
   });
   txn.Dispose();
 

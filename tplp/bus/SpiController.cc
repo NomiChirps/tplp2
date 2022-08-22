@@ -90,12 +90,14 @@ std::optional<SpiTransaction> SpiDevice::StartTransaction(
 }
 
 SpiTransaction::SpiTransaction(SpiDevice* device)
-    : moved_from_(false),
+    : spi_(device->spi_->spi_),
+      moved_from_(false),
       device_(device),
       originating_task_(CHECK_NOTNULL(xTaskGetCurrentTaskHandle())) {}
 
 SpiTransaction::SpiTransaction(SpiTransaction&& other)
-    : moved_from_(false),
+    : spi_(other.spi_),
+      moved_from_(false),
       device_(other.device_),
       originating_task_(other.originating_task_) {
   other.moved_from_ = true;
@@ -103,61 +105,61 @@ SpiTransaction::SpiTransaction(SpiTransaction&& other)
 
 void SpiTransaction::TransferBlocking(const TransferConfig& req) {
   VLOG(1) << "TransferBlocking() device=" << device_->name_
-          << " len=" << req.len;
+          << " len=" << req.trans_count;
 
   static uint32_t kDummyTxBuffer = 0x0a;
   static uint32_t kDummyRxBuffer = 0xa0;
 
   CHECK(!spi_is_busy(device_->spi_->spi_));
 
-  if (req.len == 0) {
+  if (req.trans_count == 0) {
     VLOG(1) << "Skipping zero-length transfer";
     return;
   }
 
-  volatile io_rw_32* spi_dr = &spi_get_hw(device_->spi_->spi_)->dr;
+  volatile io_rw_32* spi_dr = &spi_get_hw(spi_)->dr;
   DmaController::Request dma_req{
-      // Both are always enabled, since our transfer are always full-duplex.
-      .tx_enable = true,
-      .tx_dreq = spi_get_dreq(device_->spi_->spi_, true),
-      .tx_write = spi_dr,
-      .tx_write_incr = false,
+      // Both are always enabled, since our transfers are always full-duplex.
+      .c0_enable = true,
+      .c0_treq_sel = spi_get_dreq(spi_, true),
+      .c0_write_addr = spi_dr,
+      .c0_write_incr = false,
 
-      .rx_enable = true,
-      .rx_dreq = spi_get_dreq(device_->spi_->spi_, false),
-      .rx_read = spi_dr,
-      .rx_read_incr = false,
+      .c1_enable = true,
+      .c1_treq_sel = spi_get_dreq(spi_, false),
+      .c1_read_addr = spi_dr,
+      .c1_read_incr = false,
 
       // TODO: increase transfer width (8b,16b,32b) if buf is big and the right
-      // size? alternatively, change tx_buf/rx_buf to void* and let caller
-      // choose.
-      .transfer_width = DmaController::TransferWidth::k8,
-      .transfer_count = req.len,
+      // size? alternatively, let the caller choose.
+      // (is this even worth doing? would it make any difference?)
+      .data_size = DmaController::DataSize::k8,
+      .trans_count = req.trans_count,
 
       .action = {.give_semaphore = device_->blocking_sem_},
   };
 
-  if (req.tx_buf) {
-    dma_req.tx_read = req.tx_buf;
-    dma_req.tx_read_incr = true;
+  if (req.read_addr) {
+    dma_req.c0_read_addr = req.read_addr;
+    dma_req.c0_read_incr = true;
   } else {
-    dma_req.tx_read = &kDummyTxBuffer;
-    dma_req.tx_read_incr = false;
+    dma_req.c0_read_addr = &kDummyTxBuffer;
+    dma_req.c0_read_incr = false;
   }
 
-  if (req.rx_buf) {
-    dma_req.rx_write = req.rx_buf;
-    dma_req.rx_write_incr = true;
+  if (req.write_addr) {
+    dma_req.c1_write_addr = req.write_addr;
+    dma_req.c1_write_incr = true;
   } else {
-    dma_req.rx_write = &kDummyRxBuffer;
-    dma_req.rx_write_incr = false;
+    dma_req.c1_write_addr = &kDummyRxBuffer;
+    dma_req.c1_write_incr = false;
   }
   // Start TX and RX simultaneously so the SPI FIFOs don't overflow.
   device_->spi_->dma_->Transfer(dma_req);
 
   CHECK(xSemaphoreTake(device_->blocking_sem_, portMAX_DELAY));
   VLOG(1) << "TransferBlocking() complete device=" << device_->name_
-          << " len=" << req.len;
+          << " len=" << req.trans_count;
 }
 
 SpiTransaction::~SpiTransaction() { Dispose(); }

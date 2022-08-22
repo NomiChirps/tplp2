@@ -31,10 +31,10 @@ void StartupTask(void*) {
   LOG(INFO) << "Begin startup...";
 
   const int kSpi1Frequency = HX8357::kNominalMaxSpiFrequency;
-  DmaController* dma1_controller = DmaController::Init(kDma1);
+  DmaController* dma1_controller0 = DmaController::Init(kDma1);
   SpiController* spi1_manager =
       SpiController::Init(spi1, kSpi1Frequency, Pins::SPI1_SCLK,
-                          Pins::SPI1_MOSI, Pins::SPI1_MISO, dma1_controller);
+                          Pins::SPI1_MOSI, Pins::SPI1_MISO, dma1_controller0);
   LOG(INFO) << "SpiController::Init() OK";
 
   HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);

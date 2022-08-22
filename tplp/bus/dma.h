@@ -7,20 +7,10 @@
 
 namespace tplp {
 
-// TODO: generalize from channel pairs to tuples...?
-// we could also in principle support dma chains within a request
-// (but probably not across requests)
-// TODO: allow multiple channel-pairs to be active at once
-// TODO: this is okay i guess, but we could also use dma chaining to skip even
-// the interrupt handler
 class DmaController {
  public:
-  // TODO: not clear what this should be
-  // does it make sense for it to be configurable per controller?
-  // would it slow things down if it was non-constexpr? (probably not)
-  static constexpr int kNumChannelPairs = 2;
-  static constexpr int kMaxNumControllers = NUM_DMA_CHANNELS / (kNumChannelPairs*2);
-  static_assert(kMaxNumControllers > 0);
+  // TODO: what should this be?
+  static constexpr size_t kQueueLength = 4;
 
  public:
   // `irq_index` must be 0 or 1; this sets an interrupt handler on that
@@ -28,7 +18,7 @@ class DmaController {
   // concurrently.
   static DmaController* Init(dma_irq_index_t irq_index);
 
-  enum class TransferWidth { k8 = 0, k16 = 1, k32 = 2 };
+  enum class DataSize { k8 = 0, k16 = 1, k32 = 2 };
   struct Action {
     gpio_pin_t toggle_gpio = gpio_pin_t(-1);
     SemaphoreHandle_t give_semaphore = nullptr;
@@ -39,25 +29,28 @@ class DmaController {
     eNotifyAction notify_action = eNoAction;
   };
 
-  // Either tx_enable or rx_enable or both must be true. Default value of
-  // tx_dreq/rx_dreq is 0xffffffff, which indicates that no dreq should be used.
+  // Either c0_enable or c1_enable or both must be true.
+  // trans_count must be greater than zero.
   struct Request {
-    bool tx_enable = false;
-    uint32_t tx_dreq = 0x3f;  // unpaced transfer
-    volatile const void* tx_read = nullptr;
-    bool tx_read_incr = true;
-    volatile void* tx_write = nullptr;
-    bool tx_write_incr = true;
+    bool c0_enable = false;
+    // Default value of 0x3f means an unpaced transfer.
+    uint32_t c0_treq_sel = 0x3f;
+    volatile const void* c0_read_addr = nullptr;
+    bool c0_read_incr = true;
+    volatile void* c0_write_addr = nullptr;
+    bool c0_write_incr = true;
 
-    bool rx_enable = false;
-    uint32_t rx_dreq = 0x3f;  // unpaced transfer
-    volatile const void* rx_read = nullptr;
-    bool rx_read_incr = true;
-    volatile void* rx_write = nullptr;
-    bool rx_write_incr = true;
+    bool c1_enable = false;
+    // Default value of 0x3f means an unpaced transfer.
+    uint32_t c1_treq_sel = 0x3f;
+    volatile const void* c1_read_addr = nullptr;
+    bool c1_read_incr = true;
+    volatile void* c1_write_addr = nullptr;
+    bool c1_write_incr = true;
 
-    TransferWidth transfer_width = TransferWidth::k8;
-    size_t transfer_count = 0;
+    DataSize data_size = DataSize::k8;
+    // Number of `data_size`-width transfers to perform.
+    size_t trans_count = 0;
 
     // Action to take from the interrupt handler when this
     // pair of DMAs completes.
@@ -76,7 +69,7 @@ class DmaController {
   int PeekQueueLength() const;
 
  private:
-  explicit DmaController();
+  explicit DmaController(dma_channel_t c0, dma_channel_t c1);
   ~DmaController() = delete;
   DmaController(const DmaController&) = delete;
   DmaController& operator=(const DmaController&) = delete;
@@ -85,29 +78,33 @@ class DmaController {
   static void DmaFinishedISR();
 
  private:
+  const dma_channel_t c0_;
+  const dma_channel_t c1_;
   const SemaphoreHandle_t tail_mutex_;
   const SemaphoreHandle_t free_slots_sem_;
   struct ChannelPair {
-    dma_channel_t tx;
-    dma_channel_t rx;
+    // Whether channel 0 should run.
+    bool c0_enable = 0;
+    // Whether channel 1 should run.
+    bool c1_enable = 0;
 
-    // Whether the tx channel should run.
-    bool tx_enable = 0;
-    // Whether the rx channel should run.
-    bool rx_enable = 0;
+    // Control register values:
+    // [read_addr, write_addr, trans_count, ctrl]
+    uint32_t c0_config[4];
+    uint32_t c1_config[4];
 
-    // True if tx dma finished or was not enabled.
-    bool tx_done = 0;
-    // True if rx dma finished or was not enabled.
-    bool rx_done = 0;
+    // True if channel 0 finished or was not enabled.
+    bool c0_done = 0;
+    // True if channel 1 finished or was not enabled.
+    bool c1_done = 0;
 
     // What to do after all enabled channels finish.
     Action action;
 
-    // If true, request is filled out and channels are configured.
+    // If true, channel configs are filled out.
     bool launch_ready = 0;
   };
-  ChannelPair ring_[kNumChannelPairs];
+  ChannelPair ring_[kQueueLength];
   const ChannelPair* const ring_end_;
   inline ChannelPair* RingNext(ChannelPair* p) {
     if (p + 1 == ring_end_)
