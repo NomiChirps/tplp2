@@ -30,7 +30,10 @@ void StartupTask(void*) {
   }
   LOG(INFO) << "Begin startup...";
 
-  const int kSpi1Frequency = HX8357::kNominalMaxSpiFrequency;
+  // Overclocking! Whoo! Doubling the nominal frequency seems to work on my
+  // breadboard, surprisingly.
+  // const int kSpi1Frequency = HX8357::kNominalMaxSpiFrequency;
+  const int kSpi1Frequency = 32'000'000;
   DmaController* dma1_controller0 = DmaController::Init(kDma1);
   SpiController* spi1_manager =
       SpiController::Init(spi1, kSpi1Frequency, Pins::SPI1_SCLK,
@@ -41,6 +44,7 @@ void StartupTask(void*) {
   display->Begin();
   if (!display->SelfTest()) {
     // TODO: flash out an error code on something? board LED?
+    // reduce the SPI frequency?
     LOG(ERROR) << "HX8357 self test failed";
   }
   // Rotate to widescreen and so it's the right way around on my workbench.
