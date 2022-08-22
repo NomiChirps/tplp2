@@ -42,7 +42,7 @@ void lvgl_print_cb_impl(const char* msg) {
   if (len && msg[len - 1] == '\n') {
     const_cast<char*>(msg)[len - 1] = '\0';
   }
-  LOG(INFO) << msg;
+  LOG(WARNING) << msg;
 }
 
 TaskHandle_t CreateTimerHandlerTask(int priority, int stack_depth) {
