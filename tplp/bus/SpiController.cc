@@ -148,7 +148,8 @@ void SpiTransaction::Transfer(const TransferConfig& req) {
       .data_size = DmaController::DataSize::k8,
       .trans_count = req.trans_count,
 
-      .action = {.give_semaphore = pending_transfers_sem_},
+      .action = {.toggle_gpio = req.toggle_gpio,
+                 .give_semaphore = pending_transfers_sem_},
   };
 
   if (req.read_addr) {
@@ -190,7 +191,7 @@ void SpiTransaction::Dispose() {
 }
 
 void SpiTransaction::Flush() {
-  while(pending_transfer_count_) {
+  while (pending_transfer_count_) {
     CHECK(xSemaphoreTake(pending_transfers_sem_, portMAX_DELAY));
     pending_transfer_count_--;
   }

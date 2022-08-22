@@ -57,8 +57,9 @@ class HX8357 {
   explicit HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs,
                   gpio_pin_t dc);
 
-  void SendCommand(uint8_t command, const uint8_t* data = nullptr,
-                   uint8_t len = 0);
+  // Contract: dc_ must be low before these transfers, and will be low after.
+  void SendCommand(SpiTransaction& txn, uint8_t command,
+                   const uint8_t* data = nullptr, uint8_t len = 0);
 
   // Read Display Self-Diagnostic Result
   uint8_t RDDSDR();

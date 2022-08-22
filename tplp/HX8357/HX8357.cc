@@ -270,7 +270,8 @@ static constexpr uint8_t kInitD[] = {
 
 enum class HX8357::DisplayType { HX8357D = 0xD, HX8357B = 0xB };
 
-HX8357::HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
+HX8357::HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs,
+               gpio_pin_t dc)
     : type_(type), spi_(spi), cs_(cs), dc_(dc) {}
 
 HX8357B::HX8357B(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
@@ -295,6 +296,10 @@ void HX8357::SendInitSequence() {
   // sending commands. Otherwise things go Wrong(tm).
   EnsureTimeSinceBootMillis(50);
 
+  // Hog the SPI bus for the duration.
+  SpiTransaction txn = spi_device_->StartTransaction();
+  gpio_put(dc_, 0);
+
   const uint8_t* addr = (type_ == DisplayType::HX8357B) ? kInitB : kInitD;
   uint8_t cmd, x, numArgs;
   while ((cmd = *(addr++)) > 0) {  // '0' command ends list
@@ -302,9 +307,9 @@ void HX8357::SendInitSequence() {
     numArgs = x & 0x7F;
     if (cmd != 0xFF) {  // '255' is ignored
       if (x & 0x80) {   // If high bit set, numArgs is a delay time
-        SendCommand(cmd, nullptr, 0);
+        SendCommand(txn, cmd, nullptr, 0);
       } else {
-        SendCommand(cmd, addr, numArgs);
+        SendCommand(txn, cmd, addr, numArgs);
         addr += numArgs;
       }
     }
@@ -319,51 +324,46 @@ void HX8357::SendInitSequence() {
   LOG(INFO) << "HX8357 init sequence finished";
 }
 
-void HX8357::SendCommand(uint8_t command, const uint8_t* data, uint8_t len) {
+void HX8357::SendCommand(SpiTransaction& txn, uint8_t command,
+                         const uint8_t* data, uint8_t len) {
   VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "SendCommand(0x"
           << (int)command << ", [" << std::dec << (int)len << " bytes])";
-  // DC is low for a command byte, then high for the data.
-  SpiTransaction txn = spi_device_->StartTransaction();
-  gpio_put(dc_, 0);
-  txn.TransferBlocking({
+  txn.Transfer({
       .read_addr = &command,
       .trans_count = 1,
+      .toggle_gpio = (data && len) ? dc_ : gpio_pin_t(-1),
   });
   if (data && len) {
-    gpio_put(dc_, 1);
-    txn.TransferBlocking({
+    txn.Transfer({
         .read_addr = data,
         .trans_count = len,
+        .toggle_gpio = dc_,
     });
   }
 }
 
 uint8_t HX8357::RDDSDR() {
-  const uint8_t command = HX8357_RDDSDR;
-  // Datasheet claims that the first byte of the reply should be a "dummy read",
-  // with the actual result being in the 2nd byte. I have determined that that
-  // was a lie.
-  uint8_t result = 0;
+  uint8_t buf0[2] = {HX8357_RDDSDR, 0};
+  uint8_t buf1[2] = {0, 0};
   gpio_put(dc_, 0);
   SpiTransaction txn = spi_device_->StartTransaction();
-  txn.TransferBlocking({
-      .read_addr = &command,
-      .trans_count = 1,
+  txn.Transfer({
+      .read_addr = buf0,
+      .write_addr = buf1,
+      .trans_count = 2,
   });
-  txn.TransferBlocking({
-      .write_addr = &result,
-      .trans_count = 1,
-  });
-  txn.Dispose();
-  gpio_put(dc_, 1);
   VLOG(1) << std::hex << std::setw(2) << std::setfill('0')
-          << "RDDSDR response 0x" << (int)result;
-  return result;
+          << "RDDSDR response 0x" << (int)buf1[1];
+  return buf1[1];
 }
 
 bool HX8357::SelfTest() {
   uint8_t dsdr1 = RDDSDR();
-  SendCommand(HX8357_SLPOUT);
+  {
+    SpiTransaction txn = spi_device_->StartTransaction();
+    gpio_put(dc_, 0);
+    SendCommand(txn, HX8357_SLPOUT);
+  }
   vTaskDelay(MillisToTicks(140));
   uint8_t dsdr2 = RDDSDR();
 
@@ -419,19 +419,20 @@ void HX8357::Blit(const uint16_t* pixels, int16_t x1, int16_t y1, int16_t x2,
                               lower_half(x2)};
   const uint8_t ycoords[4] = {upper_half(y1), lower_half(y1), upper_half(y2),
                               lower_half(y2)};
-  SendCommand(HX8357_CASET, xcoords, 4);
-  SendCommand(HX8357_PASET, ycoords, 4);
   SpiTransaction txn = spi_device_->StartTransaction();
   gpio_put(dc_, 0);
-  txn.TransferBlocking({
+  SendCommand(txn, HX8357_CASET, xcoords, 4);
+  SendCommand(txn, HX8357_PASET, ycoords, 4);
+  txn.Transfer({
       .read_addr = &HX8357_RAMWR,
       .trans_count = 1,
+      .toggle_gpio = dc_,
   });
-  gpio_put(dc_, 1);
+  // dc_ will high for the next transfer
   // TODO: use 16-bit transfer width! :) but watch out for byte order
   uint32_t len = static_cast<uint32_t>(x2 - x1 + 1) *
                  static_cast<uint32_t>(y2 - y1 + 1) * 2u;
-  txn.TransferBlocking({
+  txn.Transfer({
       .read_addr = reinterpret_cast<const uint8_t*>(pixels),
       .trans_count = len,
   });
@@ -458,10 +459,14 @@ void HX8357::SetRotation(bool mx, bool my, bool mv) {
   LOG(INFO) << "Setting rotation to (" << mx << "," << my << "," << mv
             << "). New dimensions " << width_ << "x" << height_;
 
-  SendCommand(HX8357_MADCTL, &param, 1);
+  SpiTransaction txn = spi_device_->StartTransaction();
+  gpio_put(dc_, 0);
+  SendCommand(txn, HX8357_MADCTL, &param, 1);
 }
 
 void HX8357::SetInvertedColors(bool invert) {
-  SendCommand(invert ? HX8357_INVON : HX8357_INVOFF);
+  SpiTransaction txn = spi_device_->StartTransaction();
+  gpio_put(dc_, 0);
+  SendCommand(txn, invert ? HX8357_INVON : HX8357_INVOFF);
 }
 }  // namespace tplp

@@ -208,7 +208,7 @@ SharpLCD::FrameBuffer SharpLCD::AllocateNewFrameBuffer() {
 void SharpLCD::WriteBufferBlocking(const uint8_t* buffer, unsigned len) {
   CHECK_NOTNULL(spi_device_);
   SpiTransaction txn = spi_device_->StartTransaction();
-  txn.TransferBlocking({
+  txn.Transfer({
       .read_addr = buffer,
       .trans_count = len,
   });

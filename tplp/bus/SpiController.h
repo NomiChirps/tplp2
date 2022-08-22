@@ -75,6 +75,10 @@ class SpiTransaction {
     void* write_addr = nullptr;
     // Number of bytes to transfer.
     uint32_t trans_count = 0;
+
+    // Optional gpio pin to toggle immediately after this transfer is complete.
+    // -1 to disable.
+    gpio_pin_t toggle_gpio = gpio_pin_t(-1);
   };
 
  public:
@@ -92,12 +96,6 @@ class SpiTransaction {
 
   // Waits until queued transfers are complete.
   void Flush();
-
-  // Equivalent to Transfer() followed by Flush().
-  void TransferBlocking(const TransferConfig& req) {
-    Transfer(req);
-    Flush();
-  }
 
   // Flushes pending transfers, closes the transaction, and releases the lock on
   // the SPI bus.
