@@ -1,6 +1,8 @@
 #ifndef TPLP_BUS_DMACONTROLLER_H_
 #define TPLP_BUS_DMACONTROLLER_H_
 
+#include <optional>
+
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/semphr.h"
 #include "tplp/bus/types.h"
@@ -39,6 +41,8 @@ class DmaController {
     bool c0_read_incr = true;
     volatile void* c0_write_addr = nullptr;
     bool c0_write_incr = true;
+    DataSize c0_data_size = DataSize::k8;
+    size_t c0_trans_count = 0;
 
     bool c1_enable = false;
     // Default value of 0x3f means an unpaced transfer.
@@ -47,14 +51,43 @@ class DmaController {
     bool c1_read_incr = true;
     volatile void* c1_write_addr = nullptr;
     bool c1_write_incr = true;
+    DataSize c1_data_size = DataSize::k8;
+    size_t c1_trans_count = 0;
 
-    DataSize data_size = DataSize::k8;
-    // Number of `data_size`-width transfers to perform.
-    size_t trans_count = 0;
+    // Action to take from the interrupt handler when c0 is finished.
+    std::optional<Action> c0_action;
+    // Action to take from the interrupt handler when c1 is finished.
+    std::optional<Action> c1_action;
+    // Action to take from the interrupt handler when both channels are
+    // finished.
+    std::optional<Action> both_action;
+  };
 
-    // Action to take from the interrupt handler when this
-    // pair of DMAs completes.
-    Action action;
+  class TransferHandle {
+   public:
+    // Returns true if this transfer has started or finished;
+    // false if it's still queued.
+    bool started() const { return id_ <= dma_->completed_transfers_count_; }
+    // Returns true if this transfer has finished or aborted.
+    bool finished() const { return id_ < dma_->completed_transfers_count_; }
+
+    // Attempts to abort the transfer if it has started. Aborting a queued but
+    // not started transfer is not supported and will CHECK-fail. If the
+    // transfer has already finished, does nothing. An aborted transfer may or
+    // may not execute its `DmaController::Action`(s). In any case, finished()
+    // will be true after calling this.
+    //
+    // Note that this temporarily disables DMA interrupts for the pair of
+    // channels managed by this DmaController and may busy-wait for a short
+    // time.
+    void Abort();
+
+   private:
+    friend class DmaController;
+    TransferHandle(DmaController* dma, uint32_t id) : dma_(dma), id_(id) {}
+
+    DmaController* const dma_;
+    const uint32_t id_;
   };
 
   // Queues up a DMA with the given configuration.
@@ -63,13 +96,14 @@ class DmaController {
   // optional set of actions to take when the transfer has been completed. The
   // actions run in an interrupt context, as soon as feasible after the DMA has
   // completed and before the next one is started.
-  void Transfer(const Request& req);
+  TransferHandle Transfer(const Request& req);
 
   // Returns the current length of the transfer request queue, approximately.
   int PeekQueueLength() const;
 
  private:
-  explicit DmaController(dma_channel_t c0, dma_channel_t c1);
+  explicit DmaController(dma_irq_index_t irq_index, dma_channel_t c0,
+                         dma_channel_t c1);
   ~DmaController() = delete;
   DmaController(const DmaController&) = delete;
   DmaController& operator=(const DmaController&) = delete;
@@ -78,11 +112,14 @@ class DmaController {
   static void DmaFinishedISR();
 
  private:
+  friend class TransferHandle;
+
+  const dma_irq_index_t irq_index_;
   const dma_channel_t c0_;
   const dma_channel_t c1_;
   const SemaphoreHandle_t tail_mutex_;
   const SemaphoreHandle_t free_slots_sem_;
-  struct ChannelPair {
+  struct TransferSlot {
     // Whether channel 0 should run.
     bool c0_enable = 0;
     // Whether channel 1 should run.
@@ -98,29 +135,33 @@ class DmaController {
     // True if channel 1 finished or was not enabled.
     bool c1_done = 0;
 
-    // What to do after all enabled channels finish.
-    Action action;
+    std::optional<Action> c0_action;
+    std::optional<Action> c1_action;
+    std::optional<Action> both_action;
 
     // If true, channel configs are filled out.
     bool launch_ready = 0;
   };
-  ChannelPair ring_[kQueueLength];
-  const ChannelPair* const ring_end_;
-  inline ChannelPair* RingNext(ChannelPair* p) {
+  TransferSlot ring_[kQueueLength];
+  const TransferSlot* const ring_end_;
+  inline TransferSlot* RingNext(TransferSlot* p) {
     if (p + 1 == ring_end_)
       return ring_;
     else
       return p + 1;
   }
 
-  // Currently active channel pair. Never null.
+  // Currently active transfer slot. Never null.
   // Readers: DmaFinishedISR() only
   // Writers: DmaFinishedISR() only
-  ChannelPair* head_;
-  // Next free channel pair.
+  TransferSlot* head_;
+  // Next free transfer slot.
   // Readers: Transfer() only
   // Writers: Transfer() only
-  ChannelPair* tail_;
+  TransferSlot* tail_;
+
+  volatile uint32_t queued_transfers_count_;
+  volatile uint32_t completed_transfers_count_;
 
   // If false, no transfer is in progress, and DmaFinishedISR() cannot trigger.
   // If true, it's more complicated than that.

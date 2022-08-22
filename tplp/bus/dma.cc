@@ -13,17 +13,18 @@ namespace {
 static DmaController* controllers[NUM_DMA_CHANNELS] = {};
 
 static inline void ExecuteActionFromISR(
-    const DmaController::Action& action,
+    const std::optional<DmaController::Action>& action,
     BaseType_t* higher_priority_task_woken) {
-  if (action.toggle_gpio >= 0) {
-    gpio_put(action.toggle_gpio, !gpio_get(action.toggle_gpio));
+  if (!action) return;
+  if (action->toggle_gpio >= 0) {
+    gpio_put(action->toggle_gpio, !gpio_get(action->toggle_gpio));
   }
-  if (action.give_semaphore) {
-    xSemaphoreGiveFromISR(action.give_semaphore, higher_priority_task_woken);
+  if (action->give_semaphore) {
+    xSemaphoreGiveFromISR(action->give_semaphore, higher_priority_task_woken);
   }
-  if (action.notify_task) {
-    xTaskNotifyIndexedFromISR(action.notify_task, action.notify_index,
-                              action.notify_value, action.notify_action,
+  if (action->notify_task) {
+    xTaskNotifyIndexedFromISR(action->notify_task, action->notify_index,
+                              action->notify_value, action->notify_action,
                               higher_priority_task_woken);
   }
 }
@@ -63,16 +64,21 @@ template <int irq_index>
     // Workaround for https://github.com/raspberrypi/pico-sdk/issues/974
     *ints = 1u << ch;
 
-    DmaController::ChannelPair* head = controller->head_;
+    DmaController::TransferSlot* head = controller->head_;
     // assertion: !head_->launch_ready
 
     if (ch == controller->c0_) {
+      ::tplp::ExecuteActionFromISR(head->c0_action,
+                                   &higher_priority_task_woken);
       head->c0_done = true;
     } else if (ch == controller->c1_) {
+      ::tplp::ExecuteActionFromISR(head->c1_action,
+                                   &higher_priority_task_woken);
       head->c1_done = true;
     }
     if (head->c0_done && head->c1_done) {
-      ::tplp::ExecuteActionFromISR(head->action, &higher_priority_task_woken);
+      ::tplp::ExecuteActionFromISR(head->both_action,
+                                   &higher_priority_task_woken);
       // Move controller's head_ to the next channel pair
       head = controller->head_ = controller->RingNext(head);
       if (head->launch_ready) {
@@ -86,6 +92,7 @@ template <int irq_index>
         controller->active_ = false;
       }
       // Either way there's a new free spot in the queue now.
+      controller->completed_transfers_count_++;
       xSemaphoreGiveFromISR(controller->free_slots_sem_,
                             &higher_priority_task_woken);
     }
@@ -130,7 +137,7 @@ DmaController* DmaController::Init(dma_irq_index_t irq_index) {
   dma_irqn_set_channel_enabled(irq_index, c0, true);
   dma_irqn_set_channel_enabled(irq_index, c1, true);
 
-  DmaController* self = CHECK_NOTNULL(new DmaController(c0, c1));
+  DmaController* self = CHECK_NOTNULL(new DmaController(irq_index, c0, c1));
 
   CHECK(!controllers[c0]);
   controllers[c0] = self;
@@ -140,8 +147,10 @@ DmaController* DmaController::Init(dma_irq_index_t irq_index) {
   return self;
 }
 
-DmaController::DmaController(dma_channel_t c0, dma_channel_t c1)
-    : c0_(c0),
+DmaController::DmaController(dma_irq_index_t irq_index, dma_channel_t c0,
+                             dma_channel_t c1)
+    : irq_index_(irq_index),
+      c0_(c0),
       c1_(c1),
       tail_mutex_(CHECK_NOTNULL(xSemaphoreCreateMutex())),
       free_slots_sem_(
@@ -150,13 +159,15 @@ DmaController::DmaController(dma_channel_t c0, dma_channel_t c1)
       ring_end_(ring_ + kQueueLength),
       head_(ring_),
       tail_(ring_),
+      queued_transfers_count_(0),
+      completed_transfers_count_(0),
       active_(false) {
   for (size_t i = 0; i < kQueueLength; ++i) {
-    ring_[i] = ChannelPair();
+    ring_[i] = TransferSlot();
   }
 }
 
-void DmaController::Transfer(const Request& req) {
+DmaController::TransferHandle DmaController::Transfer(const Request& req) {
   static_assert((int)DataSize::k8 == DMA_SIZE_8);
   static_assert((int)DataSize::k16 == DMA_SIZE_16);
   static_assert((int)DataSize::k32 == DMA_SIZE_32);
@@ -168,13 +179,12 @@ void DmaController::Transfer(const Request& req) {
   CHECK(xSemaphoreTake(free_slots_sem_, portMAX_DELAY));
   VLOG(2) << "Transfer() configuring channels";
 
-  ChannelPair* const tail = tail_;
+  TransferSlot* const tail = tail_;
   CHECK(!tail->launch_ready);
   tail->c0_enable = req.c0_enable;
   tail->c1_enable = req.c1_enable;
   tail->c0_done = !req.c0_enable;
   tail->c1_done = !req.c1_enable;
-  tail->action = req.action;
 
   dma_channel_config c = {};
   // Common options
@@ -184,9 +194,6 @@ void DmaController::Transfer(const Request& req) {
   channel_config_set_enable(&c, true);
   channel_config_set_sniff_enable(&c, false);
   channel_config_set_high_priority(&c, false);
-  channel_config_set_transfer_data_size(
-      &c, static_cast<dma_channel_transfer_size>(req.data_size));
-  CHECK_GT(req.trans_count, 0u);
 
   if (req.c0_enable && req.c1_enable &&
       (req.c0_treq_sel != DREQ_FORCE || req.c1_treq_sel != DREQ_FORCE)) {
@@ -197,38 +204,51 @@ void DmaController::Transfer(const Request& req) {
   }
 
   if (req.c0_enable) {
+    CHECK_GT(req.c0_trans_count, 0u)
+        << "enabled channel must have a nonzero trans_count";
     channel_config_set_read_increment(&c, req.c0_read_incr);
     channel_config_set_write_increment(&c, req.c0_write_incr);
     channel_config_set_dreq(&c, req.c0_treq_sel);
     channel_config_set_chain_to(&c, c0_);  // self-chain disables it
+    channel_config_set_transfer_data_size(
+        &c, static_cast<dma_channel_transfer_size>(req.c0_data_size));
     CHECK(req.c0_read_addr);
     CHECK(req.c0_write_addr);
     tail->c0_config[0] = reinterpret_cast<uint32_t>(req.c0_read_addr);
     tail->c0_config[1] = reinterpret_cast<uint32_t>(req.c0_write_addr);
-    tail->c0_config[2] = req.trans_count;
+    tail->c0_config[2] = req.c0_trans_count;
     tail->c0_config[3] = c.ctrl;
+    tail->c0_action = req.c0_action;
   }
 
   if (req.c1_enable) {
+    CHECK_GT(req.c1_trans_count, 0u)
+        << "enabled channel must have a nonzero trans_count";
     channel_config_set_read_increment(&c, req.c1_read_incr);
     channel_config_set_write_increment(&c, req.c1_write_incr);
     channel_config_set_dreq(&c, req.c1_treq_sel);
     channel_config_set_chain_to(&c, c1_);  // self-chain disables it
+    channel_config_set_transfer_data_size(
+        &c, static_cast<dma_channel_transfer_size>(req.c1_data_size));
     CHECK(req.c1_read_addr);
     CHECK(req.c1_write_addr);
     tail->c1_config[0] = reinterpret_cast<uint32_t>(req.c1_read_addr);
     tail->c1_config[1] = reinterpret_cast<uint32_t>(req.c1_write_addr);
-    tail->c1_config[2] = req.trans_count;
+    tail->c1_config[2] = req.c1_trans_count;
     tail->c1_config[3] = c.ctrl;
+    tail->c1_action = req.c1_action;
+  }
+
+  if (req.c0_enable && req.c1_enable) {
+    tail->both_action = req.both_action;
   }
 
   VLOG(2) << "Transfer() checking for activity";
   if (active_) {
-    VLOG(1) << "Enqueue, count=" << req.trans_count << " @ slot "
-            << (tail_ - ring_);
+    VLOG(1) << "Enqueue @ slot " << (tail_ - ring_);
     tail->launch_ready = true;
   } else {
-    VLOG(1) << "Immediate launch, transfer count=" << req.trans_count;
+    VLOG(1) << "Immediate launch";
     CHECK_EQ(head_, tail) << "Queue not empty while inactive";
     CHECK(!tail->launch_ready);
     CHECK(!dma_channel_is_busy(c0_));
@@ -239,9 +259,52 @@ void DmaController::Transfer(const Request& req) {
   }
   VLOG(2) << "Transfer() advancing tail";
   tail_ = RingNext(tail);
+  TransferHandle handle(this, queued_transfers_count_++);
   VLOG(2) << "Transfer() releasing tail mutex";
   xSemaphoreGive(tail_mutex_);
   VLOG(2) << "Transfer() done";
+  return handle;
+}
+
+void DmaController::TransferHandle::Abort() {
+  if (finished()) {
+    VLOG(1) << "Abort: already finished";
+    return;
+  }
+  CHECK(started())
+      << "Aborting a queued but not started transfer is not supported";
+  // Disable interrupts (narrowly)
+  dma_irqn_set_channel_enabled(dma_->irq_index_, dma_->c0_, false);
+  dma_irqn_set_channel_enabled(dma_->irq_index_, dma_->c1_, false);
+  if (finished()) {
+    VLOG(1) << "Abort: already finished";
+    // Nothing to do already!
+  } else {
+    // NB: dma_channel_abort busy-waits!
+    dma_channel_abort(dma_->c0_);
+    dma_channel_abort(dma_->c1_);
+    // Clear spurious completion interrupts (errata RP2040-E13)
+    dma_irqn_acknowledge_channel(dma_->irq_index_, dma_->c0_);
+    dma_irqn_acknowledge_channel(dma_->irq_index_, dma_->c1_);
+    // Skip this transfer's actions, but launch the next one if necessary
+    // TODO: address code duplication between here and the ISR
+    dma_->head_ = dma_->RingNext(dma_->head_);
+    if (dma_->head_->launch_ready) {
+      VLOG(1) << "Abort: launching next in queue";
+      ConfigureAndLaunchImmediately(
+          dma_->c0_, dma_->head_->c0_enable, dma_->head_->c0_config, dma_->c1_,
+          dma_->head_->c1_enable, dma_->head_->c1_config);
+    } else {
+      VLOG(1) << "Abort: reached end of queue";
+      // Reached the end of the queue.
+      dma_->active_ = false;
+    }
+    dma_->completed_transfers_count_++;
+    xSemaphoreGive(dma_->free_slots_sem_);
+  }
+  // Reenable interrupts
+  dma_irqn_set_channel_enabled(dma_->irq_index_, dma_->c0_, true);
+  dma_irqn_set_channel_enabled(dma_->irq_index_, dma_->c1_, true);
 }
 
 int DmaController::PeekQueueLength() const {

@@ -17,7 +17,6 @@ bool is_reserved(i2c_address_t addr) {
 
 // notification index used by both IRQs to wake the main task
 static constexpr int kNotificationIndex = 0;
-static constexpr int kNumDmaIrqs = 2;
 
 namespace NotificationBits {
 // Layout matches the IC_TX_ABRT_SOURCE register.
@@ -190,61 +189,6 @@ util::Status AbortSourceToStatus(uint32_t bits) {
 // Size of the command buffer used as the source for the TX DMA.
 static constexpr size_t kCommandBufferSize = 32;
 
-class DmaFinishedNotifier {
- private:
-  struct ManagerTaskInfo {
-    dma_channel_t dma_rx;
-    TaskHandle_t task = nullptr;
-  };
-  static ManagerTaskInfo manager_tasks[kNumDmaIrqs];
-
- public:
-  template <int irq_index>
-  static void ISR() {
-    static_assert(irq_index >= 0 && irq_index < kNumDmaIrqs, "bad irq_index");
-    if (dma_irqn_get_channel_status(irq_index,
-                                    manager_tasks[irq_index].dma_rx)) {
-      dma_irqn_acknowledge_channel(irq_index, manager_tasks[irq_index].dma_rx);
-      BaseType_t higher_priority_task_woken = 0;
-      xTaskNotifyIndexedFromISR(
-          manager_tasks[irq_index].task, kNotificationIndex,
-          static_cast<uint32_t>(NotificationBits::IRQ_SOURCE_DMA_RX_FINISHED),
-          eSetBits, &higher_priority_task_woken);
-      portYIELD_FROM_ISR(higher_priority_task_woken);
-    }
-  }
-
-  static void RegisterManagerTask(dma_irq_index_t irq_index,
-                                  dma_channel_t dma_rx, TaskHandle_t task) {
-    CHECK_GE(irq_index, 0);
-    CHECK_LT(irq_index, kNumDmaIrqs);
-    CHECK_EQ(manager_tasks[irq_index].task, nullptr)
-        << "I2C manager task on DMA IRQ index " << irq_index
-        << " already exists?";
-    manager_tasks[irq_index] = {.dma_rx = dma_rx, .task = task};
-  }
-};
-
-DmaFinishedNotifier::ManagerTaskInfo
-    DmaFinishedNotifier::manager_tasks[kNumDmaIrqs] = {};
-
-template void DmaFinishedNotifier::ISR<0>();
-template void DmaFinishedNotifier::ISR<1>();
-
-static dma_channel_config MakeChannelConfig(
-    i2c_inst_t* i2c, dma_channel_t dma, dma_channel_transfer_size transfer_size,
-    bool is_tx, bool read_increment, bool write_increment, bool irq_quiet) {
-  dma_channel_config c = dma_channel_get_default_config(dma);
-  channel_config_set_dreq(&c, i2c_get_dreq(i2c, is_tx));
-  VLOG(1) << "DMA channel " << dma << " will be connected to I2C"
-          << i2c_hw_index(i2c) << " DREQ " << i2c_get_dreq(i2c, is_tx);
-  channel_config_set_transfer_data_size(&c, transfer_size);
-  channel_config_set_read_increment(&c, read_increment);
-  channel_config_set_write_increment(&c, write_increment);
-  channel_config_set_irq_quiet(&c, irq_quiet);
-  return c;
-}
-
 class I2cNotifier {
  private:
   static TaskHandle_t manager_tasks[2];
@@ -306,7 +250,8 @@ TaskHandle_t I2cNotifier::manager_tasks[] = {0, 0};
 constexpr int kEventQueueDepth = 8;
 struct I2cController::Event {
   enum class Tag { INVALID, READ, WRITE } tag = Tag::INVALID;
-  i2c_address_t addr = i2c_address_t(0);
+  // Contents of the IC_TAR register.
+  uint32_t tar = 0;
   // TODO: build the commands in I2cTransaction and put the command buffer
   //       here, instead of in TaskFn. that way the transaction can exactly
   //       control restarts and stops without a context switch & dma reinit
@@ -339,15 +284,16 @@ struct I2cController::Event {
   }
 
   friend std::ostream& operator<<(std::ostream& stream, const Event& event) {
-    return stream << "{ " << event.tag << " addr=" << event.addr
-                  << " buf=" << std::hex << (void*)event.buf << std::dec
+    return stream << "{ " << event.tag << " tar=" << std::hex << event.tar
+                  << " buf=" << (void*)event.buf << std::dec
                   << " len=" << event.len << " }";
   }
 };
 
-I2cController* I2cController::Init(int priority, int stack_depth,
-                                   i2c_inst_t* i2c_instance, gpio_pin_t scl,
-                                   gpio_pin_t sda, int baudrate) {
+I2cController* I2cController::Init(DmaController* dma, int priority,
+                                   int stack_depth, i2c_inst_t* i2c_instance,
+                                   gpio_pin_t scl, gpio_pin_t sda,
+                                   int baudrate) {
   const int i2c_instance_index = i2c_hw_index(i2c_instance);
   CHECK_GT(baudrate, 0);
   // i2c_init configures it for fast mode, which the hardware considers
@@ -364,36 +310,12 @@ I2cController* I2cController::Init(int priority, int stack_depth,
   gpio_pull_up(sda);
 
   I2cController* self = new I2cController();
+  self->dma_ = dma;
   self->i2c_ = i2c_instance;
   self->event_queue_ =
       CHECK_NOTNULL(xQueueCreate(kEventQueueDepth, sizeof(Event)));
   self->txn_mutex_ = CHECK_NOTNULL(xSemaphoreCreateMutex());
   self->shared_blocking_sem_ = CHECK_NOTNULL(xSemaphoreCreateBinary());
-  self->dma_rx_ = dma_channel_t(dma_claim_unused_channel(false));
-  LOG_IF(FATAL, self->dma_rx_ < 0) << "No free DMA channels available";
-  LOG(INFO) << "Claimed DMA channel " << self->dma_rx_ << " for RX";
-  self->dma_tx_ = dma_channel_t(dma_claim_unused_channel(false));
-  LOG_IF(FATAL, self->dma_tx_ < 0) << "No free DMA channels available";
-  LOG(INFO) << "Claimed DMA channel " << self->dma_tx_ << " for TX";
-
-  // Arbitrarily assign DMA_IRQ_0 to I2C0 and DMA_IRQ_1 to I2C1.
-  self->dma_irq_index_ = dma_irq_index_t(i2c_instance_index);
-  self->dma_irq_number_ =
-      dma_irq_number_t(i2c_instance_index ? DMA_IRQ_1 : DMA_IRQ_0);
-  if (self->dma_irq_index_) {
-    irq_add_shared_handler(self->dma_irq_number_, &DmaFinishedNotifier::ISR<1>,
-                           PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
-  } else {
-    irq_add_shared_handler(self->dma_irq_number_, &DmaFinishedNotifier::ISR<0>,
-                           PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
-  }
-  // RX IRQ set to not-quiet.
-  self->dma_rx_config_ = MakeChannelConfig(
-      self->i2c_, self->dma_rx_, DMA_SIZE_8, false, false, true, false);
-  // TX needs to be 16 bits wide because we use the upper 8 as control bits
-  // when writing to IC_DATA_CMD.
-  self->dma_tx_config_ = MakeChannelConfig(
-      self->i2c_, self->dma_tx_, DMA_SIZE_16, true, true, false, true);
 
   if (i2c_instance_index) {
     irq_set_exclusive_handler(I2C1_IRQ, &I2cNotifier::ISR<1>);
@@ -427,19 +349,8 @@ void I2cController::TaskFn(void* task_param) {
   LOG(INFO) << "I2cController task started.";
 
   int i2c_index = i2c_hw_index(self->i2c_);
-  DmaFinishedNotifier::RegisterManagerTask(self->dma_irq_index_, self->dma_rx_,
-                                           self->task_);
   I2cNotifier::RegisterManagerTask(i2c_index, self->task_);
-
-  // Enable only the RX DMA IRQ for DmaFinishedNotifier; we use the I2C
-  // interrupt to detect when writes are finished instead.
-  dma_irqn_set_channel_enabled(self->dma_irq_index_, self->dma_tx_, false);
-  dma_irqn_set_channel_enabled(self->dma_irq_index_, self->dma_rx_, true);
-
-  irq_set_enabled(self->dma_irq_number_, true);
-  LOG(INFO) << "IRQ " << self->dma_irq_number_ << " (DMA) enabled.";
   irq_set_enabled(i2c_index ? I2C1_IRQ : I2C0_IRQ, true);
-  LOG(INFO) << "IRQ " << self->dma_irq_number_ << " (I2C) enabled.";
 
   // Keep the controller initially disabled.
   self->i2c_->hw->enable = 0;
@@ -469,8 +380,6 @@ void I2cController::DoTransfer(const Event& event) {
   const bool is_read = event.tag == Event::Tag::READ;
   const auto hw = i2c_->hw;
 
-  CHECK(!dma_channel_is_busy(dma_rx_));
-  CHECK(!dma_channel_is_busy(dma_tx_));
   uint32_t notify =
       ulTaskNotifyValueClearIndexed(nullptr, kNotificationIndex, 0xffffffff);
   CHECK_EQ(notify, 0u) << "Unexpected notification bits";
@@ -478,7 +387,8 @@ void I2cController::DoTransfer(const Event& event) {
       << "Unexpected notification state";
 
   CHECK_LT(event.len, kCommandBufferSize)
-      << "transfers above command buffer size not implemented";
+      << "transfers larger than command buffer size (" << kCommandBufferSize
+      << ") not implemented";
 
   if (new_transaction_) {
     CHECK_EQ(hw->enable_status & I2C_IC_ENABLE_STATUS_IC_EN_BITS, 0u)
@@ -488,7 +398,7 @@ void I2cController::DoTransfer(const Event& event) {
     CHECK(hw->status & I2C_IC_STATUS_TFE_BITS)
         << "Expected transmit FIFO to be empty";
 
-    hw->tar = event.addr.get();
+    hw->tar = event.tar;
     hw->enable = 1;
 
     new_transaction_ = false;
@@ -521,17 +431,38 @@ void I2cController::DoTransfer(const Event& event) {
     hw_set_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
   }
 
-  dma_channel_configure(dma_tx_, &dma_tx_config_, &hw->data_cmd, cmd_buf,
-                        event.len, false);
-  if (is_read) {
-    dma_channel_configure(dma_rx_, &dma_rx_config_, event.buf, &hw->data_cmd,
-                          event.len, false);
-    // Start TX and RX simultaneously so the I2C FIFOs don't overflow.
-    dma_start_channel_mask((1u << dma_tx_) | (1u << dma_rx_));
-  } else {
-    // We don't use the RX DMA for writes.
-    dma_start_channel_mask(1u << dma_tx_);
-  }
+  // c0 for tx, c1 for rx
+  auto transfer_handle = dma_->Transfer({
+      // TX channel
+      .c0_enable = true,
+      .c0_treq_sel = i2c_get_dreq(i2c_, /*is_tx=*/true),
+      .c0_read_addr = cmd_buf,
+      .c0_read_incr = true,
+      .c0_write_addr = &hw->data_cmd,
+      .c0_write_incr = false,
+      // Upper 8 bits are used for I2C control.
+      .c0_data_size = DmaController::DataSize::k16,
+      .c0_trans_count = event.len,
+
+      // RX channel
+      .c1_enable = is_read,
+      .c1_treq_sel = i2c_get_dreq(i2c_, /*is_tx=*/false),
+      .c1_read_addr = &hw->data_cmd,
+      .c1_read_incr = false,
+      .c1_write_addr = event.buf,
+      .c1_write_incr = true,
+      .c1_data_size = DmaController::DataSize::k8,
+      .c1_trans_count = event.len,
+
+      .c1_action =
+          DmaController::Action{
+              .notify_task = task_,
+              .notify_index = kNotificationIndex,
+              .notify_value = NotificationBits::IRQ_SOURCE_DMA_RX_FINISHED,
+              .notify_action = eSetBits,
+          },
+  });
+
   VLOG(2) << "DMA started; waiting";
 
   // Wait for the DMA(s) to complete or the transaction to be aborted. Set a
@@ -540,25 +471,16 @@ void I2cController::DoTransfer(const Event& event) {
   notify =
       ulTaskNotifyTakeIndexed(kNotificationIndex, true, pdMS_TO_TICKS(10'000));
   if (!notify) {
-    LOG(FATAL) << "Missed a notification or timed out waiting for DMA. tx_busy="
-               << dma_channel_is_busy(dma_tx_)
-               << " rx_busy=" << dma_channel_is_busy(dma_rx_) << " status=0x"
-               << std::hex << hw->status << " raw_intr_stat=0x"
-               << hw->raw_intr_stat;
+    LOG(FATAL)
+        << "Missed a notification or timed out waiting for DMA. status=0x"
+        << std::hex << hw->status << " raw_intr_stat=0x" << hw->raw_intr_stat;
   }
   VLOG(2) << "Got notification bits: " << std::hex << notify;
 
   if (notify & NotificationBits::IRQ_SOURCE_TX_ABRT) {
+    CHECK(transfer_handle.started());
     // Safely abort any in-flight DMA transfers
-    dma_irqn_set_channel_enabled(dma_irq_index_, dma_rx_, false);
-    dma_irqn_set_channel_enabled(dma_irq_index_, dma_tx_, false);
-    // NB: dma_channel_abort busy-waits!
-    dma_channel_abort(dma_rx_);
-    dma_channel_abort(dma_tx_);
-    dma_irqn_acknowledge_channel(dma_irq_index_, dma_rx_);
-    dma_irqn_acknowledge_channel(dma_irq_index_, dma_tx_);
-    dma_irqn_set_channel_enabled(dma_irq_index_, dma_rx_, true);
-    dma_irqn_set_channel_enabled(dma_irq_index_, dma_tx_, true);
+    transfer_handle.Abort();
     // Reenable the DMA controller interface, disabled by our interrupt handler.
     hw_set_bits(&hw->dma_cr,
                 I2C_IC_DMA_CR_TDMAE_BITS | I2C_IC_DMA_CR_RDMAE_BITS);
@@ -647,30 +569,6 @@ util::Status I2cController::ScanBus(
   return util::OkStatus();
 }
 
-util::Status I2cController::ReadDeviceId(i2c_address_t target,
-                                         I2cDeviceId* out) {
-  // TODO: test with a device that supports it.
-  return util::UnimplementedError("ReadDeviceId not implemented");
-
-  // Described in section 3.1.17 of the I2C specification.
-  constexpr i2c_address_t kReservedDeviceIdAddress = i2c_address_t(0x7c);
-  I2cTransaction txn = StartTransaction(kReservedDeviceIdAddress);
-  static_assert(sizeof(decltype(target.get())) == 1);
-  // ??? do we need to left-shift by 1 actually?
-  uint8_t shifted_addr = target.get() << 1;
-  // ??? seems like we abort early because the address byte isn't ACK'ed. can
-  //     we make the controller ignore that condition?
-  RETURN_IF_ERROR(txn.Write(&shifted_addr, 1, false));
-  txn.Restart();
-  uint8_t data[3];
-  RETURN_IF_ERROR(txn.ReadAndStop(data, 3));
-
-  out->manufacturer = (data[0] << 8) | (data[1] & 0xf0);
-  out->part_id = ((data[1] & 0x0f) << 5) | ((data[2] & 0xf8) >> 3);
-  out->revision = data[2] & 0x07;
-  return util::OkStatus();
-}
-
 I2cTransaction I2cController::StartTransaction(i2c_address_t addr) {
   CHECK(xSemaphoreTake(txn_mutex_, portMAX_DELAY));
   return I2cTransaction(this, addr);
@@ -699,7 +597,7 @@ util::Status I2cTransaction::Write(const uint8_t* buf, size_t len, bool stop) {
   util::Status status;
   I2cController::Event event{
       .tag = I2cController::Event::Tag::WRITE,
-      .addr = addr_,
+      .tar = addr_.get(),
       .buf = const_cast<uint8_t*>(buf),
       .len = len,
       .restart = restart_,
@@ -721,7 +619,7 @@ util::Status I2cTransaction::Read(uint8_t* buf, size_t len, bool stop) {
   util::Status status;
   I2cController::Event event{
       .tag = I2cController::Event::Tag::READ,
-      .addr = addr_,
+      .tar = addr_.get(),
       .buf = buf,
       .len = len,
       .restart = restart_,
@@ -746,7 +644,7 @@ void I2cTransaction::AfterStop() {
 }
 
 util::Status I2cTransaction::Abort() {
-  // FIXME: implement
+  // TODO: implement
   // See RP2040 datasheet section 4.3.10.4
   return util::UnimplementedError("I2cTransaction::Abort()");
 }

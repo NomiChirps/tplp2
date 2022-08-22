@@ -33,11 +33,11 @@ cc_library(
     hdrs = ["I2cController.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":dma",
         ":types",
         "//picolog",
         "//picolog:status_macros",
         "//tplp:rtos_util",
-        "@rules_pico//pico:hardware_dma",
         "@rules_pico//pico:hardware_gpio",
         "@rules_pico//pico:hardware_i2c",
     ],

@@ -51,9 +51,11 @@ void StartupTask(void*) {
   display->SetRotation(0, 1, 1);
   LOG(INFO) << "HX8357 setup OK";
 
-  I2cController* i2c0_controller = I2cController::Init(
-      TaskPriorities::kI2cController0, TaskStacks::kI2cController, i2c0,
-      Pins::I2C0_SCL, Pins::I2C0_SDA, 100'000);
+  DmaController* dma0_controller0 = DmaController::Init(kDma0);
+  I2cController* i2c0_controller =
+      I2cController::Init(dma0_controller0, TaskPriorities::kI2cController0,
+                          TaskStacks::kI2cController, i2c0, Pins::I2C0_SCL,
+                          Pins::I2C0_SDA, 100'000);
 
   // Touchscreen reader.
   TSC2007* touchscreen = CHECK_NOTNULL(new TSC2007(

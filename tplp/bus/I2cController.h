@@ -6,9 +6,9 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/semphr.h"
-#include "hardware/dma.h"
 #include "hardware/i2c.h"
 #include "picolog/status.h"
+#include "tplp/bus/dma.h"
 #include "tplp/bus/types.h"
 
 namespace tplp {
@@ -27,12 +27,6 @@ namespace tplp {
 // - lol the pico-sdk code is super unsubtle about it. reimplement!
 // -     uint freq_in = clock_get_hz(clk_sys);
 // clang-format on
-
-struct I2cDeviceId {
-  uint16_t manufacturer : 12;
-  uint16_t part_id : 9;
-  uint8_t revision : 3;
-};
 
 class I2cController;
 class I2cTransaction {
@@ -88,14 +82,12 @@ class I2cTransaction {
 class I2cController {
  public:
   // Initializes the I2C and DMA hardware and starts a task to service it.
-  static I2cController* Init(int priority, int stack_depth,
+  static I2cController* Init(DmaController* dma, int priority, int stack_depth,
                              i2c_inst_t* i2c_instance, gpio_pin_t scl,
                              gpio_pin_t sda, int baudrate);
 
+  // Note: Device ID is not supported in RP2040.
   util::Status ScanBus(std::vector<i2c_address_t>* detected_addresses);
-
-  // Not implemented.
-  util::Status ReadDeviceId(i2c_address_t target, I2cDeviceId* out);
 
   // Returns a transaction handle that locks the bus for the duration of its
   // lifetime and can be used to communicate with the given target address.
@@ -118,18 +110,12 @@ class I2cController {
 
  private:
   // TODO: const correctness
+  DmaController* dma_;
   i2c_inst_t* i2c_;
   TaskHandle_t task_;
 
   QueueHandle_t event_queue_;
   SemaphoreHandle_t txn_mutex_;
-
-  dma_irq_index_t dma_irq_index_;
-  dma_irq_number_t dma_irq_number_;
-  dma_channel_t dma_rx_;
-  dma_channel_t dma_tx_;
-  dma_channel_config dma_rx_config_;
-  dma_channel_config dma_tx_config_;
 
   // Used by blocking operations in I2cTransaction. Only "shared" serially,
   // because no more than one transaction can be active at a time.

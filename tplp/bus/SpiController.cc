@@ -130,26 +130,28 @@ void SpiTransaction::Transfer(const TransferConfig& req) {
   }
 
   volatile io_rw_32* spi_dr = &spi_get_hw(spi_)->dr;
+  // TODO: increase transfer width (8b,16b,32b) if buf is big and the right
+  // size? alternatively, let the caller choose.
+  // (is this even worth doing? would it make any difference?)
   DmaController::Request dma_req{
       // Both are always enabled, since our transfers are always full-duplex.
       .c0_enable = true,
       .c0_treq_sel = spi_get_dreq(spi_, true),
       .c0_write_addr = spi_dr,
       .c0_write_incr = false,
+      .c0_data_size = DmaController::DataSize::k8,
+      .c0_trans_count = req.trans_count,
 
       .c1_enable = true,
       .c1_treq_sel = spi_get_dreq(spi_, false),
       .c1_read_addr = spi_dr,
       .c1_read_incr = false,
+      .c1_data_size = DmaController::DataSize::k8,
+      .c1_trans_count = req.trans_count,
 
-      // TODO: increase transfer width (8b,16b,32b) if buf is big and the right
-      // size? alternatively, let the caller choose.
-      // (is this even worth doing? would it make any difference?)
-      .data_size = DmaController::DataSize::k8,
-      .trans_count = req.trans_count,
-
-      .action = {.toggle_gpio = req.toggle_gpio,
-                 .give_semaphore = pending_transfers_sem_},
+      .both_action =
+          DmaController::Action{.toggle_gpio = req.toggle_gpio,
+                                .give_semaphore = pending_transfers_sem_},
   };
 
   if (req.read_addr) {
