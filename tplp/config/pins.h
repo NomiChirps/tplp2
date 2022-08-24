@@ -32,8 +32,8 @@ struct Pins {
   static constexpr gpio_pin_t SPI1_MOSI = gpio_pin_t(11);
   static constexpr gpio_pin_t SPI1_MISO = gpio_pin_t(12);
   // GP13 free
-  // GP14 free
-  // GP15 free
+  static constexpr gpio_pin_t HX711_SCK = gpio_pin_t(14);
+  static constexpr gpio_pin_t HX711_DT = gpio_pin_t(15);
   static constexpr gpio_pin_t I2C0_SDA = gpio_pin_t(16);
   static constexpr gpio_pin_t I2C0_SCL = gpio_pin_t(17);
   static constexpr gpio_pin_t TOUCHSCREEN_PENIRQ = gpio_pin_t(18);

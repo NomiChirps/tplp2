@@ -40,7 +40,10 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - [ ] Get peripheral hardware running
   - [ ] Stepper drivers (use pico_stepper)
   - [ ] Laser module
-  - [ ] Load cell reader https://github.com/endail/hx711-pico-c
+  - [ ] HX711 load cell reader
+    - use PIO, make it all nonblocking and async
+    - use https://github.com/endail/hx711-pico-c for reference. implementation unsuitable; too much blocking, too much pico mutex.
+  - [ ] Can HX711 use 5V for excitation and 3.3V for logic?
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
   - [ ] MicroSD card reader
