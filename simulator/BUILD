@@ -41,16 +41,12 @@ cc_library(
     ],
 )
 
-# For VSCode
+# Please see the following issue if there's trouble with this...
+# https://github.com/hedronvision/bazel-compile-commands-extractor/issues/70
 refresh_compile_commands(
     name = "refresh_compile_commands",
+    exclude_headers = "all",
     targets = {
-        # In the absence of an explicit `-x` flag specifying the language,
-        # clang/clangd uses the file extension to guess. In the case of C++
-        # header files named "foo.h", it guesses C, and doesn't include the
-        # C++ system headers.
-        # Actually, it could be a totally different issue. See:
-        # https://github.com/hedronvision/bazel-compile-commands-extractor/issues/70
-        "//simulator/...": "--cxxopt=-xc++",
+        "//simulator/...": "",
     },
 )
