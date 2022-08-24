@@ -21,11 +21,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 ## TODO / Notes
 
 - [ ] read about the hardware interpolators in rp2040
-- [ ] Mission: DMA 9000
-  - see new ideas in tplp/bus/dma.h !!!
-  - SpiController needs to take advantage of the new Action stuff to be more nonblocking, and actually make use of the DmaManager queue.
-    - to manage CS easily we might need before-Actions as well as after-Actions!
-  - I2cController needs... uh... idk i don't want to look at it right now
 - [ ] Create a front panel UI (assignee: wembly :)
   - [ ] make the touch target for the settings back button bigger...
   - [ ] fatal error handler to display the stack trace before crashing
@@ -167,6 +162,13 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] Mission: DMA 9000
+  - see new ideas in tplp/bus/dma.h !!!
+  - SpiController needs to take advantage of the new Action stuff to be more nonblocking, and actually make use of the DmaManager queue.
+    - to manage CS easily we might need before-Actions as well as after-Actions!
+  - I2cController needs... uh... idk i don't want to look at it right now
+  - after action report: the new ideas in tplp/bus/dma.h were waaaay too complicated and not actually a performance improvement. went back to the now-current implementation and fixed up SpiController/I2cController to take advantage of its async features.
+    - I NEVER WANT TO LOOK AT DMA AGAIN >:(
 - [x] Install jumpers on the stepper drivers (to configure internal 5v power supply)
 - [x] figure out who's allowed to call xTaskCreate. centralize it.
 - [x] forget the std::duration stuff.. really not worth the hassle.
