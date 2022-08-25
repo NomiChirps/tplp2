@@ -45,7 +45,6 @@ cc_library(
 # https://github.com/hedronvision/bazel-compile-commands-extractor/issues/70
 refresh_compile_commands(
     name = "refresh_compile_commands",
-    exclude_headers = "all",
     targets = {
         "//simulator/...": "",
     },

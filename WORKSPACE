@@ -47,11 +47,11 @@ http_archive(
 
 # Hedron's Compile Commands Extractor for Bazel
 # https://github.com/hedronvision/bazel-compile-commands-extractor
-HEDRON_COMPILE_COMMANDS_COMMIT = "05610f52a2ea3cda6ac27133b96f71c36358adf9"
+HEDRON_COMPILE_COMMANDS_COMMIT = "2a72a3b761e21a0405995b323a3b765d93bd6df4"
 
 http_archive(
     name = "hedron_compile_commands",
-    sha256 = "78776448d9684dc6d6f50f37c94014f1d1b054c392050214f61a3ddc5ece64e2",
+    sha256 = "f5cf960d7477b95546a96b05397129969133ec0c1af9889e5d02ebe42dba6abd",
     strip_prefix = "bazel-compile-commands-extractor-" + HEDRON_COMPILE_COMMANDS_COMMIT,
     url = "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/" + HEDRON_COMPILE_COMMANDS_COMMIT + ".tar.gz",
 )
