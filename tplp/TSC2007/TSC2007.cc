@@ -81,8 +81,8 @@ class ScopedDisablePenIrq {
 
 }  // namespace
 
-TSC2007::TSC2007(I2cDeviceHandle device, gpio_pin_t penirq)
-    : i2c_(device), penirq_(penirq), callback_(nullptr) {}
+TSC2007::TSC2007(I2cDeviceHandle device)
+    : i2c_(device), callback_(nullptr) {}
 
 util::Status TSC2007::Setup() {
   I2cTransaction txn = i2c_.StartTransaction();
@@ -136,21 +136,21 @@ util::Status TSC2007::ReadPosition(int16_t* x, int16_t* y, int16_t* z1,
   return Command(txn, MEASURE_TEMP0, POWERDOWN_IRQON, ADC_12BIT, true);
 }
 
-void TSC2007::ReceiveTouchEvents(int priority, int stack_depth,
+void TSC2007::ReceiveTouchEvents(gpio_pin_t penirq, int priority, int stack_depth,
                                  const TouchCallback& callback) {
   CHECK(!callback_) << "Callback already set";
   CHECK(!global_task)
       << "Sorry, I was lazy and only 1 instance of TSC2007 is allowed";
   CHECK(xTaskCreate(&TSC2007::TaskFn, "TSC2007", stack_depth, this, priority,
                     &global_task));
-  global_penirq = penirq_;
+  global_penirq = penirq;
   callback_ = callback;
 
-  gpio_init(penirq_);
-  gpio_set_function(penirq_, GPIO_FUNC_SIO);
-  gpio_set_dir(penirq_, GPIO_IN);
-  gpio_set_input_enabled(penirq_, true);
-  gpio_add_raw_irq_handler(penirq_, &PenIrqHandlerISR);
+  gpio_init(penirq);
+  gpio_set_function(penirq, GPIO_FUNC_SIO);
+  gpio_set_dir(penirq, GPIO_IN);
+  gpio_set_input_enabled(penirq, true);
+  gpio_add_raw_irq_handler(penirq, &PenIrqHandlerISR);
   irq_set_enabled(IO_IRQ_BANK0, true);
   EnablePenIrq();
 }
