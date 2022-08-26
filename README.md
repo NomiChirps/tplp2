@@ -27,7 +27,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] gui for monitoring & calibration
   - [ ] print some brackets to calibrate it against my digital scale
   - [ ] supply 5V to HX711
-- [ ] read about the hardware interpolators in rp2040
 - [ ] Create a front panel UI (assignee: wembly :)
   - [ ] make the touch target for the settings back button bigger...
   - [ ] fatal error handler to display the stack trace before crashing
@@ -167,6 +166,8 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] read about the hardware interpolators in rp2040
+  - does what it says on the tin. good for linear scaling, affine texture mapping, that kinda thing.
 - [x] Mission: DMA 9000
   - see new ideas in tplp/bus/dma.h !!!
   - SpiController needs to take advantage of the new Action stuff to be more nonblocking, and actually make use of the DmaManager queue.
