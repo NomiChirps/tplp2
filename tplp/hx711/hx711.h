@@ -22,7 +22,7 @@ class HX711 {
  public:
   static HX711* Init(pio_hw_t* pio, gpio_pin_t sck, gpio_pin_t dout);
 
-  int32_t current_value() const {
+  inline int32_t current_value() const {
     return signextend<int32_t, 24>(sampled_value_);
   }
 
@@ -32,8 +32,9 @@ class HX711 {
   HX711(const HX711&) = delete;
   HX711& operator=(const HX711&) = delete;
 
+  // GCC implements this with 2 instructions: `LSLS r0,#8; ASRS r0,#8`.
   template <typename T, unsigned B>
-  static T signextend(const T x) {
+  inline static T signextend(const T x) {
     struct {
       T x : B;
     } s;
