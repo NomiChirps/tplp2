@@ -26,8 +26,8 @@ void Hx711TestTask(void* task_param) {
   HX711* hx711 = static_cast<HX711*>(task_param);
   for (;;) {
     int32_t x = hx711->current_value();
-    LOG(INFO) << "hx711 value = " << x << " = 0x" << std::hex << std::setw(8)
-              << x;
+    LOG(INFO) << "hx711 value = 0x" << std::hex << std::setw(8)
+              << std::setfill('0') << x << " = " << std::dec << x;
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
