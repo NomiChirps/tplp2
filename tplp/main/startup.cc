@@ -1,5 +1,7 @@
 #include "tplp/main/startup.h"
 
+#include <iomanip>
+
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
 #include "hardware/spi.h"
@@ -13,12 +15,22 @@
 #include "tplp/config/pins.h"
 #include "tplp/config/tasks.h"
 #include "tplp/graphics/lvgl_init.h"
+#include "tplp/hx711/hx711.h"
 
 // hmm, maybe lvgl_init should have these instead
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/ui/main.h"
 
 namespace tplp {
+void Hx711TestTask(void* task_param) {
+  HX711* hx711 = static_cast<HX711*>(task_param);
+  for (;;) {
+    int32_t x = hx711->current_value();
+    LOG(INFO) << "hx711 value = " << x << " = 0x" << std::hex << std::setw(8)
+              << x;
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+}
 
 void StartupTask(void*) {
   util::Status status;
@@ -73,6 +85,12 @@ void StartupTask(void*) {
   lvgl.SetDisplay(display, TaskPriorities::kHX8357, TaskStacks::kHX8357);
   lvgl.AddTouchscreen(touchscreen);
   lvgl.Start();
+
+  // Load cell reader.
+  HX711* hx711 = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
+  // TODO: replace with gui
+  CHECK(xTaskCreate(&Hx711TestTask, "hx711 test", TaskStacks::kTESTONLY, hx711,
+                    1, nullptr));
 
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter =

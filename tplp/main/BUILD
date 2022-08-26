@@ -19,6 +19,7 @@ cc_library(
         "@FreeRTOS",
         "//picolog",
         "//tplp/HX8357",
+        "//tplp/hx711",
         "//tplp/bus:I2cController",
         "//tplp:RuntimeStats",
         "//tplp/bus:SpiController",

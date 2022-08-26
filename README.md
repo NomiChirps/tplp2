@@ -20,10 +20,10 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] rename dma_irq_index -> dma_index
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Load cell time!
-  - [ ] hx711 pio driver
-    - use https://github.com/endail/hx711-pico-c for reference. implementation unsuitable; too much blocking, too much pico mutex.
+  - [x] hx711 pio driver
   - [ ] gui for monitoring & calibration
   - [ ] print some brackets to calibrate it against my digital scale
   - [ ] supply 5V to HX711
@@ -42,7 +42,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - [ ] Get peripheral hardware running
   - [ ] Stepper drivers (use pico_stepper)
   - [ ] Laser module
-  - [ ] HX711 load cell reader
   - [ ] Can HX711 use 5V for excitation and 3.3V for logic?
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
@@ -50,6 +49,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
     - we may want two. the one in the display is very difficult to access, so it's more suited to being the internal storage.
     - alternatively, forget using SD cards to upload and go ahead with the wi-fi interface, haha
       - an embedded target and a command-line client tool, in the same project? time for bazel to shine ~
+  - [x] HX711 load cell reader
   - [x] Shiny new front panel display + LVGL driver
   - [x] touchscreen input (SPI breakout)
   - [x] Sharp LCD display + LVGL driver

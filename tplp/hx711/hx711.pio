@@ -1,0 +1,41 @@
+.program hx711
+.side_set 1
+    ; Input pin 0: DOUT
+    ; Sideset pin 0: PD_SCK
+    ; Maximum clock frequency: 10MHz
+    ; autopush threshold: 24
+    ;
+    ; When  output  data  is  not  ready  for  retrieval,  
+    ; digital  output  pin  DOUT  is  high.  Serial  clock  
+    ; input PD_SCK should be low. When DOUT goes 
+    ; to  low,  it  indicates  data  is  ready  for  retrieval.
+    ; 
+    ; By  applying 25~27 positive clock pulses at the 
+    ; PD_SCK  pin,  data  is  shifted  out  from  the  DOUT  
+    ; output pin. Each PD_SCK pulse shifts out one bit, 
+    ; starting with the MSB bit first, until all 24 bits are 
+    ; shifted  out.  The  25th  pulse  at  PD_SCK  input  will  
+    ; pull DOUT pin back to high (Fig.2).
+    ; 
+    ; PD_SCK Pulses | Input channel | Gain 
+    ; 25  A  128 
+    ; 26  B  32 
+    ; 27  A  64
+    ;
+    ; T_1 DOUT falling edge to PD_SCK rising edge min: 0.1us
+    ; PD_SCK rising edge to DOUT data ready: 0.1us max
+    ; PD_SCK high time: 0.2us min
+    ; PD_SCK low time: 0.2us min
+
+.wrap_target
+    ; set PD_SCK low, then wait for DOUT to go to low
+    wait 0 pin 0 side 0
+    ; read 24 bits
+    set x, 23 side 1 [1]
+loop:
+    ; sample on falling clock edge
+    in pins, 1 side 0 [1] 
+    jmp x-- loop side 1 [1]
+    ; autopush should now clear ISR
+    ; pulses=25 because of the extra one before the loop.
+.wrap
