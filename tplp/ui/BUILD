@@ -13,6 +13,8 @@ cc_library(
         "screen_settings.h",
         "settings_i2c_devices.cc",
         "settings_i2c_devices.h",
+        "settings_load_cell.cc",
+        "settings_load_cell.h",
         "settings_test_content.cc",
         "settings_test_content.h",
     ],

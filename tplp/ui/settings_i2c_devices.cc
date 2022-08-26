@@ -2,7 +2,7 @@
 #include "settings_i2c_devices.h"
 #include "tplp/ui/globals.h"
 
-#include <ostream>
+#include <sstream>
 #include <iomanip>
 
 using tplp::ui::I2cScanResult;

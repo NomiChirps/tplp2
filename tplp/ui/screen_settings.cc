@@ -3,6 +3,7 @@
 #include "tplp/ui/screen_home.h"
 #include "tplp/ui/settings_i2c_devices.h"
 #include "tplp/ui/settings_test_content.h"
+#include "tplp/ui/settings_load_cell.h"
 
 static void back_clicked(lv_event_t * e);
 static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char * txt);
@@ -16,6 +17,7 @@ typedef struct {
 static const settings_section sections[] = {
     { LV_SYMBOL_SETTINGS, "Test", ui_settings_test_content_create},
     { LV_SYMBOL_USB, "I2C", ui_settings_i2c_devices_create},
+    { LV_SYMBOL_DOWNLOAD, "Load Cell", ui_settings_load_cell_create},
 };
 
 static char root_page_title[] = "Settings";
