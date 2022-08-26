@@ -20,6 +20,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Load cell time!
   - [ ] hx711 pio driver
     - use https://github.com/endail/hx711-pico-c for reference. implementation unsuitable; too much blocking, too much pico mutex.
