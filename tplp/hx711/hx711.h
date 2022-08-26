@@ -7,18 +7,17 @@
 
 namespace tplp {
 
-// An optimal HX711 driver :)
-//
-// This uses a PIO machine and 2 DMA channels to continuously read samples from
-// the HX711 as fast as it can supply them, at precisely the maximum rate
-// specified in the datasheet. One DMA at a time continuously reads from the
-// PIO's RX FIFO (waiting on the relevant DREQ) and copies the latest value to a
-// fixed memory location, `sampled_value_`. The DMAs chain into each other to
-// ensure that operation continues if transfer_count reaches zero.
+// This HX711 driver uses a PIO machine and 2 DMA channels to continuously read
+// samples from the HX711 as fast as it can supply them, at precisely the
+// maximum rate specified in the datasheet. One DMA at a time continuously reads
+// from the PIO's RX FIFO (waiting on the relevant DREQ) and copies the latest
+// value to a fixed memory location, `sampled_value_`. The DMAs chain into each
+// other to ensure that operation continues if transfer_count reaches zero.
 //
 // All the CPU has to do is read the latest value from `sampled_value_` at its
-// leisure. The only way this could be improved is if we could squeeze the
-// sign-extension bit-twiddling into the PIO code without losing any cycles.
+// leisure. The only way this could be improved is if we squeezed the
+// sign-extension bit-twiddling into the PIO code, but the necessary quantity of
+// PIO instructions is arguably more precious than a few CPU cycles.
 class HX711 {
  public:
   static HX711* Init(pio_hw_t* pio, gpio_pin_t sck, gpio_pin_t dout);
