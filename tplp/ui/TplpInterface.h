@@ -14,6 +14,11 @@ struct I2cScanResult {
   std::vector<uint8_t> addresses;
 };
 
+struct LoadCellParams {
+  int32_t offset;
+  int32_t scale;
+};
+
 // Provides a generic interface into whatever bits of the program the UI needs
 // to work with. This serves as a dependency injection mechanism, allowing the
 // same UI code to run both under the simulator and on the actual hardware.
@@ -34,6 +39,10 @@ class TplpInterface {
 
   virtual void ScanI2cBus(
       const std::function<void(const I2cScanResult&)>& callback);
+
+  virtual int32_t GetLoadCellValue();
+  virtual void SetLoadCellParams(const LoadCellParams& params);
+  virtual LoadCellParams GetLoadCellParams();
 
  private:
   TplpInterface(const TplpInterface&) = delete;
