@@ -4,6 +4,7 @@
 #include "tplp/ui/settings_i2c_devices.h"
 #include "tplp/ui/settings_test_content.h"
 #include "tplp/ui/settings_load_cell.h"
+#include "tplp/ui/settings_steppers.h"
 
 static void menu_page_changed_cb(lv_event_t * e);
 static void back_clicked(lv_event_t * e);
@@ -35,6 +36,11 @@ static settings_section sections[] = {
      .create_section = ui_settings_load_cell_create,
      .on_load = ui_settings_load_cell_on_load_cb,
      .on_unload = ui_settings_load_cell_on_unload_cb},
+    {.icon = NULL,
+     .txt = "Steppers",
+     .create_section = ui_settings_steppers_create,
+     .on_load = NULL,
+     .on_unload = NULL}
 };
 
 static char root_page_title[] = "Settings";
