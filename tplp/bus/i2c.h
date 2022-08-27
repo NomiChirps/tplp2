@@ -134,8 +134,8 @@ class I2cDeviceHandle {
   I2cTransaction StartTransaction() { return i2c_->StartTransaction(addr_); }
 
  private:
-  I2cController* i2c_;
-  i2c_address_t addr_;
+  I2cController* const i2c_;
+  const i2c_address_t addr_;
 };
 
 }  // namespace tplp
