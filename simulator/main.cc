@@ -92,7 +92,7 @@ static void tick_task(void* unused) {
 
     vTaskDelay(pdMS_TO_TICKS(5));
     if (++n % 500 == 0) {
-      console_print("lvgl tick %ld\n", n);
+      //console_print("lvgl tick %ld\n", n);
     }
   }
 }
@@ -146,7 +146,7 @@ int main() {
 
     usleep(5000);
     if (++n % 500 == 0) {
-      console_print("lvgl timer handler call count %ld\n", n);
+      //console_print("lvgl timer handler call count %ld\n", n);
     }
   }
 
