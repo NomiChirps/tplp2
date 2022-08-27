@@ -139,6 +139,6 @@ static void back_clicked(lv_event_t * e)
         lv_obj_t * scr = lv_obj_create(NULL);
         ui_screen_home_create(scr);
 
-        lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_OUT, 300, 0, true);
+        lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_NONE, 300, 0, true);
     }
 }

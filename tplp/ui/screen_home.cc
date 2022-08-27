@@ -1,6 +1,7 @@
 #include "lvgl/lvgl.h"
 #include "tplp/ui/screen_home.h"
 #include "tplp/ui/screen_settings.h"
+#include "tplp/ui/globals.h"
 
 static lv_obj_t * ui_header_create(lv_obj_t * parent);
 static lv_obj_t * ui_contents_create(lv_obj_t * parent);
@@ -62,11 +63,12 @@ static void settings_click(lv_event_t * e)
     lv_obj_t * scr = lv_obj_create(NULL);
     ui_screen_settings_create(scr);
 
-    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, true);
+    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_NONE, 300, 0, true);
 }
 
 static void inc_click(lv_event_t * e)
 {
+    global_tplp_->FlashScreen();
     counter++;
     update_label();
 }
