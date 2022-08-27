@@ -58,7 +58,7 @@ void TplpInterfaceImpl::PushWork(const std::function<void()>& work) {
 void TplpInterfaceImpl::FlashScreen() {
   LOG(INFO) << "FlashScreen called";
   display_->SetInvertedColors(true);
-  vTaskDelay(pdMS_TO_TICKS(50));
+  vTaskDelay(pdMS_TO_TICKS(100));
   display_->SetInvertedColors(false);
 }
 
