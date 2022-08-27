@@ -25,8 +25,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - [ ] Load cell time!
   - [x] hx711 pio driver
   - [ ] gui for monitoring & calibration
-  - [ ] print some brackets to calibrate it against my digital scale
   - [ ] supply 5V to HX711
+  - [x] print some brackets to calibrate it against my digital scale
 - [ ] Create a front panel UI (assignee: wembly :)
   - [ ] make the touch target for the settings back button bigger...
   - [ ] fatal error handler to display the stack trace before crashing
