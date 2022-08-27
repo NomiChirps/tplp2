@@ -32,3 +32,10 @@ cc_library(
     visibility = ["//lib:__pkg__"],
     deps = ["@rules_pico//pico:pico_time"],
 )
+
+cc_library(
+    name = "params",
+    hdrs = ["params.h"],
+    visibility = ["//visibility:public"],
+    deps = [],
+)

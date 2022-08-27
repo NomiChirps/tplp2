@@ -81,16 +81,18 @@ void TplpInterfaceImpl::ScanI2cBus(
   });
 }
 
-int32_t TplpInterfaceImpl::GetLoadCellValue() {
-  // TODO: returning the raw value for now
-  return load_cell_->current_value();
+int32_t TplpInterfaceImpl::GetLoadCellValue() { return load_cell_->value(); }
+int32_t TplpInterfaceImpl::GetRawLoadCellValue() {
+  return load_cell_->raw_value();
 }
 void TplpInterfaceImpl::SetLoadCellParams(const LoadCellParams& params) {
-  // TODO
+  LOG(INFO) << "Load cell parameters updated: offset = " << params.offset
+            << ", scale = " << params.scale;
+  load_cell_->SetOffset(params.offset);
+  load_cell_->SetScale(params.scale);
 }
 LoadCellParams TplpInterfaceImpl::GetLoadCellParams() {
-  // TODO
-  return {};
+  return {.offset = load_cell_->offset(), .scale = load_cell_->scale()};
 }
 
 }  // namespace ui

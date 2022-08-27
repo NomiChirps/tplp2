@@ -22,16 +22,6 @@
 #include "tplp/ui/main.h"
 
 namespace tplp {
-void Hx711TestTask(void* task_param) {
-  HX711* hx711 = static_cast<HX711*>(task_param);
-  for (;;) {
-    int32_t x = hx711->current_value();
-    LOG(INFO) << "hx711 value = 0x" << std::hex << std::setw(8)
-              << std::setfill('0') << x << " = " << std::dec << x;
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-}
-
 void StartupTask(void*) {
   util::Status status;
 
@@ -87,9 +77,6 @@ void StartupTask(void*) {
 
   // Load cell reader.
   HX711* load_cell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
-  // TODO: replace with gui
-  CHECK(xTaskCreate(&Hx711TestTask, "hx711 test", TaskStacks::kTESTONLY,
-                    load_cell, 1, nullptr));
 
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(

@@ -40,7 +40,9 @@ class TplpInterface {
   virtual void ScanI2cBus(
       const std::function<void(const I2cScanResult&)>& callback);
 
+  // See also params::kLoadCellExpectedRangeAfterScaling.
   virtual int32_t GetLoadCellValue();
+  virtual int32_t GetRawLoadCellValue();
   virtual void SetLoadCellParams(const LoadCellParams& params);
   virtual LoadCellParams GetLoadCellParams();
 

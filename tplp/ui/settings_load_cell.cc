@@ -1,7 +1,11 @@
+#include <limits>
+#include "tplp/ui/globals.h"
+#include "tplp/config/params.h"
 #include "lvgl/lvgl.h"
 #include "settings_i2c_devices.h"
 
 static lv_obj_t * meter;
+static lv_meter_scale_t * meter_scale;
 static lv_meter_indicator_t * indic;
 static void set_meter_value(int32_t v);
 static lv_obj_t * meter_create(lv_obj_t * parent);
@@ -16,36 +20,40 @@ static void scale_spinbox_increment_event_cb(lv_event_t * e);
 static void scale_spinbox_decrement_event_cb(lv_event_t * e);
 static void meter_extra_draw(lv_event_t * e);
 
+static lv_timer_t * update_meter_timer;
+
 void ui_settings_load_cell_on_load_cb() {
-    // TODO: resume load cell polling timer or whatever
-    // probably also load current scale/offset values
-    lv_log("\n\n\n\non_load\n\n\n\n");
+    lv_timer_resume(update_meter_timer);
+    auto params = global_tplp_->GetLoadCellParams();
+    lv_spinbox_set_value(offset_spinbox, params.offset);
+    lv_spinbox_set_value(scale_spinbox, params.scale);
 }
 
 void ui_settings_load_cell_on_unload_cb() {
-    // TODO: pause the timer probably
-    lv_log("\n\n\n\non_unload\n\n\n\n");
+    lv_timer_pause(update_meter_timer);
+}
+
+static void update_meter_cb(lv_timer_t * timer) {
+    static int32_t last_value = 0;
+    int32_t value = global_tplp_->GetLoadCellValue();
+    if (value != last_value) {
+        set_meter_value(value);
+    }
+}
+
+static void spinbox_changed_cb(lv_event_t * e) {
+    tplp::ui::LoadCellParams params =  {
+        .offset = lv_spinbox_get_value(offset_spinbox),
+        .scale = lv_spinbox_get_value(scale_spinbox),
+    };
+    if (params.scale != 0) {
+        global_tplp_->SetLoadCellParams(params);
+    }
 }
 
 static void set_meter_value(int32_t v)
 {
     lv_meter_set_indicator_value(meter, indic, v);
-}
-
-static int32_t get_offset_value() {
-    return lv_spinbox_get_value(offset_spinbox);
-}
-
-static int32_t get_scale_value() {
-    return lv_spinbox_get_value(scale_spinbox);
-}
-
-static void set_offset_value(int32_t value) {
-    lv_spinbox_set_value(offset_spinbox, value);
-}
-
-static void set_scale_value(int32_t value) {
-    lv_spinbox_set_value(offset_spinbox, value);
 }
 
 lv_obj_t * ui_settings_load_cell_create(lv_obj_t * parent) {
@@ -57,10 +65,14 @@ lv_obj_t * ui_settings_load_cell_create(lv_obj_t * parent) {
     lv_obj_set_layout(content, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_EVENLY);
+    lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_OFF);
 
     meter_create(content);
     offset_spinbox_create(content);
     scale_spinbox_create(content);
+
+    update_meter_timer = lv_timer_create(update_meter_cb, 100, meter);
+    lv_timer_pause(update_meter_timer);
 
     return content;
 }
@@ -80,19 +92,20 @@ static lv_obj_t * offset_spinbox_create(lv_obj_t * parent)
     lv_label_set_text(label, "Offset: ");
     lv_obj_set_flex_grow(label, 1);
 
-    lv_obj_t * inc_btn = lv_btn_create(content);
-    lv_obj_set_style_bg_img_src(inc_btn, LV_SYMBOL_PLUS, 0);
-    lv_obj_add_event_cb(inc_btn, offset_spinbox_increment_event_cb, LV_EVENT_ALL,  NULL);
-
-    offset_spinbox = lv_spinbox_create(content);
-    lv_spinbox_set_range(offset_spinbox, -1000, 25000);
-    lv_spinbox_set_digit_format(offset_spinbox, 5, 2);
-    lv_spinbox_step_prev(offset_spinbox);
-    lv_obj_set_width(offset_spinbox, 100);
-
     lv_obj_t * dec_btn = lv_btn_create(content);
     lv_obj_set_style_bg_img_src(dec_btn, LV_SYMBOL_MINUS, 0);
     lv_obj_add_event_cb(dec_btn, offset_spinbox_decrement_event_cb, LV_EVENT_ALL, NULL);
+
+    offset_spinbox = lv_spinbox_create(content);
+    lv_spinbox_set_range(offset_spinbox, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max());
+    lv_spinbox_set_digit_format(offset_spinbox, 8, 0);
+    lv_spinbox_step_prev(offset_spinbox);
+    lv_obj_set_width(offset_spinbox, 100);
+    lv_obj_add_event_cb(offset_spinbox, spinbox_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    lv_obj_t * inc_btn = lv_btn_create(content);
+    lv_obj_set_style_bg_img_src(inc_btn, LV_SYMBOL_PLUS, 0);
+    lv_obj_add_event_cb(inc_btn, offset_spinbox_increment_event_cb, LV_EVENT_ALL,  NULL);
 
     lv_coord_t h = lv_obj_get_height(offset_spinbox);
     lv_obj_set_size(inc_btn, h, h);
@@ -132,19 +145,20 @@ static lv_obj_t * scale_spinbox_create(lv_obj_t * parent)
     lv_label_set_text(label, "Scale: ");
     lv_obj_set_flex_grow(label, 1);
 
-    lv_obj_t * inc_btn = lv_btn_create(content);
-    lv_obj_set_style_bg_img_src(inc_btn, LV_SYMBOL_PLUS, 0);
-    lv_obj_add_event_cb(inc_btn, scale_spinbox_increment_event_cb, LV_EVENT_ALL,  NULL);
-
-    scale_spinbox = lv_spinbox_create(content);
-    lv_spinbox_set_range(scale_spinbox, -1000, 25000);
-    lv_spinbox_set_digit_format(scale_spinbox, 5, 2);
-    lv_spinbox_step_prev(scale_spinbox);
-    lv_obj_set_width(scale_spinbox, 100);
-
     lv_obj_t * dec_btn = lv_btn_create(content);
     lv_obj_set_style_bg_img_src(dec_btn, LV_SYMBOL_MINUS, 0);
     lv_obj_add_event_cb(dec_btn, scale_spinbox_decrement_event_cb, LV_EVENT_ALL, NULL);
+
+    scale_spinbox = lv_spinbox_create(content);
+    lv_spinbox_set_range(scale_spinbox, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max());
+    lv_spinbox_set_digit_format(scale_spinbox, 8, 0);
+    lv_spinbox_step_prev(scale_spinbox);
+    lv_obj_set_width(scale_spinbox, 100);
+    lv_obj_add_event_cb(scale_spinbox, spinbox_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    lv_obj_t * inc_btn = lv_btn_create(content);
+    lv_obj_set_style_bg_img_src(inc_btn, LV_SYMBOL_PLUS, 0);
+    lv_obj_add_event_cb(inc_btn, scale_spinbox_increment_event_cb, LV_EVENT_ALL,  NULL);
 
     lv_coord_t h = lv_obj_get_height(scale_spinbox);
     lv_obj_set_size(inc_btn, h, h);
@@ -175,15 +189,17 @@ static lv_obj_t * meter_create(lv_obj_t * parent) {
     lv_obj_set_size(meter, LV_PCT(50), LV_PCT(50));
 
     /*Add a scale first*/
-    lv_meter_scale_t * scale = lv_meter_add_scale(meter);
-    lv_meter_set_scale_ticks(meter, scale, 41, 2, 10, lv_palette_main(LV_PALETTE_GREY));
-    lv_meter_set_scale_major_ticks(meter, scale, 10, 4, 15, lv_color_black(), 10);
-    lv_meter_set_scale_range(meter, scale, -10, 10, 270, 135);
+    meter_scale = lv_meter_add_scale(meter);
+    lv_meter_set_scale_ticks(meter, meter_scale, 41, 2, 10, lv_palette_main(LV_PALETTE_GREY));
+    lv_meter_set_scale_major_ticks(meter, meter_scale, 10, 4, 15, lv_color_black(), 10);
+    lv_meter_set_scale_range(
+        meter, meter_scale, -tplp::params::kLoadCellExpectedRangeAfterScaling,
+        tplp::params::kLoadCellExpectedRangeAfterScaling, 270, 135);
 
     /*Add a needle line indicator*/
-    indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_GREY), -10);
+    indic = lv_meter_add_needle_line(meter, meter_scale, 4, lv_palette_main(LV_PALETTE_GREY), -10);
 
-    lv_obj_add_event_cb(meter, meter_extra_draw, LV_EVENT_DRAW_MAIN_END, NULL);
+    lv_obj_add_event_cb(meter, meter_extra_draw, LV_EVENT_DRAW_POST, NULL);
 
     return meter;
 }

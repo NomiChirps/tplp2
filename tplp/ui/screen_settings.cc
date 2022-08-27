@@ -95,7 +95,7 @@ static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char *
 }
 
 static settings_section* find_section_by_menu_page(lv_obj_t * menu_page) {
-    for (int i=0; i < sizeof(sections)/sizeof(sections[0]); ++i) {
+    for (unsigned i=0; i < sizeof(sections)/sizeof(sections[0]); ++i) {
         if (sections[i].menu_page == menu_page) {
             return &sections[i];
         }

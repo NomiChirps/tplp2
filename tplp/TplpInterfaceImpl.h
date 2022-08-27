@@ -23,6 +23,7 @@ class TplpInterfaceImpl : public ui::TplpInterface {
       const std::function<void(const I2cScanResult&)>& callback);
 
   virtual int32_t GetLoadCellValue();
+  virtual int32_t GetRawLoadCellValue();
   virtual void SetLoadCellParams(const LoadCellParams& params);
   virtual LoadCellParams GetLoadCellParams();
 

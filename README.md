@@ -20,12 +20,24 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] put the load cell period (100ms) in params.h
+- [ ] Milestone: Paper Tensioning
+  - Be able to load paper and feed it forward and backward while maintaining correct tension.
+  - needs steppers working
+  - needs load cell persistently calibrated & installed
+  - needs a PID loop with all the accoutrements
+    - i want a mathematically sound PID tuning UI
+- [ ] fix everything in the ui being scrollable
+- [ ] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
+- [ ] load cell ui could use some improvements
+  - [ ] explicit Save button
+  - [ ] numeric display of value & raw value
 - [ ] rename dma_irq_index -> dma_index
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Load cell time!
-  - [x] hx711 pio driver
-  - [ ] gui for monitoring & calibration
   - [ ] supply 5V to HX711
+  - [x] hx711 pio driver
+  - [x] gui for monitoring & calibration
   - [x] print some brackets to calibrate it against my digital scale
 - [ ] Create a front panel UI (assignee: wembly :)
   - [ ] make the touch target for the settings back button bigger...
