@@ -20,32 +20,25 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] put the load cell period (100ms) in params.h
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
   - needs steppers working
   - needs load cell persistently calibrated & installed
   - needs a PID loop with all the accoutrements
     - i want a mathematically sound PID tuning UI
-- [ ] fix everything in the ui being scrollable
+- UX Improvements
+  - [ ] make the touch target for the settings back button bigger
+  - [ ] fix everything in the ui being scrollable
+  - [ ] explicit Save button for load cell settings
+  - [ ] numeric display of load cell value & raw value
 - [ ] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
-- [ ] load cell ui could use some improvements
-  - [ ] explicit Save button
-  - [ ] numeric display of value & raw value
 - [ ] rename dma_irq_index -> dma_index
 - [ ] I2cController doesn't fail gracefully when a read times out!
-- [ ] Load cell time!
-  - [ ] supply 5V to HX711
-  - [x] hx711 pio driver
-  - [x] gui for monitoring & calibration
-  - [x] print some brackets to calibrate it against my digital scale
 - [ ] Create a front panel UI (assignee: wembly :)
-  - [ ] make the touch target for the settings back button bigger...
   - [ ] fatal error handler to display the stack trace before crashing
     - will require support from picolog. make sure picolog prevents the crashed task from proceeding, and has a watchdog or something to finish crashing the device if the fatal error handler doesn't finish in time.
   - [ ] runtime stats / logging screen
-  - [ ] manual peripheral control screen
-  - [ ] parameters screen
+  - [ ] manual motor control screen
   - [ ] (later) print status / job control / main screen ?
   - [x] I2C bus scan
   - [x] virtual class interface for callbacks 'n' stuff
@@ -53,9 +46,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - [ ] Get peripheral hardware running
   - [ ] Stepper drivers (use pico_stepper)
   - [ ] Laser module
-  - [ ] Can HX711 use 5V for excitation and 3.3V for logic?
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
+  - [ ] pinhole photodiode for self-calibration and/or self-test
   - [ ] MicroSD card reader
     - we may want two. the one in the display is very difficult to access, so it's more suited to being the internal storage.
     - alternatively, forget using SD cards to upload and go ahead with the wi-fi interface, haha
@@ -67,33 +60,26 @@ ls -lh bazel-bin/tplp/firmware.uf2
 - [ ] Finish the electronics hardware
   - [ ] Power everything from the 12v bus
     - remember to power pico thru VSYS, not VBUS, to avoid potentially sending power upstream to the usb host
-  - [ ] Stretch goal: add a WiFi module?
-  - [ ] Stretch goal: add a pinhole photodiode for self-calibration and/or self-test
   - [ ] Transfer from breadboard to permaproto, or ask wembly to whip up a pcb
+  - [ ] supply 5V to HX711
   - [x] Add bus capacitors
 - Nice-to-haves
   - [ ] JTAG? is that a thing i can do?
   - [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
   - [ ] StatusOr
-  - [ ] SpiController could use improvement - we're not getting full utilization of the bus
-    - use 2 dma channels in each direction and chain them so there's no stall when swapping buffers
-    - coalesce consecutive nonblocking operations within a transaction this way
-    - well.. that's not so useful for HX8357, which blocks a lot in order to switch the D/C pin on and off. maybe a fully nonblocking transaction builder which allows inserting std::function calls between transfers. we could run those from the interrupt before triggering the next DMA... won't be as fast as direct DMA chaining, but definitely more flexible.
-    - we can retrofit a little of this on right now- an optional std::function with each transfer event, or just a gpio pin to toggle, and run from the dma-finished interrupt handler
-    - actually -- I2cController could use a lot of the same infrastructure. why don't we make a hardass DmaController class that does all this? lets you queue things up in a nonblocking way with an optional action in between each. makes use of DMA chaining when possible (i.e. no action), or starts the next DMA from the interrupt handler if not. if you want to block, you make the action be a task notification or semaphore-give. yeah! i like it! (don't forget: configurable transfer width)
-  - [ ] I2cController needs nonblocking operations, coalescing commands, general TLC
   - [ ] clear the display on boot. the random pixels look kinda cool but...
     - actually, no 'clear' command exists. best we can do is turn off the pixels (command 22h, pp.139), do a full memory write, and turn them back on.
   - [ ] TSC2007 lvgl driver should debounce, buffer, and interpolate
-  - [ ] I2cController need nonblocking operations, coalescing commands, general TLC
-  - [ ] write a stress test for SpiController. lotsa tasks, lotsa devices, all hammering away
+  - [ ] I2cController needs nonblocking operations, coalescing commands, general TLC
   - [ ] hook up tft backlight pin and add an adjustable brightness setting (PWM)
   - [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
     - this may also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
-  - [ ] split out various things i'm proud of as their own librar(ies)
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
   - [ ] Vendor all 3rd party libraries
+- Low priority
+  - [ ] split out various things i'm proud of as their own librar(ies)
+  - [ ] write stress tests for SpiController/I2cController. lotsa tasks, lotsa devices, all hammering away
 - 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking where possible.
 
 ## Board configuration/pins
@@ -178,6 +164,13 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] SpiController could use improvement - we're not getting full utilization of the bus
+  - verdict: use the new DmaController with nonblocking operations where possible, and that's gonna be good enough.
+- [x] Load cell time!
+  - [x] hx711 pio driver
+  - [x] gui for monitoring & calibration
+  - [x] print some brackets to calibrate it against my digital scale
+- [x] put the load cell period (100ms) in params.h
 - [x] read about the hardware interpolators in rp2040
   - does what it says on the tin. good for linear scaling, affine texture mapping, that kinda thing.
 - [x] Mission: DMA 9000
