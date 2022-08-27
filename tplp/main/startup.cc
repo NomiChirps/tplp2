@@ -86,14 +86,14 @@ void StartupTask(void*) {
   lvgl.Start();
 
   // Load cell reader.
-  HX711* hx711 = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
+  HX711* load_cell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
   // TODO: replace with gui
-  CHECK(xTaskCreate(&Hx711TestTask, "hx711 test", TaskStacks::kTESTONLY, hx711,
-                    1, nullptr));
+  CHECK(xTaskCreate(&Hx711TestTask, "hx711 test", TaskStacks::kTESTONLY,
+                    load_cell, 1, nullptr));
 
   // Create GUI screens.
-  ui::TplpInterfaceImpl* ui_adapter =
-      CHECK_NOTNULL(new ui::TplpInterfaceImpl(display, i2c0_controller));
+  ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(
+      new ui::TplpInterfaceImpl(display, i2c0_controller, load_cell));
   ui_adapter->StartTask(TaskPriorities::kUiWorker, TaskStacks::kUiWorker);
   {
     LvglMutex mutex;

@@ -89,9 +89,10 @@ cc_library(
     hdrs = ["TplpInterfaceImpl.h"],
     deps = [
         "//picolog",
-        "//tplp/bus:I2cController",
         "//tplp/HX8357",
+        "//tplp/bus:I2cController",
         "//tplp/graphics:lvgl_mutex",
+        "//tplp/hx711",
         "//tplp/ui:TplpInterface",
         "@FreeRTOS",
     ],

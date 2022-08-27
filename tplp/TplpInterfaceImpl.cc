@@ -17,10 +17,12 @@ struct WorkQueueItem {
 }  // namespace
 
 TplpInterfaceImpl::TplpInterfaceImpl(HX8357* display,
-                                     I2cController* i2c0_controller)
+                                     I2cController* i2c0_controller,
+                                     HX711* load_cell)
     : task_(nullptr),
       display_(display),
       i2c0_controller_(i2c0_controller),
+      load_cell_(load_cell),
       work_queue_(nullptr) {}
 
 TplpInterfaceImpl::~TplpInterfaceImpl() {}
@@ -54,14 +56,16 @@ void TplpInterfaceImpl::PushWork(const std::function<void()>& work) {
 }
 
 void TplpInterfaceImpl::FlashScreen() {
+  LOG(INFO) << "FlashScreen called";
   display_->SetInvertedColors(true);
+  vTaskDelay(pdMS_TO_TICKS(50));
   display_->SetInvertedColors(false);
 }
 
 void TplpInterfaceImpl::ScanI2cBus(
     const std::function<void(const I2cScanResult&)>& callback) {
   if (!i2c0_controller_) {
-    callback({
+    callback(I2cScanResult{
         .status = util::FailedPreconditionError("I2C bus not available"),
     });
     return;
@@ -75,6 +79,18 @@ void TplpInterfaceImpl::ScanI2cBus(
     }
     callback(result);
   });
+}
+
+int32_t TplpInterfaceImpl::GetLoadCellValue() {
+  // TODO: returning the raw value for now
+  return load_cell_->current_value();
+}
+void TplpInterfaceImpl::SetLoadCellParams(const LoadCellParams& params) {
+  // TODO
+}
+LoadCellParams TplpInterfaceImpl::GetLoadCellParams() {
+  // TODO
+  return {};
 }
 
 }  // namespace ui
