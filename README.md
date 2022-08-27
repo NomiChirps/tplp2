@@ -32,7 +32,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] explicit Save button for load cell settings
   - [ ] numeric display of load cell value & raw value
 - [ ] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
-- [ ] rename dma_irq_index -> dma_index
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Create a front panel UI (assignee: wembly :)
   - [ ] fatal error handler to display the stack trace before crashing
