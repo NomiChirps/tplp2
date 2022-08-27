@@ -59,15 +59,13 @@ static void set_meter_value(int32_t v)
 lv_obj_t * ui_settings_load_cell_create(lv_obj_t * parent) {
     lv_obj_t * content = lv_obj_create(parent);
     lv_obj_remove_style_all(content);
-    lv_obj_set_style_pad_all(content, 5, 0);
-    lv_obj_set_style_pad_gap(content, 5, 0);
-    lv_obj_set_size(content, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_size(content, LV_PCT(100), LV_PCT(95));
     lv_obj_set_layout(content, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_EVENLY);
-    lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_flex_align(content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
 
     meter_create(content);
+    // lv_obj_set_flex_grow(meter, 3);
     offset_spinbox_create(content);
     scale_spinbox_create(content);
 
@@ -185,13 +183,12 @@ static void scale_spinbox_decrement_event_cb(lv_event_t * e)
 
 static lv_obj_t * meter_create(lv_obj_t * parent) {
     meter = lv_meter_create(parent);
-    lv_obj_center(meter);
-    lv_obj_set_size(meter, LV_PCT(50), LV_PCT(50));
+    lv_obj_set_size(meter, 180, 180);
 
     /*Add a scale first*/
     meter_scale = lv_meter_add_scale(meter);
-    lv_meter_set_scale_ticks(meter, meter_scale, 41, 2, 10, lv_palette_main(LV_PALETTE_GREY));
-    lv_meter_set_scale_major_ticks(meter, meter_scale, 10, 4, 15, lv_color_black(), 10);
+    lv_meter_set_scale_ticks(meter, meter_scale, 41, 2, 5, lv_palette_main(LV_PALETTE_GREY));
+    lv_meter_set_scale_major_ticks(meter, meter_scale, 10, 4, 10, lv_color_black(), 15);
     lv_meter_set_scale_range(
         meter, meter_scale, -tplp::params::kLoadCellExpectedRangeAfterScaling,
         tplp::params::kLoadCellExpectedRangeAfterScaling, 270, 135);
