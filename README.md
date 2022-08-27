@@ -27,11 +27,11 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - needs a PID loop with all the accoutrements
     - i want a mathematically sound PID tuning UI
 - UX Improvements
-  - [ ] oops changed my mind about the load cell units. they're actually completely arbitrary.
   - [ ] make the touch target for the settings back button bigger
-  - [ ] fix everything in the ui being scrollable
   - [ ] explicit Save button for load cell settings
-  - [ ] numeric display of load cell value & raw value
+  - [x] fix everything in the ui being scrollable
+  - [x] numeric display of load cell value & raw value
+  - [x] oops changed my mind about the load cell units. they're actually completely arbitrary.
 - [ ] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Create a front panel UI (assignee: wembly :)
