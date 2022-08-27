@@ -54,7 +54,7 @@ static void spinbox_changed_cb(lv_event_t * e) {
 static void set_meter_value(int32_t v)
 {
     lv_meter_set_indicator_value(meter, indic, v);
-    lv_label_set_text_fmt(numeric_display, "%d", v);
+    lv_label_set_text_fmt(numeric_display, "%ld", static_cast<long int>(v));
     lv_obj_set_style_text_align(numeric_display, LV_TEXT_ALIGN_CENTER, 0);
 }
 
