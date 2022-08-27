@@ -1,7 +1,7 @@
 #ifndef TPLP_SHARPLCD_H_
 #define TPLP_SHARPLCD_H_
 
-#include "tplp/bus/SpiController.h"
+#include "tplp/bus/spi.h"
 
 namespace tplp {
 

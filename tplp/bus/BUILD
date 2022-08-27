@@ -12,9 +12,9 @@ cc_library(
 )
 
 cc_library(
-    name = "SpiController",
-    srcs = ["SpiController.cc"],
-    hdrs = ["SpiController.h"],
+    name = "spi",
+    srcs = ["spi.cc"],
+    hdrs = ["spi.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":dma",
@@ -28,9 +28,9 @@ cc_library(
 )
 
 cc_library(
-    name = "I2cController",
-    srcs = ["I2cController.cc"],
-    hdrs = ["I2cController.h"],
+    name = "i2c",
+    srcs = ["i2c.cc"],
+    hdrs = ["i2c.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":dma",

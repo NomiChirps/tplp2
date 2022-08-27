@@ -90,7 +90,7 @@ cc_library(
     deps = [
         "//picolog",
         "//tplp/HX8357",
-        "//tplp/bus:I2cController",
+        "//tplp/bus:i2c",
         "//tplp/graphics:lvgl_mutex",
         "//tplp/hx711",
         "//tplp/ui:TplpInterface",

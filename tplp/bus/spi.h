@@ -1,5 +1,5 @@
-#ifndef TPLP_BUS_SPICONTROLLER_H_
-#define TPLP_BUS_SPICONTROLLER_H_
+#ifndef TPLP_BUS_SPI_H_
+#define TPLP_BUS_SPI_H_
 
 #include <memory>
 #include <optional>
@@ -149,4 +149,4 @@ class SpiDevice {
 
 }  // namespace tplp
 
-#endif  // TPLP_BUS_SPICONTROLLER_H_
+#endif  // TPLP_BUS_SPI_H_

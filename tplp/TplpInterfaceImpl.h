@@ -2,8 +2,8 @@
 #define TPLP_TPLPINTERFACEIMPL_H_
 
 #include "tplp/HX8357/HX8357.h"
+#include "tplp/bus/i2c.h"
 #include "tplp/hx711/hx711.h"
-#include "tplp/bus/I2cController.h"
 #include "tplp/ui/TplpInterface.h"
 
 namespace tplp {
@@ -11,7 +11,8 @@ namespace ui {
 
 class TplpInterfaceImpl : public ui::TplpInterface {
  public:
-  explicit TplpInterfaceImpl(HX8357* display, I2cController* i2c0_controller, HX711* load_cell);
+  explicit TplpInterfaceImpl(HX8357* display, I2cController* i2c0_controller,
+                             HX711* load_cell);
   virtual ~TplpInterfaceImpl();
 
   // Starts the UI background work task.

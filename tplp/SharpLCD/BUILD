@@ -9,7 +9,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//picolog",
-        "//tplp/bus:SpiController",
+        "//tplp/bus:spi",
     ],
 )
 

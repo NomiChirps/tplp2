@@ -1,7 +1,7 @@
 #ifndef TPLP_HX8357_HX8357_H_
 #define TPLP_HX8357_HX8357_H_
 
-#include "tplp/bus/SpiController.h"
+#include "tplp/bus/spi.h"
 #include "tplp/bus/types.h"
 
 namespace tplp {

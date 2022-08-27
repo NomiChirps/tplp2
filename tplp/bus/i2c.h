@@ -1,5 +1,5 @@
-#ifndef TPLP_BUS_I2CCONTROLLER_H_
-#define TPLP_BUS_I2CCONTROLLER_H_
+#ifndef TPLP_BUS_I2C_H_
+#define TPLP_BUS_I2C_H_
 
 #include <vector>
 
@@ -140,4 +140,4 @@ class I2cDeviceHandle {
 
 }  // namespace tplp
 
-#endif  // TPLP_BUS_I2CCONTROLLER_H_
+#endif  // TPLP_BUS_I2C_H_
