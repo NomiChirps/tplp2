@@ -14,6 +14,7 @@ static void offset_spinbox_decrement_event_cb(lv_event_t * e);
 static lv_obj_t * scale_spinbox_create(lv_obj_t * parent);
 static void scale_spinbox_increment_event_cb(lv_event_t * e);
 static void scale_spinbox_decrement_event_cb(lv_event_t * e);
+static void meter_extra_draw(lv_event_t * e);
 
 void ui_settings_load_cell_on_load_cb() {
     // TODO: resume load cell polling timer or whatever
@@ -182,5 +183,38 @@ static lv_obj_t * meter_create(lv_obj_t * parent) {
     /*Add a needle line indicator*/
     indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_GREY), -10);
 
+    lv_obj_add_event_cb(meter, meter_extra_draw, LV_EVENT_DRAW_MAIN_END, NULL);
+
     return meter;
 }
+
+static void meter_extra_draw(lv_event_t * e)
+{
+    lv_obj_t * obj = lv_event_get_target(e);
+    lv_draw_ctx_t * draw_ctx = lv_event_get_draw_ctx(e);
+
+    lv_area_t scale_area;
+    lv_obj_get_content_coords(obj, &scale_area);
+
+    lv_coord_t r_edge = LV_MIN(lv_area_get_width(&scale_area) / 2, lv_area_get_height(&scale_area) / 2);
+    lv_point_t scale_center;
+    scale_center.x = scale_area.x1 + r_edge;
+    scale_center.y = scale_area.y1 + r_edge - ((scale_area.y1 - scale_area.y2)/3);
+
+    lv_draw_label_dsc_t label_draw_dsc;
+    lv_draw_label_dsc_init(&label_draw_dsc);
+    lv_obj_init_draw_label_dsc(obj, LV_PART_TICKS, &label_draw_dsc);
+
+    lv_point_t label_size;
+    lv_txt_get_size(&label_size, "N", label_draw_dsc.font, label_draw_dsc.letter_space, label_draw_dsc.line_space,
+                            LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+
+    lv_area_t label_cord;
+    label_cord.x1 = scale_center.x - label_size.x / 2;
+    label_cord.y1 = scale_center.y - label_size.y / 2;
+    label_cord.x2 = label_cord.x1 + label_size.x;
+    label_cord.y2 = label_cord.y1 + label_size.y;
+
+    lv_draw_label(draw_ctx, &label_draw_dsc, &label_cord, "N", NULL);
+}
+
