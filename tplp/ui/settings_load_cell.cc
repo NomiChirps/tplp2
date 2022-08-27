@@ -15,6 +15,17 @@ static lv_obj_t * scale_spinbox_create(lv_obj_t * parent);
 static void scale_spinbox_increment_event_cb(lv_event_t * e);
 static void scale_spinbox_decrement_event_cb(lv_event_t * e);
 
+void ui_settings_load_cell_on_load_cb() {
+    // TODO: resume load cell polling timer or whatever
+    // probably also load current scale/offset values
+    lv_log("\n\n\n\non_load\n\n\n\n");
+}
+
+void ui_settings_load_cell_on_unload_cb() {
+    // TODO: pause the timer probably
+    lv_log("\n\n\n\non_unload\n\n\n\n");
+}
+
 static void set_meter_value(int32_t v)
 {
     lv_meter_set_indicator_value(meter, indic, v);
