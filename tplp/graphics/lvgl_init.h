@@ -29,10 +29,6 @@ class LvglInit {
   Objects* stuff_;
 };
 
-// Draws something interesting on a loop.
-// Argument is ignored. Does not return.
-void RunLvglDemo(void*);
-
 }  // namespace tplp
 
 #endif  // TPLP_GRAPHICS_LVGL_INIT_H_
