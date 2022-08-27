@@ -5,6 +5,7 @@
 #include "settings_i2c_devices.h"
 
 static lv_obj_t * meter;
+static lv_obj_t * numeric_display;
 static lv_meter_scale_t * meter_scale;
 static lv_meter_indicator_t * indic;
 static void set_meter_value(int32_t v);
@@ -18,7 +19,6 @@ static void offset_spinbox_decrement_event_cb(lv_event_t * e);
 static lv_obj_t * scale_spinbox_create(lv_obj_t * parent);
 static void scale_spinbox_increment_event_cb(lv_event_t * e);
 static void scale_spinbox_decrement_event_cb(lv_event_t * e);
-static void meter_extra_draw(lv_event_t * e);
 
 static lv_timer_t * update_meter_timer;
 
@@ -54,6 +54,8 @@ static void spinbox_changed_cb(lv_event_t * e) {
 static void set_meter_value(int32_t v)
 {
     lv_meter_set_indicator_value(meter, indic, v);
+    lv_label_set_text_fmt(numeric_display, "%d", v);
+    lv_obj_set_style_text_align(numeric_display, LV_TEXT_ALIGN_CENTER, 0);
 }
 
 lv_obj_t * ui_settings_load_cell_create(lv_obj_t * parent) {
@@ -65,7 +67,6 @@ lv_obj_t * ui_settings_load_cell_create(lv_obj_t * parent) {
     lv_obj_set_flex_align(content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
 
     meter_create(content);
-    // lv_obj_set_flex_grow(meter, 3);
     offset_spinbox_create(content);
     scale_spinbox_create(content);
 
@@ -196,38 +197,10 @@ static lv_obj_t * meter_create(lv_obj_t * parent) {
     /*Add a needle line indicator*/
     indic = lv_meter_add_needle_line(meter, meter_scale, 4, lv_palette_main(LV_PALETTE_GREY), -10);
 
-    lv_obj_add_event_cb(meter, meter_extra_draw, LV_EVENT_DRAW_POST, NULL);
+    numeric_display = lv_label_create(meter);
+    lv_obj_set_size(numeric_display, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_text_align(numeric_display, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align_to(numeric_display, meter, LV_ALIGN_BOTTOM_MID, 0, 0);
 
     return meter;
 }
-
-static void meter_extra_draw(lv_event_t * e)
-{
-    lv_obj_t * obj = lv_event_get_target(e);
-    lv_draw_ctx_t * draw_ctx = lv_event_get_draw_ctx(e);
-
-    lv_area_t scale_area;
-    lv_obj_get_content_coords(obj, &scale_area);
-
-    lv_coord_t r_edge = LV_MIN(lv_area_get_width(&scale_area) / 2, lv_area_get_height(&scale_area) / 2);
-    lv_point_t scale_center;
-    scale_center.x = scale_area.x1 + r_edge;
-    scale_center.y = scale_area.y1 + r_edge - ((scale_area.y1 - scale_area.y2)/3);
-
-    lv_draw_label_dsc_t label_draw_dsc;
-    lv_draw_label_dsc_init(&label_draw_dsc);
-    lv_obj_init_draw_label_dsc(obj, LV_PART_TICKS, &label_draw_dsc);
-
-    lv_point_t label_size;
-    lv_txt_get_size(&label_size, "N", label_draw_dsc.font, label_draw_dsc.letter_space, label_draw_dsc.line_space,
-                            LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-
-    lv_area_t label_cord;
-    label_cord.x1 = scale_center.x - label_size.x / 2;
-    label_cord.y1 = scale_center.y - label_size.y / 2;
-    label_cord.x2 = label_cord.x1 + label_size.x;
-    label_cord.y2 = label_cord.y1 + label_size.y;
-
-    lv_draw_label(draw_ctx, &label_draw_dsc, &label_cord, "N", NULL);
-}
-
