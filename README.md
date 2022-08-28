@@ -20,6 +20,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] Begin() Setup() Init(), **PICK ONE**
+- [ ] alright fine let's get StrCat in here sheeeeesh
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
   - [ ] needs steppers working

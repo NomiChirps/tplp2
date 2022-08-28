@@ -16,9 +16,9 @@ cc_library(
 )
 
 cc_library(
-    name = "encoder_lvgl_driver",
-    srcs = ["encoder_lvgl_driver.cc"],
-    hdrs = ["encoder_lvgl_driver.h"],
+    name = "4991_lvgl_driver",
+    srcs = ["4991_lvgl_driver.cc"],
+    hdrs = ["4991_lvgl_driver.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":adafruit_seesaw",

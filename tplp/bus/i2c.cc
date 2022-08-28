@@ -258,7 +258,9 @@ struct I2cController::Event {
   //       control restarts and stops without a context switch & dma reinit
   //       in between. we might even be able to coalesce multiple read/write
   //       ops into one event!!
+  // Must be nonnull.
   uint8_t* buf = nullptr;
+  // Must be greater than zero.
   size_t len = 0;
   bool restart = false;
   bool stop = true;
@@ -287,7 +289,8 @@ struct I2cController::Event {
   friend std::ostream& operator<<(std::ostream& stream, const Event& event) {
     return stream << "{ " << event.tag << " tar=" << std::hex << event.tar
                   << " buf=" << (void*)event.buf << std::dec
-                  << " len=" << event.len << " }";
+                  << " len=" << event.len << " restart=" << event.restart
+                  << " stop=" << event.stop << " }";
   }
 };
 
@@ -380,7 +383,6 @@ void I2cController::TaskFn(void* task_param) {
 
 void I2cController::DoTransfer(const Event& event) {
   CHECK(event.tag == Event::Tag::READ || event.tag == Event::Tag::WRITE);
-  const bool is_read = event.tag == Event::Tag::READ;
   const auto hw = i2c_->hw;
 
   uint32_t notify =
@@ -409,30 +411,31 @@ void I2cController::DoTransfer(const Event& event) {
 
   // TODO allocate elsewhere
   uint16_t cmd_buf[kCommandBufferSize];
-  if (is_read) {
-    // Setting the CMD bit indicates a read command.
-    std::fill<uint16_t*, uint16_t>(cmd_buf, cmd_buf + event.len,
-                                   I2C_IC_DATA_CMD_CMD_BITS);
-  } else {
-    // Copy user's bytes, leaving the CMD bit unset.
-    std::copy(event.buf, event.buf + event.len, cmd_buf);
+  switch (event.tag) {
+    case Event::Tag::READ:
+      // Setting the CMD bit indicates a read command.
+      std::fill<uint16_t*, uint16_t>(cmd_buf, cmd_buf + event.len,
+                                     I2C_IC_DATA_CMD_CMD_BITS);
+      // Mask the TX_EMPTY interrupt; for a read we don't want to be notified
+      // when the TX FIFO is empty (i.e. when the last command has been
+      // executed), but only when the RX DMA has finished (or on abort).
+      hw_clear_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
+      break;
+    case Event::Tag::WRITE:
+      // Copy user's bytes, leaving the CMD bit unset.
+      std::copy(event.buf, event.buf + event.len, cmd_buf);
+      // Unmask TX_EMPTY so we're notified when the transfer completes.
+      // I2cNotifier re-masks it each time, so this is necessary even if the
+      // previous operation was also a write.
+      hw_set_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
+      break;
+    default:
+      LOG(FATAL) << event;
   }
   // Issue RESTART before the first byte if requested.
   if (event.restart) cmd_buf[0] |= I2C_IC_DATA_CMD_RESTART_BITS;
   // Issue STOP after the last byte if requested.
   if (event.stop) cmd_buf[event.len - 1] |= I2C_IC_DATA_CMD_STOP_BITS;
-
-  if (is_read) {
-    // Mask the TX_EMPTY interrupt; for a read we don't want to be notified
-    // when the TX FIFO is empty (i.e. when the last command has been executed),
-    // but only when the RX DMA has finished (or on abort).
-    hw_clear_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
-  } else {
-    // Unmask TX_EMPTY so we're notified when the transfer completes.
-    // I2cNotifier re-masks it each time, so this is necessary even if the
-    // previous operation was also a write.
-    hw_set_bits(&hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS);
-  }
 
   // c0 for tx, c1 for rx
   auto transfer_handle = dma_->Transfer({
@@ -448,7 +451,7 @@ void I2cController::DoTransfer(const Event& event) {
       .c0_trans_count = event.len,
 
       // RX channel
-      .c1_enable = is_read,
+      .c1_enable = event.tag == Event::Tag::READ,
       .c1_treq_sel = i2c_get_dreq(i2c_, /*is_tx=*/false),
       .c1_read_addr = &hw->data_cmd,
       .c1_read_incr = false,
@@ -474,11 +477,11 @@ void I2cController::DoTransfer(const Event& event) {
   notify =
       ulTaskNotifyTakeIndexed(kNotificationIndex, true, pdMS_TO_TICKS(10'000));
   if (!notify) {
-    LOG(FATAL)
-        << "Missed a notification or timed out waiting for DMA. status=0x"
-        << std::hex << hw->status << " raw_intr_stat=0x" << hw->raw_intr_stat;
+    LOG(FATAL) << "Missed a notification or timed out waiting for DMA. event="
+               << event << " status=0x" << std::hex << hw->status
+               << " raw_intr_stat=0x" << hw->raw_intr_stat;
   }
-  VLOG(2) << "Got notification bits: " << std::hex << notify;
+  VLOG(2) << "Got notification bits: 0x" << std::hex << notify;
 
   if (notify & NotificationBits::IRQ_SOURCE_TX_ABRT) {
     CHECK(transfer_handle.started());
@@ -493,6 +496,7 @@ void I2cController::DoTransfer(const Event& event) {
 
     // NB: not actually sure about this assumption.
     //     maybe it depends on the type of abort?
+    // FIXME: fails all the time if freq=10'000
     CHECK(!(hw->status & I2C_IC_STATUS_ACTIVITY_BITS))
         << "Expected I2C state machine to be idle after abort";
     // Clear the FIFOs and simultaneously remove the block on command execution
@@ -509,14 +513,16 @@ void I2cController::DoTransfer(const Event& event) {
     *event.out_result = std::move(status);
   } else if (notify & NotificationBits::IRQ_SOURCE_DMA_RX_FINISHED) {
     // Read must have finished successfully.
-    CHECK(is_read) << "Got DMA_RX_FINISHED for a write";
+    CHECK_EQ(event.tag, Event::Tag::READ)
+        << "Got DMA_RX_FINISHED, but this isn't a read";
     // We expect that the read fully completed with success in this scenario.
     CHECK_EQ(notify & ~NotificationBits::IRQ_SOURCE_DMA_RX_FINISHED, 0u)
         << "Unexpected abort reason in DMA_RX_FINISHED notification";
     *event.out_result = util::OkStatus();
   } else if (notify & NotificationBits::IRQ_SOURCE_TX_EMPTY) {
-    // Read must have finished successfully.
-    CHECK(!is_read) << "Got TX_EMPTY for a read";
+    // Write must have finished successfully.
+    CHECK_NE(event.tag, Event::Tag::READ)
+        << "Got TX_EMPTY, but this isn't a write";
     // We expect that the write fully completed with success in this scenario.
     CHECK_EQ(notify & ~NotificationBits::IRQ_SOURCE_TX_EMPTY, 0u)
         << "Unexpected abort reason in TX_EMPTY notification";
@@ -538,9 +544,12 @@ void I2cController::DoTransfer(const Event& event) {
     while (hw->enable_status & 1) {
       ++n;
       VLOG(1) << "waiting for disable... " << n;
+      // FIXME: this should be more like microseconds. see RP2040 datasheet
       vTaskDelay(1);
-      LOG_IF(FATAL, n > 999)
-          << "Failed to disable I2C controller after " << n << " ticks.";
+      hw->enable = 0;
+      LOG_IF(FATAL, n > 999) << "Failed to disable I2C controller after " << n
+                             << " ticks. event = " << event
+                             << "; notify_bits = " << std::hex << notify;
     }
     VLOG_IF(1, n) << "Waited " << n
                   << " ticks for the I2C controller to shut down.";
@@ -575,6 +584,30 @@ util::Status I2cController::ScanBus(
 I2cTransaction I2cController::StartTransaction(i2c_address_t addr) {
   CHECK(xSemaphoreTake(txn_mutex_, portMAX_DELAY));
   return I2cTransaction(this, addr);
+}
+
+util::Status I2cDeviceHandle::WaitForDevice(TickType_t ticks_to_wait) {
+  TickType_t start_time = xTaskGetTickCount();
+  util::Status status;
+  do {
+    auto txn = StartTransaction();
+    uint8_t dummy;
+    status = txn.ReadAndStop(&dummy, 1);
+    if (util::IsNotFound(status)) {
+      if (ticks_to_wait) vTaskDelay(1);
+      continue;
+    } else if (status.ok()) {
+      break;
+    } else {
+      // some protocol error?
+      return status;
+    }
+  } while (xTaskGetTickCount() - start_time < ticks_to_wait);
+  if (status.ok()) {
+    return status;
+  } else {
+    return util::UnavailableError("I2C device failed to respond");
+  }
 }
 
 I2cTransaction::I2cTransaction(I2cController* controller, i2c_address_t addr)

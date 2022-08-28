@@ -22,7 +22,7 @@ class LvglInit {
 
   // Add at least one display before adding any input devices.
   void AddTouchscreen(TSC2007* touchscreen);
-  void AddEncoder(SeesawEncoder* encoder);
+  void AddEncoder(Adafruit4991* encoder);
 
   void Start();
 

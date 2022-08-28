@@ -136,11 +136,16 @@ class I2cDeviceHandle {
 
   I2cTransaction StartTransaction() { return i2c_->StartTransaction(addr_); }
 
+  // Repeatedly tries to read 1 byte from the device until success or timeout.
+  // Returns OK on success, UNAVAILABLE on timeout.
+  // If ticks_to_wait is zero, only makes one attempt.
+  util::Status WaitForDevice(TickType_t ticks_to_wait);
+
  private:
   I2cController* const i2c_;
   const i2c_address_t addr_;
 
-friend std::ostream& operator<<(std::ostream&, const I2cDeviceHandle&);
+  friend std::ostream& operator<<(std::ostream&, const I2cDeviceHandle&);
 };
 
 std::ostream& operator<<(std::ostream&, const I2cDeviceHandle&);

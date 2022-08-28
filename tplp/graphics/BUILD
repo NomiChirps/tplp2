@@ -14,7 +14,7 @@ cc_library(
         "//tplp/TSC2007",
         "//tplp/TSC2007:lvgl_driver",
         "//tplp/adafruit_seesaw",
-        "//tplp/adafruit_seesaw:encoder_lvgl_driver",
+        "//tplp/adafruit_seesaw:4991_lvgl_driver",
         "@FreeRTOS",
         "@lvgl",
     ],

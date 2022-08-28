@@ -61,29 +61,38 @@ void StartupTask(void*) {
                           TaskStacks::kI2cController, i2c0, Pins::I2C0_SCL,
                           Pins::I2C0_SDA, 100'000);
 
+  // Run a quick bus scan.
+  {
+    std::vector<i2c_address_t> addrs;
+    CHECK_OK(i2c0_controller->ScanBus(&addrs));
+    for (i2c_address_t addr : addrs) {
+      LOG(INFO) << "Detected I2C device " << addr;
+    }
+  }
+
+  // Rotary encoder input device.
+  // FIXME: doesn't fuckin work
+  // Adafruit4991* encoder = CHECK_NOTNULL(new Adafruit4991(
+  //     I2cDeviceHandle(i2c0_controller,
+  //     I2cPeripheralAddress::kRotaryEncoder)));
+  // status = encoder->Init();
+  // LOG_IF(FATAL, !status.ok()) << "Adafruit4991 init failed: " << status;
+
   // Touchscreen reader.
   TSC2007* touchscreen = CHECK_NOTNULL(new TSC2007(
       I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kTSC2007)));
   status = touchscreen->Setup();
-  LOG_IF(INFO, status.ok()) << "TSC2007 setup OK";
   // TODO: if we bring the lvgl display up first, we can fail more gracefully
   // by displaying a message
   LOG_IF(FATAL, !status.ok()) << "TSC2007 setup failed: " << status;
-
-  // Rotary encoder input device.
-  auto maybe_seesaw = Seesaw::Init(
-      I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kRotaryEncoder));
-  LOG_IF(FATAL, !maybe_seesaw.ok())
-      << "Rotary encoder init failed: " << maybe_seesaw.status();
-  Seesaw* seesaw = *maybe_seesaw;
-  SeesawEncoder* encoder = CHECK_NOTNULL(seesaw->NewEncoder(0)).release();
+  LOG(INFO) << "TSC2007 setup OK";
 
   LvglInit lvgl;
   lvgl.BaseInit(TaskPriorities::kLvglTimerHandler,
                 TaskStacks::kLvglTimerHandler);
   lvgl.SetDisplay(display, TaskPriorities::kHX8357, TaskStacks::kHX8357);
   lvgl.AddTouchscreen(touchscreen);
-  lvgl.AddEncoder(encoder);
+  // lvgl.AddEncoder(encoder);
   lvgl.Start();
 
   // Load cell reader.

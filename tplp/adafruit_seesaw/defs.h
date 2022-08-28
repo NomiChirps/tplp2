@@ -132,8 +132,8 @@ enum : uint8_t {
 /** Audio spectrum module function address registers
  */
 enum : uint8_t {
-  SEESAW_SPECTRUM_RESULTS_LOWER = 0x00, // Audio spectrum bins 0-31
-  SEESAW_SPECTRUM_RESULTS_UPPER = 0x01, // Audio spectrum bins 32-63
+  SEESAW_SPECTRUM_RESULTS_LOWER = 0x00,  // Audio spectrum bins 0-31
+  SEESAW_SPECTRUM_RESULTS_UPPER = 0x01,  // Audio spectrum bins 32-63
   // If some future device supports a larger spectrum, can add additional
   // "bins" working upward from here. Configurable setting registers then
   // work downward from the top to avoid collision between spectrum bins
@@ -152,8 +152,6 @@ static constexpr uint8_t PWM_0_PIN = 4;  ///< default PWM output pin
 static constexpr uint8_t PWM_1_PIN = 5;  ///< default PWM output pin
 static constexpr uint8_t PWM_2_PIN = 6;  ///< default PWM output pin
 static constexpr uint8_t PWM_3_PIN = 7;  ///< default PWM output pin
-
-static constexpr uint8_t INPUT_PULLDOWN = 0x03;
 
 /*=========================================================================*/
 

@@ -9,7 +9,7 @@
 #include "tplp/HX8357/lvgl_driver.h"
 #include "tplp/SharpLCD/lvgl_driver.h"
 #include "tplp/TSC2007/lvgl_driver.h"
-#include "tplp/adafruit_seesaw/encoder_lvgl_driver.h"
+#include "tplp/adafruit_seesaw/4991_lvgl_driver.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/graphics/mouse_cursor_icon.h"
 #include "tplp/rtos_util.h"
@@ -110,8 +110,8 @@ void LvglInit::AddTouchscreen(TSC2007* raw_touchscreen) {
   stuff_->touchscreen = RegisterInputDevice_TSC2007(raw_touchscreen);
 }
 
-void LvglInit::AddEncoder(SeesawEncoder* encoder) {
-  stuff_->encoder = RegisterInputDevice_SeesawEncoder(encoder);
+void LvglInit::AddEncoder(Adafruit4991* encoder) {
+  stuff_->encoder = RegisterInputDevice_Adafruit4991(encoder);
 }
 
 void LvglInit::Start() {
