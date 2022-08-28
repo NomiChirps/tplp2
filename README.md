@@ -22,9 +22,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
-  - needs steppers working
-  - needs load cell persistently calibrated & installed
-  - needs a PID loop with all the accoutrements
+  - [ ] needs steppers working
+  - [ ] needs load cell persistently calibrated & installed
+  - [ ] needs a PID loop with all the accoutrements
     - i want a mathematically sound PID tuning UI
 - UX Improvements
   - [ ] make the touch target for the settings back button bigger
@@ -64,9 +64,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] supply 5V to HX711
   - [x] Add bus capacitors
 - Nice-to-haves
+  - [ ] audit codebase for portMAX_DELAY, CHECK, etc. and make sure everything that can fail "gracefully", does.
   - [ ] JTAG? is that a thing i can do?
   - [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
-  - [ ] StatusOr
   - [ ] clear the display on boot. the random pixels look kinda cool but...
     - actually, no 'clear' command exists. best we can do is turn off the pixels (command 22h, pp.139), do a full memory write, and turn them back on.
   - [ ] TSC2007 lvgl driver should debounce, buffer, and interpolate
@@ -77,7 +77,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] generate & examine .map file for the firmware blob
   - [ ] use bloaty to find things to trim off the firmware size
   - [ ] Vendor all 3rd party libraries
-- Low priority
   - [ ] split out various things i'm proud of as their own librar(ies)
   - [ ] write stress tests for SpiController/I2cController. lotsa tasks, lotsa devices, all hammering away
 - 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking where possible.
