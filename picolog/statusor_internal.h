@@ -269,11 +269,11 @@ class StatusOrData {
   }
 
   void EnsureOk() const {
-    if (ABSL_PREDICT_FALSE(!ok())) Helper::Crash(status_);
+    if (PICOLOG_PREDICT_FALSE(!ok())) Helper::Crash(status_);
   }
 
   void EnsureNotOk() {
-    if (ABSL_PREDICT_FALSE(ok())) Helper::HandleInvalidStatusCtorArg(&status_);
+    if (PICOLOG_PREDICT_FALSE(ok())) Helper::HandleInvalidStatusCtorArg(&status_);
   }
 
   // Construct the value (ie. data_) through placement new with the passed
