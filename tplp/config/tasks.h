@@ -14,27 +14,21 @@ struct TaskPriorities {
   // Logging is high priority. This means that *all* LOG() calls
   // from lower-priority tasks will block until the message is flushed.
   // Maybe later we can reduce this, but for debugging it's essential.
-  static constexpr int kLogging = 14;
+  static constexpr int kPicolog = 14;
 
   // Allow startup to finish without anything else getting in the way.
   // Except logging, of course.
   static constexpr int kStartup = 13;
 
-  // Bus controllers of high quality and esteemed stature.
-  static constexpr int kSpiController0 = 10;
-  static constexpr int kSpiController1 = 10;
-
   static constexpr int kRuntimeStats = 8;  // don't care
 
   // User-interface peripherals are low priority, but not the lowest.
-  static constexpr int kSharpLCD = 4;
   static constexpr int kHX8357 = 4;
-  static constexpr int kTSC2007 = 4;
   // I2cController needs work; it busy-waits a lot.
   static constexpr int kI2cController0 = 3;
 
   // Lightweight task responsible for keeping track of any background work
-  // launched from the UI.
+  // launched from the UI and calling UI callbacks.
   static constexpr int kUiWorker = 3;
 
   // Any remaining CPU time goes into making the UI more responsive.
@@ -48,14 +42,12 @@ struct TaskStacks {
   static constexpr int kLvglTimerHandler = 2048;
   static constexpr int kHX8357 = 512;
   static constexpr int kI2cController = 1024;
-  static constexpr int kSpiController = 1024;
   static constexpr int kRuntimeStats = 512;
   static constexpr int kStartup = 1024;
-  static constexpr int kTSC2007 = 512;
   static constexpr int kUiWorker = 1024;
 
   // don't reduce further unless you enjoy heisenbugs
-  static constexpr int kLogging = 1024;
+  static constexpr int kPicolog = 1024;
 };
 
 }  // namespace tplp

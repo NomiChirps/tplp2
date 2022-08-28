@@ -28,8 +28,8 @@ void StartupTask(void*) {
   util::Status status;
 
   picolog::InitLogging();
-  if (!xTaskCreate(&picolog::BackgroundTask, "picolog", TaskStacks::kLogging,
-                   nullptr, TaskPriorities::kLogging, nullptr)) {
+  if (!xTaskCreate(&picolog::BackgroundTask, "picolog", TaskStacks::kPicolog,
+                   nullptr, TaskPriorities::kPicolog, nullptr)) {
     panic("Failed to start log task");
   }
   LOG(INFO) << "Begin startup...";
