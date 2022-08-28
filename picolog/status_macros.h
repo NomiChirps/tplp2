@@ -28,16 +28,16 @@ using ::util::Status;
 #define STATUS_MACROS_CONCAT_NAME(x, y) STATUS_MACROS_CONCAT_NAME_INNER(x, y)
 
 template <typename T>
-Status DoAssignOrReturn(T& lhs, StatusOr<T> result) {
+Status DoAssignOrReturn(T& lhs, StatusOr<T>&& result) {
   if (result.ok()) {
     lhs = result.value();
   }
-  return result.status();
+  return std::move(result).status();
 }
 
 #define ASSIGN_OR_RETURN_IMPL(status, lhs, rexpr) \
-  Status status = DoAssignOrReturn(lhs, (rexpr)); \
-  if (STATUS_MACROS__PREDICT_FALSE(!status.ok())) return status;
+  ::util::Status status = DoAssignOrReturn(lhs, (rexpr)); \
+  if (STATUS_MACROS_PREDICT_FALSE(!status.ok())) return status;
 
 // Executes an expression that returns a util::StatusOr, extracting its value
 // into the variable defined by lhs (or returning on error).

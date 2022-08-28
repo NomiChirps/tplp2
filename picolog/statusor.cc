@@ -48,7 +48,7 @@ void Helper::Crash(const util::Status& status) {
              << status.ToString();
 }
 
-void ThrowBadStatusOrAccess(util::Status status) {
+void ThrowBadStatusOrAccess(const util::Status& status) {
   LOG(FATAL) << "Attempting to fetch value instead of handling error "
              << status.ToString();
 }

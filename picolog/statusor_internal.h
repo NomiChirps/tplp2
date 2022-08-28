@@ -372,7 +372,7 @@ struct MoveAssignBase<T, false> {
   MoveAssignBase& operator=(MoveAssignBase&&) = delete;
 };
 
-[[noreturn]] void ThrowBadStatusOrAccess(util::Status status);
+[[noreturn]] void ThrowBadStatusOrAccess(const util::Status& status);
 
 }  // namespace internal_statusor
 }  // namespace util
