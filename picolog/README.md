@@ -12,7 +12,6 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
 
 - [ ] track the maximum timestamp as logs are flushed, and make it visually obvious if it ever goes backwards (due to a task being interrupted while logging)
 - [ ] arena storage for the non-inlined StatusRep. or maybe we can get rid of it and require that the message be a compile-time constant...? or even better, provide a special case to make that path alloc-free.
-- StatusOr would be nice but not essential
 - Maybe have a separate task handling FATAL errors so it can be given the highest priority.
 - [ ] arena storage for LogMessageData to avoid malloc (still requires mutex)
 - [ ] DCHECK
@@ -22,6 +21,7 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
   - https://github.com/yocto-8/yocto-8/blob/main/src/arch/pico/extmem/faulthandler.cpp#L12
   - https://forums.raspberrypi.com/viewtopic.php?t=318745
 - [ ] support other log targets than stdout, e.g. flash, sd, or custom.
+- [x] StatusOr
 - [x] support immediate logging before the FreeRTOS scheduler starts
 - [x] soften the hard dependency on pico-sdk, so we can run tests and use it in the simulator, with FreeRTOS's posix port
 - [x] Status object and CHECK_OK

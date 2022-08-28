@@ -34,8 +34,25 @@ cc_library(
 )
 
 cc_library(
+    name = "statusor",
+    srcs = [
+        "statusor.cc",
+        "statusor_internal.h",
+    ],
+    hdrs = ["statusor.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":picolog",  # just for fatal errors; could be reworked
+        ":status",
+    ],
+)
+
+cc_library(
     name = "status_macros",
     hdrs = ["status_macros.h"],
     visibility = ["//visibility:public"],
-    deps = [":status"],
+    deps = [
+        ":status",
+        ":statusor",
+    ],
 )

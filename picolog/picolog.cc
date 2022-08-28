@@ -110,7 +110,7 @@ static void PrintStackTrace(const hal::backtrace_frame_t* frames, int count) {
 }
 
 // Process a log message immediately, with no scheduler involvement.
-void ProcessImmediate(const LogMessage::LogMessageData& data) {
+void RawLog(const LogMessage::LogMessageData& data) {
   // We disabled stdio buffering earlier, so this should go straight to the
   // pico-sdk _write() function, which always flushes.
   fwrite(data.message_text_, data.num_chars_to_log_, 1, stderr);
@@ -254,7 +254,7 @@ void LogMessage::Flush() {
   data_->message_text_[data_->num_chars_to_log_] = '\0';
 
   if (xTaskGetSchedulerState() == taskSCHEDULER_NOT_STARTED) {
-    ProcessImmediate(*data_);
+    RawLog(*data_);
   } else {
     if (xQueueSendToBack(queue, data_, 0) != pdTRUE) {
       // TODO: maybe keep a count of dropped messages somewhere.
@@ -325,7 +325,7 @@ void BackgroundTask(void*) {
       // queue is empty, instead? maybe inefficient to check the queue's status
       // twice every loop.
     }
-    ProcessImmediate(data);
+    RawLog(data);
   }
 }
 

@@ -2,6 +2,7 @@
 #define PICOLOG_STATUS_MACROS_H_
 
 #include "picolog/status.h"
+#include "picolog/statusor.h"
 
 // TODO: use PICOLOG_PREDICT_FALSE, or whatever idk
 #define STATUS_MACROS_PREDICT_FALSE(x) (__builtin_expect(x, 0))
@@ -22,9 +23,6 @@ using ::util::Status;
     if (STATUS_MACROS_PREDICT_FALSE(!_status.ok())) return _status;          \
   } while (0)
 
-// TODO: reinstate this when StatusOr is implemented
-// clang-format off
-/*
 // Internal helper for concatenating macro values.
 #define STATUS_MACROS_CONCAT_NAME_INNER(x, y) x##y
 #define STATUS_MACROS_CONCAT_NAME(x, y) STATUS_MACROS_CONCAT_NAME_INNER(x, y)
@@ -53,8 +51,7 @@ Status DoAssignOrReturn(T& lhs, StatusOr<T> result) {
 #define ASSIGN_OR_RETURN(lhs, rexpr) \
   ASSIGN_OR_RETURN_IMPL(             \
       STATUS_MACROS_CONCAT_NAME(_status_or_value, __COUNTER__), lhs, rexpr);
-*/
-// clang-format on
+
 }  // namespace util
 
 #endif  // PICOLOG_STATUS_MACROS_H_
