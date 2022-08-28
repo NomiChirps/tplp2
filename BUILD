@@ -7,6 +7,8 @@ refresh_compile_commands(
     targets = {
         "//tplp/...": "",
     },
+    # vscode was really starting to chug
+    exclude_headers = "external",
 )
 
 refresh_compile_commands(
