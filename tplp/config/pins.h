@@ -56,6 +56,8 @@ struct I2cPeripheralAddress {
   static constexpr i2c_address_t kTSC2007 = i2c_address_t(0x48);
   // AW9523 GPIO expander.
   static constexpr i2c_address_t kAW9523 = i2c_address_t(0x58);
+  // Adafruit seesaw-based rotary encoder with knob.
+  static constexpr i2c_address_t kRotaryEncoder = i2c_address_t(0x36);
 };
 
 }  // namespace tplp
