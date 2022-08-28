@@ -6,6 +6,8 @@
 
 #include "picolog/status.h"
 
+#define PICOLOG_PREDICT_FALSE(x) (__builtin_expect(x, 0))
+
 namespace util {
 
 template <typename T>
