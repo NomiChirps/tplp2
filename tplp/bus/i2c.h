@@ -86,6 +86,9 @@ class I2cController {
                              i2c_inst_t* i2c_instance, gpio_pin_t scl,
                              gpio_pin_t sda, int baudrate);
 
+  // 0 or 1 on the RP2040.
+  int i2c_instance_index() const;
+
   // Note: Device ID is not supported in RP2040.
   util::Status ScanBus(std::vector<i2c_address_t>* detected_addresses);
 
@@ -136,7 +139,11 @@ class I2cDeviceHandle {
  private:
   I2cController* const i2c_;
   const i2c_address_t addr_;
+
+friend std::ostream& operator<<(std::ostream&, const I2cDeviceHandle&);
 };
+
+std::ostream& operator<<(std::ostream&, const I2cDeviceHandle&);
 
 }  // namespace tplp
 

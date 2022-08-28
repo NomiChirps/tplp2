@@ -2,32 +2,56 @@
 #define TPLP_ADAFRUIT_SEESAW_ADAFRUIT_SEESAW_H_
 
 #include "picolog/status.h"
+#include "picolog/statusor.h"
 #include "tplp/bus/i2c.h"
 
 namespace tplp {
 
-class AdafruitSeesaw {
- public:
-  AdafruitSeesaw* Init(I2cDeviceHandle i2c_device);
+class Seesaw;
 
-  // move to an encoder class???
-  int32_t getEncoderPosition(uint8_t encoder = 0);
-  int32_t getEncoderDelta(uint8_t encoder = 0);
-  bool enableEncoderInterrupt(uint8_t encoder = 0);
-  bool disableEncoderInterrupt(uint8_t encoder = 0);
-  void setEncoderPosition(int32_t pos, uint8_t encoder = 0);
+class SeesawBase {
+ protected:
+  explicit SeesawBase(I2cDeviceHandle i2c) : i2c_(i2c) {}
 
- private:
-  AdafruitSeesaw(I2cDeviceHandle i2c);
-  util::Status Write32(uint8_t reg, uint8_t func, uint32_t data);
-  util::Status Read32(uint8_t reg, uint8_t func, uint32_t* data);
+  template <typename Int>
+  util::Status Write(uint8_t reg, uint8_t func, Int data);
+  template <typename Int>
+  util::StatusOr<Int> Read(uint8_t reg, uint8_t func);
 
- private:
   I2cDeviceHandle i2c_;
 
  private:
-  AdafruitSeesaw(const AdafruitSeesaw&) = delete;
-  const AdafruitSeesaw& operator=(const AdafruitSeesaw&) = delete;
+  // Not copyable or movable.
+  SeesawBase(const SeesawBase&) = delete;
+  const SeesawBase& operator=(const SeesawBase&) = delete;
+};
+
+class SeesawEncoder : public SeesawBase {
+ public:
+  util::StatusOr<int32_t> GetPosition();
+  util::StatusOr<int32_t> GetDelta();
+  util::Status EnableInterrupt();
+  util::Status DisableInterrupt();
+  util::Status SetPosition(int32_t pos);
+
+ private:
+  explicit SeesawEncoder(I2cDeviceHandle i2c, uint8_t index)
+      : SeesawBase(i2c), index_(index) {}
+  const uint8_t index_;
+
+  friend class Seesaw;
+};
+
+class Seesaw : private SeesawBase {
+ public:
+  static util::StatusOr<Seesaw*> Init(I2cDeviceHandle i2c_device);
+
+  std::unique_ptr<SeesawEncoder> NewEncoder(uint8_t index = 0);
+
+ private:
+  explicit Seesaw(I2cDeviceHandle i2c);
+  util::Status Begin();
+  util::Status SoftwareReset();
 };
 
 }  // namespace tplp

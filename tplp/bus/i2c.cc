@@ -345,6 +345,8 @@ I2cController* I2cController::Init(DmaController* dma, int priority,
 
 I2cController::I2cController(){};
 
+int I2cController::i2c_instance_index() const { return i2c_hw_index(i2c_); }
+
 void I2cController::TaskFn(void* task_param) {
   I2cController* self = static_cast<I2cController*>(task_param);
   LOG(INFO) << "I2cController task started.";
@@ -648,6 +650,11 @@ util::Status I2cTransaction::Abort() {
   // TODO: implement
   // See RP2040 datasheet section 4.3.10.4
   return util::UnimplementedError("I2cTransaction::Abort()");
+}
+
+std::ostream& operator<<(std::ostream& out, const I2cDeviceHandle& handle) {
+  return out << "i2c" << handle.i2c_->i2c_instance_index() << ":"
+             << handle.addr_;
 }
 
 }  // namespace tplp

@@ -46,5 +46,8 @@ cc_library(
     name = "globals",
     srcs = ["globals.cc"],
     hdrs = ["globals.h"],
-    deps = [":TplpInterface"],
+    deps = [
+        ":TplpInterface",
+        "@lvgl",
+    ],
 )

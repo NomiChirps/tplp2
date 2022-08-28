@@ -4,6 +4,7 @@
 #include "tplp/HX8357/HX8357.h"
 #include "tplp/SharpLCD/SharpLCD.h"
 #include "tplp/TSC2007/TSC2007.h"
+#include "tplp/adafruit_seesaw/adafruit_seesaw.h"
 
 namespace tplp {
 
@@ -21,6 +22,7 @@ class LvglInit {
 
   // Add at least one display before adding any input devices.
   void AddTouchscreen(TSC2007* touchscreen);
+  void AddEncoder(SeesawEncoder* encoder);
 
   void Start();
 

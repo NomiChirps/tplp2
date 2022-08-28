@@ -6,141 +6,141 @@
 namespace tplp {
 namespace seesaw {
 
-// TODO rename the rest of these to be a little less verbose/redundant
+/** Module Base Addreses
+ *  The module base addresses for different seesaw modules.
+ */
+enum : uint8_t {
+  SEESAW_STATUS_BASE = 0x00,
+  SEESAW_GPIO_BASE = 0x01,
+  SEESAW_SERCOM0_BASE = 0x02,
 
-// The module base addresses for different seesaw modules.
-enum class ModuleBaseAddress : uint8_t {
-  STATUS = 0x00,
-  GPIO = 0x01,
-  SERCOM0 = 0x02,
-
-  TIMER = 0x08,
-  ADC = 0x09,
-  DAC = 0x0A,
-  INTERRUPT = 0x0B,
-  DAP = 0x0C,
-  EEPROM = 0x0D,
-  NEOPIXEL = 0x0E,
-  TOUCH = 0x0F,
-  KEYPAD = 0x10,
-  ENCODER = 0x11,
-  SPECTRUM = 0x12,
+  SEESAW_TIMER_BASE = 0x08,
+  SEESAW_ADC_BASE = 0x09,
+  SEESAW_DAC_BASE = 0x0A,
+  SEESAW_INTERRUPT_BASE = 0x0B,
+  SEESAW_DAP_BASE = 0x0C,
+  SEESAW_EEPROM_BASE = 0x0D,
+  SEESAW_NEOPIXEL_BASE = 0x0E,
+  SEESAW_TOUCH_BASE = 0x0F,
+  SEESAW_KEYPAD_BASE = 0x10,
+  SEESAW_ENCODER_BASE = 0x11,
+  SEESAW_SPECTRUM_BASE = 0x12,
 };
 
 /** GPIO module function address registers
  */
-enum class GpioFunction : uint8_t {
-  DIRSET_BULK = 0x02,
-  DIRCLR_BULK = 0x03,
-  BULK = 0x04,
-  BULK_SET = 0x05,
-  BULK_CLR = 0x06,
-  BULK_TOGGLE = 0x07,
-  INTENSET = 0x08,
-  INTENCLR = 0x09,
-  INTFLAG = 0x0A,
-  PULLENSET = 0x0B,
-  PULLENCLR = 0x0C,
+enum : uint8_t {
+  SEESAW_GPIO_DIRSET_BULK = 0x02,
+  SEESAW_GPIO_DIRCLR_BULK = 0x03,
+  SEESAW_GPIO_BULK = 0x04,
+  SEESAW_GPIO_BULK_SET = 0x05,
+  SEESAW_GPIO_BULK_CLR = 0x06,
+  SEESAW_GPIO_BULK_TOGGLE = 0x07,
+  SEESAW_GPIO_INTENSET = 0x08,
+  SEESAW_GPIO_INTENCLR = 0x09,
+  SEESAW_GPIO_INTFLAG = 0x0A,
+  SEESAW_GPIO_PULLENSET = 0x0B,
+  SEESAW_GPIO_PULLENCLR = 0x0C,
 };
 
 /** status module function address registers
  */
-enum class StatusFunction : uint8_t {
-  HW_ID = 0x01,
-  VERSION = 0x02,
-  OPTIONS = 0x03,
-  TEMP = 0x04,
-  SWRST = 0x7F,
+enum : uint8_t {
+  SEESAW_STATUS_HW_ID = 0x01,
+  SEESAW_STATUS_VERSION = 0x02,
+  SEESAW_STATUS_OPTIONS = 0x03,
+  SEESAW_STATUS_TEMP = 0x04,
+  SEESAW_STATUS_SWRST = 0x7F,
 };
 
 /** timer module function address registers
  */
-enum class TimerFunction : uint8_t {
-  STATUS = 0x00,
-  PWM = 0x01,
-  FREQ = 0x02,
+enum : uint8_t {
+  SEESAW_TIMER_STATUS = 0x00,
+  SEESAW_TIMER_PWM = 0x01,
+  SEESAW_TIMER_FREQ = 0x02,
 };
 
 /** ADC module function address registers
  */
-enum class AdcFunction : uint8_t {
-  STATUS = 0x00,
-  INTEN = 0x02,
-  INTENCLR = 0x03,
-  WINMODE = 0x04,
-  WINTHRESH = 0x05,
-  CHANNEL_OFFSET = 0x07,
+enum : uint8_t {
+  SEESAW_ADC_STATUS = 0x00,
+  SEESAW_ADC_INTEN = 0x02,
+  SEESAW_ADC_INTENCLR = 0x03,
+  SEESAW_ADC_WINMODE = 0x04,
+  SEESAW_ADC_WINTHRESH = 0x05,
+  SEESAW_ADC_CHANNEL_OFFSET = 0x07,
 };
 
 /** Sercom module function address registers
  */
-enum class SercomFunction : uint8_t {
-  STATUS = 0x00,
-  INTEN = 0x02,
-  INTENCLR = 0x03,
-  BAUD = 0x04,
-  DATA = 0x05,
+enum : uint8_t {
+  SEESAW_SERCOM_STATUS = 0x00,
+  SEESAW_SERCOM_INTEN = 0x02,
+  SEESAW_SERCOM_INTENCLR = 0x03,
+  SEESAW_SERCOM_BAUD = 0x04,
+  SEESAW_SERCOM_DATA = 0x05,
 };
 
 /** neopixel module function address registers
  */
-enum class NeopixelFunction : uint8_t {
-  STATUS = 0x00,
-  PIN = 0x01,
-  SPEED = 0x02,
-  BUF_LENGTH = 0x03,
-  BUF = 0x04,
-  SHOW = 0x05,
+enum : uint8_t {
+  SEESAW_NEOPIXEL_STATUS = 0x00,
+  SEESAW_NEOPIXEL_PIN = 0x01,
+  SEESAW_NEOPIXEL_SPEED = 0x02,
+  SEESAW_NEOPIXEL_BUF_LENGTH = 0x03,
+  SEESAW_NEOPIXEL_BUF = 0x04,
+  SEESAW_NEOPIXEL_SHOW = 0x05,
 };
 
 /** touch module function address registers
  */
-enum class TouchFunction : uint8_t {
-  CHANNEL_OFFSET = 0x10,
+enum : uint8_t {
+  SEESAW_TOUCH_CHANNEL_OFFSET = 0x10,
 };
 
 /** keypad module function address registers
  */
-enum class KeypadFunction : uint8_t {
-  STATUS = 0x00,
-  EVENT = 0x01,
-  INTENSET = 0x02,
-  INTENCLR = 0x03,
-  COUNT = 0x04,
-  FIFO = 0x10,
+enum : uint8_t {
+  SEESAW_KEYPAD_STATUS = 0x00,
+  SEESAW_KEYPAD_EVENT = 0x01,
+  SEESAW_KEYPAD_INTENSET = 0x02,
+  SEESAW_KEYPAD_INTENCLR = 0x03,
+  SEESAW_KEYPAD_COUNT = 0x04,
+  SEESAW_KEYPAD_FIFO = 0x10,
 };
 
 /** keypad module edge definitions
  */
-enum class KeypadEdge : uint8_t {
-  HIGH = 0,
-  LOW,
-  FALLING,
-  RISING,
+enum : uint8_t {
+  SEESAW_KEYPAD_EDGE_HIGH = 0,
+  SEESAW_KEYPAD_EDGE_LOW,
+  SEESAW_KEYPAD_EDGE_FALLING,
+  SEESAW_KEYPAD_EDGE_RISING,
 };
 
-/** encoder module function address registers
+/** encoder module edge definitions
  */
-enum class EncoderFunction : uint8_t {
-  STATUS = 0x00,
-  INTENSET = 0x10,
-  INTENCLR = 0x20,
-  POSITION = 0x30,
-  DELTA = 0x40,
+enum : uint8_t {
+  SEESAW_ENCODER_STATUS = 0x00,
+  SEESAW_ENCODER_INTENSET = 0x10,
+  SEESAW_ENCODER_INTENCLR = 0x20,
+  SEESAW_ENCODER_POSITION = 0x30,
+  SEESAW_ENCODER_DELTA = 0x40,
 };
 
 /** Audio spectrum module function address registers
  */
-enum class SpectrumFunction : uint8_t {
-  RESULTS_LOWER = 0x00,  // Audio spectrum bins 0-31
-  RESULTS_UPPER = 0x01,  // Audio spectrum bins 32-63
+enum : uint8_t {
+  SEESAW_SPECTRUM_RESULTS_LOWER = 0x00, // Audio spectrum bins 0-31
+  SEESAW_SPECTRUM_RESULTS_UPPER = 0x01, // Audio spectrum bins 32-63
   // If some future device supports a larger spectrum, can add additional
   // "bins" working upward from here. Configurable setting registers then
   // work downward from the top to avoid collision between spectrum bins
   // and configurables.
-  CHANNEL = 0xFD,
-  RATE = 0xFE,
-  STATUS = 0xFF,
+  SEESAW_SPECTRUM_CHANNEL = 0xFD,
+  SEESAW_SPECTRUM_RATE = 0xFE,
+  SEESAW_SPECTRUM_STATUS = 0xFF,
 };
 
 static constexpr uint8_t ADC_INPUT_0_PIN = 2;  ///< default ADC input pin

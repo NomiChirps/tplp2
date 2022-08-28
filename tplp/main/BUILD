@@ -18,6 +18,7 @@ cc_library(
         "@rules_pico//pico:hardware_i2c",
         "@rules_pico//pico:hardware_spi",
         "//picolog",
+        "//picolog:status_macros",
         "//tplp:RuntimeStats",
         "//tplp:TplpInterfaceImpl",
         "//tplp/adafruit_seesaw",

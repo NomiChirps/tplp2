@@ -9,6 +9,7 @@
 #include "tplp/HX8357/lvgl_driver.h"
 #include "tplp/SharpLCD/lvgl_driver.h"
 #include "tplp/TSC2007/lvgl_driver.h"
+#include "tplp/adafruit_seesaw/encoder_lvgl_driver.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/graphics/mouse_cursor_icon.h"
 #include "tplp/rtos_util.h"
@@ -42,7 +43,8 @@ void lvgl_print_cb_impl(const char* msg) {
   if (len && msg[len - 1] == '\n') {
     const_cast<char*>(msg)[len - 1] = '\0';
   }
-  LOG(WARNING) << msg;
+  // TODO: try to get the log level from lvgl?
+  LOG(WARNING) << "[LVGL]" << msg;
 }
 
 TaskHandle_t CreateTimerHandlerTask(int priority, int stack_depth) {
@@ -65,6 +67,7 @@ struct LvglInit::Objects {
   TaskHandle_t timer_task = nullptr;
 
   lv_indev_t* touchscreen = nullptr;
+  lv_indev_t* encoder = nullptr;
 };
 
 LvglInit::LvglInit() : stuff_(CHECK_NOTNULL(new Objects)) {}
@@ -105,6 +108,10 @@ void LvglInit::SetDisplay(HX8357* raw_display, int priority, int stack_depth) {
 
 void LvglInit::AddTouchscreen(TSC2007* raw_touchscreen) {
   stuff_->touchscreen = RegisterInputDevice_TSC2007(raw_touchscreen);
+}
+
+void LvglInit::AddEncoder(SeesawEncoder* encoder) {
+  stuff_->encoder = RegisterInputDevice_SeesawEncoder(encoder);
 }
 
 void LvglInit::Start() {

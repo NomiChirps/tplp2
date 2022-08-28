@@ -6,10 +6,12 @@
 #include "hardware/i2c.h"
 #include "hardware/spi.h"
 #include "picolog/picolog.h"
+#include "picolog/status_macros.h"
 #include "tplp/HX8357/HX8357.h"
 #include "tplp/RuntimeStats.h"
 #include "tplp/TSC2007/TSC2007.h"
 #include "tplp/TplpInterfaceImpl.h"
+#include "tplp/adafruit_seesaw/adafruit_seesaw.h"
 #include "tplp/bus/i2c.h"
 #include "tplp/bus/spi.h"
 #include "tplp/config/pins.h"
@@ -68,11 +70,20 @@ void StartupTask(void*) {
   // by displaying a message
   LOG_IF(FATAL, !status.ok()) << "TSC2007 setup failed: " << status;
 
+  // Rotary encoder input device.
+  auto maybe_seesaw = Seesaw::Init(
+      I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kRotaryEncoder));
+  LOG_IF(FATAL, !maybe_seesaw.ok())
+      << "Rotary encoder init failed: " << maybe_seesaw.status();
+  Seesaw* seesaw = *maybe_seesaw;
+  SeesawEncoder* encoder = CHECK_NOTNULL(seesaw->NewEncoder(0)).release();
+
   LvglInit lvgl;
   lvgl.BaseInit(TaskPriorities::kLvglTimerHandler,
                 TaskStacks::kLvglTimerHandler);
   lvgl.SetDisplay(display, TaskPriorities::kHX8357, TaskStacks::kHX8357);
   lvgl.AddTouchscreen(touchscreen);
+  lvgl.AddEncoder(encoder);
   lvgl.Start();
 
   // Load cell reader.
