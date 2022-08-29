@@ -61,7 +61,7 @@ static void set_meter_value(int32_t v)
 lv_obj_t * ui_settings_load_cell_create(lv_obj_t * parent) {
     lv_obj_t * content = lv_obj_create(parent);
     lv_obj_remove_style_all(content);
-    lv_obj_set_size(content, LV_PCT(100), LV_PCT(95));
+    lv_obj_set_size(content, LV_PCT(100), LV_PCT(100));
     lv_obj_set_layout(content, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);

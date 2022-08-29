@@ -60,14 +60,14 @@ static void set_load_cell_data(lv_coord_t *data, uint32_t count) {
 
 lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
 {
-    static lv_coord_t col_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+    static lv_coord_t col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
     static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
     lv_obj_t * content = lv_obj_create(parent);
     lv_obj_remove_style_all(content);
     lv_obj_set_style_pad_all(content, 10, 0);
     lv_obj_set_style_pad_gap(content, 10, 0);
-    lv_obj_set_size(content, LV_PCT(100), LV_PCT(95));
+    lv_obj_set_size(content, LV_PCT(100), LV_PCT(100));
 
     lv_obj_set_style_grid_column_dsc_array(content, col_dsc, 0);
     lv_obj_set_style_grid_row_dsc_array(content, row_dsc, 0);
@@ -81,12 +81,12 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
 
     lv_obj_t * steps_label = lv_label_create(content);
     lv_label_set_text(steps_label, "Steps");
-    lv_obj_set_grid_cell(steps_label, LV_GRID_ALIGN_START, 1, 1,
+    lv_obj_set_grid_cell(steps_label, LV_GRID_ALIGN_CENTER, 1, 1,
                              LV_GRID_ALIGN_CENTER, 0, 1);
 
     lv_obj_t * speed_label = lv_label_create(content);
     lv_label_set_text(speed_label, "Speed");
-    lv_obj_set_grid_cell(speed_label, LV_GRID_ALIGN_START, 2, 1,
+    lv_obj_set_grid_cell(speed_label, LV_GRID_ALIGN_CENTER, 2, 1,
                              LV_GRID_ALIGN_CENTER, 0, 1);
 
     /* Motor 1 */
@@ -112,7 +112,7 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_set_grid_cell(motor_1_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
                     LV_GRID_ALIGN_CENTER, 1, 1);
 
-    // /* Motor 2 */
+    /* Motor 2 */
     motor_2_led = lv_led_create(content);
     set_motor_2_led(true);
     lv_obj_t * motor_2_label = lv_label_create(motor_2_led);
@@ -135,10 +135,24 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_set_grid_cell(motor_2_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
                     LV_GRID_ALIGN_CENTER, 2, 1);
 
+    /* load cell chart */
+    chart = lv_chart_create(content);
+    lv_obj_set_size(chart, LV_PCT(100), 100);
+    lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR);
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -tplp::params::kLoadCellExpectedRangeAfterScaling,
+                                                        tplp::params::kLoadCellExpectedRangeAfterScaling);
+    ser = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+    lv_obj_set_grid_cell(chart, LV_GRID_ALIGN_STRETCH, 0, 3,
+                    LV_GRID_ALIGN_CENTER, 3, 1);
+
+    uint32_t point_count = sizeof(sample_data) / sizeof(sample_data[0]);
+    set_load_cell_data((lv_coord_t*)sample_data, point_count);
 
     /* inc/dec footer buttons */
     lv_obj_t * setting_button_bar = lv_obj_create(content);
     lv_obj_remove_style_all(setting_button_bar);
+    lv_obj_add_flag(setting_button_bar, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_set_style_pad_all(setting_button_bar, 0, 0);
     lv_obj_set_style_pad_gap(setting_button_bar, 10, 0);
     lv_obj_set_layout(setting_button_bar, LV_LAYOUT_FLEX);
@@ -161,23 +175,10 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_add_event_cb(dec_btn, decrement_event_cb, LV_EVENT_ALL, NULL);
     lv_obj_add_state(dec_btn, LV_STATE_DISABLED);
 
-    /* load cell chart */
-    chart = lv_chart_create(content);
-    lv_obj_set_size(chart, LV_PCT(100), 100);
-    lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR);
-    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
-    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -tplp::params::kLoadCellExpectedRangeAfterScaling,
-                                                        tplp::params::kLoadCellExpectedRangeAfterScaling);
-    ser = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
-    lv_obj_set_grid_cell(chart, LV_GRID_ALIGN_STRETCH, 0, 3,
-                    LV_GRID_ALIGN_CENTER, 3, 1);
-
-    uint32_t point_count = sizeof(sample_data) / sizeof(sample_data[0]);
-    set_load_cell_data((lv_coord_t*)sample_data, point_count);
-
     /* play/stop footer buttons */
     lv_obj_t * play_button_bar = lv_obj_create(content);
     lv_obj_remove_style_all(play_button_bar);
+    lv_obj_add_flag(play_button_bar, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_set_style_pad_all(play_button_bar, 0, 0);
     lv_obj_set_style_pad_gap(play_button_bar, 10, 0);
     lv_obj_set_layout(play_button_bar, LV_LAYOUT_FLEX);

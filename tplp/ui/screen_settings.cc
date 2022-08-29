@@ -61,6 +61,7 @@ lv_obj_t * ui_screen_settings_create(lv_obj_t * parent)
     const int length = sizeof(sections) / sizeof(sections[0]);
     for(int i = 0; i < length; i++) {
         lv_obj_t * section_contents = lv_menu_page_create(menu, NULL);
+        lv_obj_remove_style_all(section_contents);
         lv_obj_set_style_pad_hor(section_contents, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
         lv_menu_separator_create(section_contents);
         sections[i].create_section(section_contents);
