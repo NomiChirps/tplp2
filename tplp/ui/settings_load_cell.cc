@@ -2,7 +2,7 @@
 #include "tplp/ui/globals.h"
 #include "tplp/config/params.h"
 #include "lvgl/lvgl.h"
-#include "settings_i2c_devices.h"
+#include "settings_load_cell.h"
 
 static lv_obj_t * meter;
 static lv_obj_t * numeric_display;

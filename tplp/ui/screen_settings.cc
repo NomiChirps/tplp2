@@ -2,7 +2,6 @@
 #include "tplp/ui/screen_settings.h"
 #include "tplp/ui/screen_home.h"
 #include "tplp/ui/settings_i2c_devices.h"
-#include "tplp/ui/settings_test_content.h"
 #include "tplp/ui/settings_load_cell.h"
 #include "tplp/ui/settings_steppers.h"
 
@@ -25,9 +24,6 @@ typedef struct {
 } settings_section;
 
 static settings_section sections[] = {
-    {.icon = LV_SYMBOL_SETTINGS,
-     .txt = "Test",
-     .create_section = ui_settings_test_content_create},
     {.icon = LV_SYMBOL_USB,
      .txt = "I2C",
      .create_section = ui_settings_i2c_devices_create},
@@ -36,7 +32,7 @@ static settings_section sections[] = {
      .create_section = ui_settings_load_cell_create,
      .on_load = ui_settings_load_cell_on_load_cb,
      .on_unload = ui_settings_load_cell_on_unload_cb},
-    {.icon = NULL,
+    {.icon = LV_SYMBOL_REFRESH,
      .txt = "Steppers",
      .create_section = ui_settings_steppers_create,
      .on_load = NULL,

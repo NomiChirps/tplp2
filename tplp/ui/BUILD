@@ -17,8 +17,6 @@ cc_library(
         "settings_load_cell.h",
         "settings_steppers.cc",
         "settings_steppers.h",
-        "settings_test_content.cc",
-        "settings_test_content.h",
     ],
     hdrs = [
         "main.h",
