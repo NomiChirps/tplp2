@@ -36,16 +36,16 @@ struct Pins {
   static constexpr gpio_pin_t HX711_DOUT = gpio_pin_t(15);
   static constexpr gpio_pin_t I2C0_SDA = gpio_pin_t(16);
   static constexpr gpio_pin_t I2C0_SCL = gpio_pin_t(17);
-  // GP18 free
-  // GP19 free
-  // GP20 free
-  // GP21 free
-  static constexpr gpio_pin_t MOTOR_A_A2 = gpio_pin_t(22);
+  static constexpr gpio_pin_t MOTOR_A_A1 = gpio_pin_t(18);
+  static constexpr gpio_pin_t MOTOR_A_A2 = gpio_pin_t(19);
+  static constexpr gpio_pin_t MOTOR_A_B1 = gpio_pin_t(20);
+  static constexpr gpio_pin_t MOTOR_A_B2 = gpio_pin_t(21);
+  // GP22 free
   // GP23-24 reserved by Pico
   // GP25 == PICO_DEFAULT_LED_PIN
-  static constexpr gpio_pin_t MOTOR_A_A1 = gpio_pin_t(26);
-  static constexpr gpio_pin_t MOTOR_A_B1 = gpio_pin_t(27);
-  static constexpr gpio_pin_t MOTOR_A_B2 = gpio_pin_t(28);
+  // GP26 free
+  // GP27 free
+  // GP28 free
 #else
 #error "Board not detected"
 #endif

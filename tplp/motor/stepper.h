@@ -1,6 +1,7 @@
 #ifndef TPLP_MOTOR_STEPPER_H_
 #define TPLP_MOTOR_STEPPER_H_
 
+#include "hardware/pio.h"
 #include "tplp/bus/types.h"
 
 // Concept:
@@ -74,15 +75,16 @@ namespace tplp {
 class StepperMotor {
  public:
   struct Hardware {
-    // a1, a2: GPIOs controlling the first coil.
+    // a1, a2, b1, b2 must be consecutive GPIO numbers.
     gpio_pin_t a1;
     gpio_pin_t a2;
-    // b1, b2: GPIOs controlling the second coil.
     gpio_pin_t b1;
     gpio_pin_t b2;
+
+    int pwm_freq_hz;
   };
 
-  static StepperMotor* Init(const Hardware& hw);
+  static StepperMotor* Init(PIO pio, const Hardware& hw);
 
   void RunPioTest();
 
@@ -98,10 +100,19 @@ class StepperMotor {
   void Stop(bool brake = true);
 
  private:
-  explicit StepperMotor(const Hardware& hw);
+  explicit StepperMotor();
+  void InitCommands();
+  uint32_t make_command(int phase, uint16_t pwm_value);
 
  private:
-Hardware hw_;
+  PIO pio_;
+  int sm_;
+  int offset_;
+  // Iteration count.
+  uint16_t pwm_period_;
+  Hardware hw_;
+
+  std::vector<uint32_t> commands_;
 
  private:
   // Not copyable or moveable.

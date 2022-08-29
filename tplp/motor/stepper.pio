@@ -5,6 +5,9 @@
 ; AUTOPULL = 1
 ; PULL_THRESH = 0 (meaning a value of 32)
 ;
+; The PWM counter loop is 4 cycles long, so the PIO clock frequency
+; should be equal to pwm_freq_hz*4.
+;
 ; First, write the 32-bit PWM period to the TX FIFO.
 ; On subsequent writes, the low 16 bits are the PWM
 ; target value and the high 16 bits are a JMP instruction
@@ -20,7 +23,7 @@ start:
     ; Also set initial motor state (off).
     out isr, 32             side 0b1111
 
-new_command:
+public new_command:
     ; Execute a new command, blocking until it's available.
     ; Read PWM target into X, then jump to one of the phase labels.
     out x, 16
@@ -37,7 +40,7 @@ new_command:
     ; 7   ^   up  255   ^   255 dn
     ;     wrap around   wrap around
 
-    ; Pseudocode for each phase's PWM output:
+    ; Pseudocode for each odd phase's PWM output:
     ;
     ;   output = 0;
     ;   for (x = pwm_target, y = pwm_period; y-- != 0;) {
@@ -45,18 +48,14 @@ new_command:
     ;   }
     ;
     
-    ; XXX: should we have the even phases too, to avoid pwm glitches?
-    ;   when x==0 it's still toggled for 5-6(?) cycles
-    ;   when x==ISR it's still toggled for 2-3(?) cycles
-    ; so for example...
-phase0:
-    ; but since it's a single instruction, we can just put this in the exec!
-    jmp new_command         side 0b1110
+    ; Even phases are a single side-set and get executed
+    ; from new_command directly. For example,
+    ;   jmp new_command         side 0b0111
 
-phase1:
+public phase1:
     ; # phase A1  A2  phase B1  B2
     ; 1   ^   255 dn    v   255 up
-    mov y, isr              side 0b1110
+    mov y, isr              side 0b0111
 phase1_pwm_countdown:
     jmp x!=y phase1_noset
     jmp phase1_skip         side 0b1101
@@ -67,13 +66,13 @@ phase1_skip:
     jmp !osre new_command
     jmp phase1
 
-phase3:
+public phase3:
     ; # phase A1  A2  phase B1  B2
     ; 3   v   255 up    v   dn  255
-    mov y, isr              side 0b1011
+    mov y, isr              side 0b1101
 phase3_pwm_countdown:
     jmp x!=y phase3_noset
-    jmp phase3_skip         side 0b1101
+    jmp phase3_skip         side 0b1011
 phase3_noset:
     nop
 phase3_skip:
@@ -81,13 +80,13 @@ phase3_skip:
     jmp !osre new_command
     jmp phase3
 
-phase5:
+public phase5:
     ; # phase A1  A2  phase B1  B2
     ; 5   v   dn  255   ^   up  255
-    mov y, isr              side 0b1101
+    mov y, isr              side 0b1011
 phase5_pwm_countdown:
     jmp x!=y phase5_noset
-    jmp phase5_skip         side 0b0111
+    jmp phase5_skip         side 0b1110
 phase5_noset:
     nop
 phase5_skip:
@@ -95,13 +94,13 @@ phase5_skip:
     jmp !osre new_command
     jmp phase5
 
-phase7:
+public phase7:
     ; # phase A1  A2  phase B1  B2
     ; 7   ^   up  255   ^   255 dn
-    mov y, isr              side 0b0111
+    mov y, isr              side 0b1110
 phase7_pwm_countdown:
     jmp x!=y phase7_noset
-    jmp phase7_skip         side 0b1110
+    jmp phase7_skip         side 0b0111
 phase7_noset:
     nop
 phase7_skip:

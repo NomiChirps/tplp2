@@ -99,11 +99,12 @@ void StartupTask(void*) {
   HX711* load_cell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
 
   // Steppies!
-  StepperMotor* motor_a = CHECK_NOTNULL(StepperMotor::Init({
+  StepperMotor* motor_a = CHECK_NOTNULL(StepperMotor::Init(pio1, {
       .a1 = Pins::MOTOR_A_A1,
       .a2 = Pins::MOTOR_A_A2,
       .b1 = Pins::MOTOR_A_B1,
       .b2 = Pins::MOTOR_A_B2,
+      .pwm_freq_hz = 100'000,
   }));
   StepperMotor* motor_b = nullptr;
 
