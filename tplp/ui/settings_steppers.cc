@@ -206,7 +206,6 @@ static void focus_event_cb(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * spinner = lv_event_get_target(e);
-    // lv_obj_t * kb = lv_event_get_user_data(e);
     if(code == LV_EVENT_FOCUSED) {
         focused_spinner = spinner;
         lv_obj_add_state(spinner, LV_STATE_FOCUS_KEY);
