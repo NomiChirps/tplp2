@@ -4,6 +4,7 @@
 #include "tplp/HX8357/HX8357.h"
 #include "tplp/bus/i2c.h"
 #include "tplp/hx711/hx711.h"
+#include "tplp/motor/stepper.h"
 #include "tplp/ui/TplpInterface.h"
 
 namespace tplp {
@@ -12,7 +13,8 @@ namespace ui {
 class TplpInterfaceImpl : public ui::TplpInterface {
  public:
   explicit TplpInterfaceImpl(HX8357* display, I2cController* i2c0_controller,
-                             HX711* load_cell);
+                             HX711* load_cell, StepperMotor* motor_a,
+                             StepperMotor* motor_b);
   virtual ~TplpInterfaceImpl();
 
   // Starts the UI background work task.
@@ -28,6 +30,8 @@ class TplpInterfaceImpl : public ui::TplpInterface {
   virtual void SetLoadCellParams(const LoadCellParams& params);
   virtual LoadCellParams GetLoadCellParams();
 
+  virtual void RunDevTest();
+
  private:
   static void TaskFn(void*);
   void PushWork(const std::function<void()>&);
@@ -37,6 +41,9 @@ class TplpInterfaceImpl : public ui::TplpInterface {
   HX8357* const display_;
   I2cController* const i2c0_controller_;
   HX711* const load_cell_;
+
+  StepperMotor* const motor_a_;
+  StepperMotor* const motor_b_;
 
   QueueHandle_t work_queue_;
 };

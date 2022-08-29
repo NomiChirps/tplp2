@@ -52,7 +52,7 @@ static lv_obj_t * ui_contents_create(lv_obj_t * parent)
 
     lv_obj_t * inc_btn = lv_btn_create(content);
     lv_obj_t * inc_label = lv_label_create(inc_btn);
-    lv_label_set_text(inc_label, "+1");
+    lv_label_set_text(inc_label, "Go");
     lv_obj_add_event_cb(inc_btn, inc_click, LV_EVENT_CLICKED, NULL);
 
     return content;
@@ -71,6 +71,7 @@ static void inc_click(lv_event_t * e)
     global_tplp_->FlashScreen();
     counter++;
     update_label();
+    global_tplp_->RunDevTest();
 }
 
 static void update_label(void)

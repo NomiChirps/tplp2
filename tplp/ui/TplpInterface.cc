@@ -18,6 +18,7 @@ int32_t TplpInterface::GetLoadCellValue() { return 0; }
 int32_t TplpInterface::GetRawLoadCellValue() { return 0; }
 void TplpInterface::SetLoadCellParams(const LoadCellParams& params) {}
 LoadCellParams TplpInterface::GetLoadCellParams() { return LoadCellParams(); }
+void TplpInterface::RunDevTest() {}
 
 }  // namespace ui
 }  // namespace tplp

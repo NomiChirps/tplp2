@@ -18,11 +18,14 @@ struct WorkQueueItem {
 
 TplpInterfaceImpl::TplpInterfaceImpl(HX8357* display,
                                      I2cController* i2c0_controller,
-                                     HX711* load_cell)
+                                     HX711* load_cell, StepperMotor* motor_a,
+                                     StepperMotor* motor_b)
     : task_(nullptr),
       display_(display),
       i2c0_controller_(i2c0_controller),
       load_cell_(load_cell),
+      motor_a_(motor_a),
+      motor_b_(motor_b),
       work_queue_(nullptr) {}
 
 TplpInterfaceImpl::~TplpInterfaceImpl() {}
@@ -93,6 +96,12 @@ void TplpInterfaceImpl::SetLoadCellParams(const LoadCellParams& params) {
 }
 LoadCellParams TplpInterfaceImpl::GetLoadCellParams() {
   return {.offset = load_cell_->offset(), .scale = load_cell_->scale()};
+}
+
+void TplpInterfaceImpl::RunDevTest() {
+  LOG(WARNING) << "RunDevTest() starting";
+  if (motor_a_) motor_a_->RunPioTest();
+  if (motor_b_) motor_b_->RunPioTest();
 }
 
 }  // namespace ui

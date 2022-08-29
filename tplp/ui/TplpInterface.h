@@ -46,6 +46,9 @@ class TplpInterface {
   virtual void SetLoadCellParams(const LoadCellParams& params);
   virtual LoadCellParams GetLoadCellParams();
 
+  // Does a test of whatever it is I'm currently working on.
+  virtual void RunDevTest();
+
  private:
   TplpInterface(const TplpInterface&) = delete;
   const TplpInterface& operator=(const TplpInterface&) = delete;
