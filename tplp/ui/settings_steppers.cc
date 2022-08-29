@@ -18,6 +18,24 @@ static void focus_event_cb(lv_event_t * e);
 static lv_obj_t * focused_spinner = nullptr;
 lv_obj_t * inc_btn;
 lv_obj_t * dec_btn;
+lv_obj_t * motor_1_led;
+lv_obj_t * motor_2_led;
+
+static void set_motor_1_led(bool enabled) {
+    if(enabled) {
+        lv_led_set_color(motor_1_led, lv_palette_main(LV_PALETTE_RED));
+    } else {
+        lv_led_set_color(motor_1_led, lv_palette_main(LV_PALETTE_GREEN));
+    }
+}
+
+static void set_motor_2_led(bool enabled) {
+    if(enabled) {
+        lv_led_set_color(motor_2_led, lv_palette_main(LV_PALETTE_RED));
+    } else {
+        lv_led_set_color(motor_2_led, lv_palette_main(LV_PALETTE_GREEN));
+    }
+}
 
 lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
 {
@@ -51,9 +69,14 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
                              LV_GRID_ALIGN_CENTER, 0, 1);
 
     /* Motor 1 */
-    lv_obj_t * motor_1_label = lv_label_create(content);
+    motor_1_led = lv_led_create(content);
+    set_motor_1_led(true);
+    lv_obj_t * motor_1_label = lv_label_create(motor_1_led);
     lv_label_set_text(motor_1_label, "1");
-    lv_obj_set_grid_cell(motor_1_label, LV_GRID_ALIGN_CENTER, 0, 1,
+    lv_obj_set_size(motor_1_label, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_center(motor_1_label);
+    lv_obj_set_style_text_align(motor_1_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_grid_cell(motor_1_led, LV_GRID_ALIGN_CENTER, 0, 1,
                              LV_GRID_ALIGN_CENTER, 1, 1);
 
     lv_obj_t * motor_1_step_count = lv_spinbox_create(content);
@@ -69,9 +92,14 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
                     LV_GRID_ALIGN_CENTER, 1, 1);
 
     // /* Motor 2 */
-    lv_obj_t * motor_2_label = lv_label_create(content);
+    motor_2_led = lv_led_create(content);
+    set_motor_2_led(true);
+    lv_obj_t * motor_2_label = lv_label_create(motor_2_led);
     lv_label_set_text(motor_2_label, "2");
-    lv_obj_set_grid_cell(motor_2_label, LV_GRID_ALIGN_CENTER, 0, 1,
+    lv_obj_set_size(motor_2_label, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_center(motor_2_label);
+    lv_obj_set_style_text_align(motor_2_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_grid_cell(motor_2_led, LV_GRID_ALIGN_CENTER, 0, 1,
                              LV_GRID_ALIGN_CENTER, 2, 1);
 
     lv_obj_t * motor_2_step_count = lv_spinbox_create(content);
