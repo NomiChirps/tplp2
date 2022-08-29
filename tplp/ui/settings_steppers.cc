@@ -2,6 +2,7 @@
 #include "lvgl/lvgl.h"
 #include "settings_steppers.h"
 #include "tplp/ui/globals.h"
+#include "tplp/config/params.h"
 
 void start_button_pressed_cb(lv_event_t* e) {
     global_tplp_->RunDevTest();
@@ -10,6 +11,19 @@ void start_button_pressed_cb(lv_event_t* e) {
 void stop_button_pressed_cb(lv_event_t* e) {
     //
 }
+
+static const lv_coord_t sample_data[] = {
+    -2, 2, 0, -15, -39, -63, -71, -68, -67, -69, -84, -95, -104, -107, -108, -107, -107, -107, -107, -114, -118, -117,
+        -112, -100, -89, -83, -71, -64, -58, -58, -62, -62, -58, -51, -46, -39, -27, -10, 4, 7, 1, -3, 0, 14, 24, 30, 25, 19,
+        13, 7, 12, 15, 18, 21, 13, 6, 9, 8, 17, 19, 13, 11, 11, 11, 23, 30, 37, 34, 25, 14, 15, 19, 28, 31, 26, 23, 25, 31,
+        39, 37, 37, 34, 30, 32, 22, 29, 31, 33, 37, 23, 13, 7, 2, 4, -2, 2, 11, 22, 33, 19, -1, -27, -55, -67, -72, -71, -63,
+        -49, -18, 35, 113, 230, 369, 525, 651, 722, 730, 667, 563, 454, 357, 305, 288, 274, 255, 212, 173, 143, 117, 82, 39,
+        -13, -53, -78, -91, -101, -113, -124, -131, -131, -131, -129, -128, -129, -125, -123, -123, -129, -139, -148, -153,
+        -159, -166, -183, -205, -227, -243, -248, -246, -254, -280, -327, -381, -429, -473, -517, -556, -592, -612, -620,
+        -620, -614, -604, -591, -574, -540, -497, -441, -389, -358, -336, -313, -284, -222, -167, -114, -70, -47, -28, -4, 12,
+        38, 52, 58, 56, 56, 57, 68, 77, 86, 86, 80, 69, 67, 70, 82, 85, 89, 90, 89, 89, 88, 91, 96, 97, 91, 83, 78, 82, 88, 95,
+        96, 105, 106, 110, 102, 100, 96, 98, 97, 101, 98, 99, 100, 107, 113, 119, 115, 110, 96, 85, 73, 64, 69, 76, 79
+};
 
 static void increment_event_cb(lv_event_t * e);
 static void decrement_event_cb(lv_event_t * e);
@@ -20,6 +34,8 @@ lv_obj_t * inc_btn;
 lv_obj_t * dec_btn;
 lv_obj_t * motor_1_led;
 lv_obj_t * motor_2_led;
+lv_obj_t * chart;
+lv_chart_series_t * ser;
 
 static void set_motor_1_led(bool enabled) {
     if(enabled) {
@@ -37,10 +53,15 @@ static void set_motor_2_led(bool enabled) {
     }
 }
 
+static void set_load_cell_data(lv_coord_t *data, uint32_t count) {
+    lv_chart_set_point_count(chart, count);
+    lv_chart_set_ext_y_array(chart, ser, data);
+}
+
 lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
 {
     static lv_coord_t col_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
-    static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+    static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
     lv_obj_t * content = lv_obj_create(parent);
     lv_obj_remove_style_all(content);
@@ -124,7 +145,7 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_set_size(setting_button_bar, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(setting_button_bar, LV_FLEX_FLOW_ROW);
     lv_obj_set_grid_cell(setting_button_bar, LV_GRID_ALIGN_START, 0, 2,
-                    LV_GRID_ALIGN_END, 3, 1);
+                    LV_GRID_ALIGN_END, 4, 1);
 
     inc_btn = lv_btn_create(setting_button_bar);
     lv_obj_t * inc_btn_label = lv_img_create(inc_btn);
@@ -140,6 +161,19 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_add_event_cb(dec_btn, decrement_event_cb, LV_EVENT_ALL, NULL);
     lv_obj_add_state(dec_btn, LV_STATE_DISABLED);
 
+    /* load cell chart */
+    chart = lv_chart_create(content);
+    lv_obj_set_size(chart, LV_PCT(100), 100);
+    lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR);
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -tplp::params::kLoadCellExpectedRangeAfterScaling,
+                                                        tplp::params::kLoadCellExpectedRangeAfterScaling);
+    ser = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+    lv_obj_set_grid_cell(chart, LV_GRID_ALIGN_STRETCH, 0, 3,
+                    LV_GRID_ALIGN_CENTER, 3, 1);
+
+    uint32_t point_count = sizeof(sample_data) / sizeof(sample_data[0]);
+    set_load_cell_data((lv_coord_t*)sample_data, point_count);
 
     /* play/stop footer buttons */
     lv_obj_t * play_button_bar = lv_obj_create(content);
@@ -150,7 +184,7 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_set_size(play_button_bar, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(play_button_bar, LV_FLEX_FLOW_ROW);
     lv_obj_set_grid_cell(play_button_bar, LV_GRID_ALIGN_END, 2, 1,
-                    LV_GRID_ALIGN_END, 3, 1);
+                    LV_GRID_ALIGN_END, 4, 1);
 
     lv_obj_t * stop_btn = lv_btn_create(play_button_bar);
     lv_obj_set_style_bg_color(stop_btn, lv_palette_main(LV_PALETTE_RED), 0);
