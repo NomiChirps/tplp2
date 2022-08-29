@@ -40,12 +40,12 @@ struct Pins {
   // GP19 free
   // GP20 free
   // GP21 free
-  // GP22 free
+  static constexpr gpio_pin_t MOTOR_A_A2 = gpio_pin_t(22);
   // GP23-24 reserved by Pico
   // GP25 == PICO_DEFAULT_LED_PIN
-  // GP26 free
-  // GP27 free
-  // GP28 free
+  static constexpr gpio_pin_t MOTOR_A_A1 = gpio_pin_t(26);
+  static constexpr gpio_pin_t MOTOR_A_B1 = gpio_pin_t(27);
+  static constexpr gpio_pin_t MOTOR_A_B2 = gpio_pin_t(28);
 #else
 #error "Board not detected"
 #endif

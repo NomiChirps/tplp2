@@ -4,11 +4,12 @@ cc_library(
     name = "stepper",
     srcs = ["stepper.cc"],
     hdrs = ["stepper.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//picolog",
         "//tplp/bus:types",
-        "@rules_pico//pico:hardware_dma",
-        "@rules_pico//pico:hardware_pwm",
+        "@rules_pico//pico:hardware_gpio",
+        "@rules_pico//pico:hardware_pio",
     ],
 )
 

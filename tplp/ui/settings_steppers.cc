@@ -1,6 +1,15 @@
 #include <cstddef>
 #include "lvgl/lvgl.h"
 #include "settings_steppers.h"
+#include "tplp/ui/globals.h"
+
+void start_button_pressed_cb(lv_event_t* e) {
+    global_tplp_->RunDevTest();
+}
+
+void stop_button_pressed_cb(lv_event_t* e) {
+    //
+}
 
 static void increment_event_cb(lv_event_t * e);
 static void decrement_event_cb(lv_event_t * e);
@@ -119,11 +128,13 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_set_style_bg_color(stop_btn, lv_palette_main(LV_PALETTE_RED), 0);
     lv_obj_t * stop_btn_label = lv_img_create(stop_btn);
     lv_img_set_src(stop_btn_label, LV_SYMBOL_STOP);
+    lv_obj_add_event_cb(stop_btn, stop_button_pressed_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t * play_btn = lv_btn_create(play_button_bar);
     lv_obj_set_style_bg_color(play_btn, lv_palette_main(LV_PALETTE_GREEN), 0);
     lv_obj_t * play_btn_label = lv_img_create(play_btn);
     lv_img_set_src(play_btn_label, LV_SYMBOL_PLAY);
+    lv_obj_add_event_cb(play_btn, start_button_pressed_cb, LV_EVENT_CLICKED, NULL);
 
     return content;
 }

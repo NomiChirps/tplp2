@@ -98,9 +98,18 @@ void StartupTask(void*) {
   // Load cell reader.
   HX711* load_cell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
 
+  // Steppies!
+  StepperMotor* motor_a = CHECK_NOTNULL(StepperMotor::Init({
+      .a1 = Pins::MOTOR_A_A1,
+      .a2 = Pins::MOTOR_A_A2,
+      .b1 = Pins::MOTOR_A_B1,
+      .b2 = Pins::MOTOR_A_B2,
+  }));
+  StepperMotor* motor_b = nullptr;
+
   // Create GUI screens.
-  ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(
-      new ui::TplpInterfaceImpl(display, i2c0_controller, load_cell));
+  ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(
+      display, i2c0_controller, load_cell, motor_a, motor_b));
   ui_adapter->StartTask(TaskPriorities::kUiWorker, TaskStacks::kUiWorker);
   {
     LvglMutex mutex;

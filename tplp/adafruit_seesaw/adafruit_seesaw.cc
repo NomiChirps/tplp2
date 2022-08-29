@@ -111,7 +111,7 @@ util::Status SeesawBase::Init() {
 
   bool found = false;
   for (int attempts = 0; attempts < 10; ++attempts) {
-    uint8_t hw_id;
+    uint8_t hw_id = 0;
     ASSIGN_OR_RETURN(hw_id,
                      Read<uint8_t>(SEESAW_STATUS_BASE, SEESAW_STATUS_HW_ID));
     VLOG(1) << "hw_id = 0x" << std::hex << (int)hw_id;

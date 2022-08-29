@@ -73,10 +73,18 @@ namespace tplp {
 // which short-brakes when both ends of a coil are set high.
 class StepperMotor {
  public:
-  // a1, a2: GPIOs controlling the first coil.
-  // b1, b2: GPIOs controlling the second coil.
-  static StepperMotor* Init(gpio_pin_t a1, gpio_pin_t a2, gpio_pin_t b1,
-                            gpio_pin_t b2);
+  struct Hardware {
+    // a1, a2: GPIOs controlling the first coil.
+    gpio_pin_t a1;
+    gpio_pin_t a2;
+    // b1, b2: GPIOs controlling the second coil.
+    gpio_pin_t b1;
+    gpio_pin_t b2;
+  };
+
+  static StepperMotor* Init(const Hardware& hw);
+
+  void RunPioTest();
 
   // Step forward or backward by a certain number of microsteps.
   // One full step is 256 microsteps.
@@ -90,10 +98,10 @@ class StepperMotor {
   void Stop(bool brake = true);
 
  private:
-  // True if currently reversing (taking negative steps)
-  bool reverse_;
-  // Microstep index at the end of the current move.
-  uint8_t microstep_;
+  explicit StepperMotor(const Hardware& hw);
+
+ private:
+Hardware hw_;
 
  private:
   // Not copyable or moveable.
