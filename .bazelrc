@@ -40,7 +40,7 @@ build:iterate -c opt
 
 # picolog config
 # Verbosity
-build --copt="-DPICOLOG_VMODULE=\"4991_lvgl_driver=1,adafruit_seesaw=1,i2c=0\""
+build --copt="-DPICOLOG_VMODULE=\"4991_lvgl_driver=1,adafruit_seesaw=1,i2c=0,stepper=1\""
 # Compile out logs below a certain severity
 #--copt="-DPICOLOG_STRIP_LOG=0"
 

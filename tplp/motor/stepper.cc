@@ -7,7 +7,7 @@
 #include "hardware/pio.h"
 #include "pico/time.h"
 #include "picolog/picolog.h"
-#include "tplp/motor/cosine_table.h"
+#include "tplp/motor/sin_table.h"
 #include "tplp/motor/stepper.pio.h"
 
 namespace tplp {
@@ -38,16 +38,13 @@ StepperMotor* StepperMotor::Init(PIO pio, const Hardware& hw) {
   pio_gpio_init(pio, hw.a2);
   pio_gpio_init(pio, hw.b1);
   pio_gpio_init(pio, hw.b2);
+  sm_config_set_set_pins(&c, hw.a1, 4);
   sm_config_set_out_pins(&c, hw.a1, 4);
-  sm_config_set_out_shift(&c, /*shift_right=*/true, /*autopull=*/true,
+  sm_config_set_out_shift(&c, /*shift_right=*/true, /*autopull=*/false,
                           /*pull_threshold=*/32);
   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
   // Use the fastest possible PIO clock speed.
   sm_config_set_clkdiv_int_frac(&c, 1, 0);
-
-  pio_sm_init(pio, sm, offset, &c);
-  pio_sm_set_enabled(pio, sm, true);
-  pio_sm_set_consecutive_pindirs(pio, sm, hw.a1, 4, /*is_out=*/true);
 
   const int sys_hz = clock_get_hz(clk_sys);
   const int pwm_period =
@@ -57,8 +54,14 @@ StepperMotor* StepperMotor::Init(PIO pio, const Hardware& hw) {
   LOG(INFO) << "Stepper motor PWM period set to " << pwm_period
             << " counts at PIO clock " << sys_hz
             << "Hz. Actual PWM frequency = "
-            << sys_hz / (stepper_instructions_per_count * pwm_period)
-            << "Hz";
+            << sys_hz / (stepper_instructions_per_count * pwm_period) << "Hz";
+
+  pio_sm_init(pio, sm, offset, &c);
+  pio_sm_set_consecutive_pindirs(pio, sm, hw.a1, 4, /*is_out=*/true);
+  // Put initial command into the FIFO before starting the state machine.
+  // This brings all pins high and keeps them there.
+  pio->txf[sm] = make_command(pwm_period, pwm_period, 0, 0b1111, 0);
+  pio_sm_set_enabled(pio, sm, true);
 
   StepperMotor* self = CHECK_NOTNULL(new StepperMotor());
   self->pio_ = pio;
@@ -84,10 +87,78 @@ void StepperMotor::InitCommands() {
   // We need the size of the table to be a power of 2 so ring DMA works.
   // TODO: consider increasing :)
   constexpr size_t kBufSize = 128;
+  constexpr int kCommandsPerOddPhase = kBufSize / 4;
   commands_.clear();
   commands_.reserve(kBufSize);
-  for (int phase = 0; phase < 8; ++phase) {
-    LOG(FATAL) << "Not implemented";
+  VLOG(1) << "kBufSize = " << kBufSize;
+  VLOG(1) << "kCommandsPerOddPhase = " << kCommandsPerOddPhase;
+  VLOG(1) << "pwm_period = " << pwm_period_;
+
+  const auto push = [this](uint8_t t1_duration, uint8_t t2_t3_duration,
+                           uint8_t pins_t2_t3, uint8_t pins_t4) {
+    uint8_t t1 = pwm_period_ - t1_duration;
+    uint8_t t2_t3 = t1 - t2_t3_duration;
+    uint32_t command =
+        make_command(pwm_period_, t1, t2_t3, pins_t2_t3, pins_t4);
+    VLOG(2) << "push t1=" << (int)t1 << " t2_t3=" << (int)t2_t3
+            << " pins_t2_t3=0x" << std::hex << (int)pins_t2_t3 << " pins_t4=0x"
+            << (int)pins_t4 << " command=0x" << command;
+    commands_.push_back(command);
+  };
+  const uint16_t kSinMax = 65535;
+  const auto sine = [](uint8_t command_index) -> uint16_t {
+    int i = (command_index * kSinTableSize) / kCommandsPerOddPhase;
+    if (i == kSinTableSize) return kSinMax;
+    return kSinTable[i];
+  };
+  for (int phase = 0; phase < 4; ++phase) {
+    // pins_t1 == 0b1111
+    uint8_t pins_t2 = 0;  // first half of period
+    uint8_t pins_t3 = 0;  // second half of period
+    bool polarity = 0;
+    switch (phase) {
+      case 0:
+        pins_t2 = 0b0111;
+        pins_t3 = 0b1101;
+        polarity = 0;
+        break;
+      case 1:
+        pins_t2 = 0b1101;
+        pins_t3 = 0b1011;
+        polarity = 1;
+        break;
+      case 2:
+        pins_t2 = 0b1011;
+        pins_t3 = 0b1110;
+        polarity = 0;
+        break;
+      case 3:
+        pins_t2 = 0b1110;
+        pins_t3 = 0b0111;
+        polarity = 1;
+        break;
+    }
+    // remainder of period, both low
+    uint8_t pins_t4 = pins_t2 & pins_t3;
+    // weow...
+    for (uint8_t i = 0; i < kCommandsPerOddPhase; ++i) {
+      // duty cycle for A and B pins
+      int da = (pwm_period_ * (kSinMax - sine(i))) / kSinMax;
+      int db =
+          (pwm_period_ * (kSinMax - sine(kCommandsPerOddPhase - i))) / kSinMax;
+      if (polarity) std::swap(da, db);
+      int t1_duration = std::min(da, db);
+      int t2_t3_duration = std::abs(da - db);
+      CHECK_GE(t1_duration, 0);
+      CHECK_LT(t1_duration, 256);
+      CHECK_GE(t2_t3_duration, 0);
+      CHECK_LT(t2_t3_duration, 256);
+      VLOG(1) << "phase=" << phase << " i=" << (int)i << " da=" << da
+              << " db=" << db << " t1_duration=" << t1_duration
+              << " t2_t3_duration=" << t2_t3_duration;
+      push(t1_duration, t2_t3_duration,
+           (i < (kCommandsPerOddPhase / 2)) ? pins_t2 : pins_t3, pins_t4);
+    }
   }
   CHECK_EQ(kBufSize, commands_.size());
   LOG(INFO) << "StepperMotor command buffer initialized. Size = "
@@ -95,10 +166,15 @@ void StepperMotor::InitCommands() {
 }
 
 void StepperMotor::RunPioTest() {
-  for (int j = 0; j < 10; ++j) {
+  for (int j = 0; j < 1; ++j) {
     for (size_t i = 0; i < commands_.size(); ++i) {
+      if (pio_sm_is_tx_fifo_full(pio_, sm_)) {
+        LOG(ERROR) << "tx fifo full";
+        return;
+      }
+      VLOG(1) << "i=" << i << " command=0x" << std::hex << commands_[i];
       pio_->txf[sm_] = commands_[i];
-      vTaskDelay(2);
+      vTaskDelay(5);
     }
     pio_->txf[sm_] = commands_[0];
   }

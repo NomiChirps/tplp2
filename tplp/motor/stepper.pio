@@ -2,13 +2,17 @@
 ;
 ; FJOIN_TX = 1
 ; OUT_SHIFTDIR = 1
-; AUTOPULL = 1
-; PULL_THRESH = 0 (meaning a value of 32)
+; AUTOPULL = 0
+;
+; Both "SET" pins and "OUT" pins should be set to the 4 motor control pins.
 ;
 ; Command format:
 ;   pwm_period, t1, t2_t3, pins_t2_t3, pins_t4
+;
+; Be sure to put an initial command in the FIFO before starting the SM.
+;
 .program stepper
-.define public loop_delay 16
+.define public loop_delay 7
 .define public instructions_per_count (loop_delay+2)
 
 ; # phase A1  A2  phase B1  B2
@@ -34,10 +38,11 @@
 ; TODO: characterize what the non-loop instructions mean w.r.t.
 ;       the pwm cycle. we may need to adjust t1/t2/t3/t4 when
 ;       generating commands.
-new_command:
-    out isr, 32
 .wrap_target
-    mov osr, isr
+    ; NB: "A MOV to the OSR may overwrite data which has just been autopulled"
+    pull noblock
+    ; save command in ISR so we can use x
+    mov isr, osr
     out y, 8            ; y := pwm_period
     out x, 8            ; x := t1
     jmp x!=y t1
@@ -52,7 +57,7 @@ t1_continue:
 t1_break:
     out x, 8            ; x := t2_t3
     jmp x!=y t2_t3
-    out null, 4         ; discard pins_t2_t3 if t2_t3 time is zero
+    out null, 4         ; discard pins_t2_t3 if t2_t3 duration is zero
     jmp t2_t3_break
 t2_t3:
     out pins, 4         ; pins := pins_t2_t3
@@ -64,11 +69,14 @@ t2_t3_continue:
 t2_t3_break:
     set x, 0            ; x := t4
     jmp x!=y t4
+    ; XXX: maybe discard isn't needed now since we manually pull
+    out null, 4         ; discard pins_t4 if t4 duration is zero
     jmp t4_break
 t4:
     out pins, 4         ; pins := pins_t4
 t4_loop:
     jmp y--, t4_loop     [loop_delay+1]
 t4_break:
-    jmp !osre new_command
+    ; restore saved command for next "pull noblock"
+    mov x, isr
 .wrap

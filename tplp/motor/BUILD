@@ -9,7 +9,7 @@ cc_library(
     hdrs = ["stepper.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":cosine_table",
+        ":sin_table",
         "//picolog",
         "//tplp/bus:types",
         "@rules_pico//pico:hardware_clocks",
@@ -25,19 +25,19 @@ pico_pio_header(
 )
 
 cc_library(
-    name = "cosine_table",
-    srcs = ["cosine_table.cc"],
-    hdrs = ["cosine_table.h"],
+    name = "sin_table",
+    srcs = ["sin_table.cc"],
+    hdrs = ["sin_table.h"],
 )
 
 genrule(
-    name = "cosine_table_genrule",
-    outs = ["cosine_table.cc"],
-    cmd = "$(execpath generate_cosine_table) 1024 > $@",
-    tools = [":generate_cosine_table"],
+    name = "sin_table_genrule",
+    outs = ["sin_table.cc"],
+    cmd = "$(execpath generate_sin_table) 256 > $@",
+    tools = [":generate_sin_table"],
 )
 
 py_binary(
-    name = "generate_cosine_table",
-    srcs = ["generate_cosine_table.py"],
+    name = "generate_sin_table",
+    srcs = ["generate_sin_table.py"],
 )
