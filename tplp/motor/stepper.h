@@ -102,7 +102,6 @@ class StepperMotor {
  private:
   explicit StepperMotor();
   void InitCommands();
-  uint32_t make_command(int phase, uint16_t pwm_value);
 
  private:
   PIO pio_;

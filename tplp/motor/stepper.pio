@@ -5,105 +5,70 @@
 ; AUTOPULL = 1
 ; PULL_THRESH = 0 (meaning a value of 32)
 ;
-; The PWM counter loop is 4 cycles long, so the PIO clock frequency
-; should be equal to pwm_freq_hz*4.
-;
-; First, write the 32-bit PWM period to the TX FIFO.
-; On subsequent writes, the low 16 bits are the PWM
-; target value and the high 16 bits are a JMP instruction
-; pointing to one of the phase1, phase3, etc labels.
-; 
-; side-set pins are [A1, A2, B1, B2].
+; Command format:
+;   pwm_period, t1, t2_t3, pins_t2_t3, pins_t4
 .program stepper
-.side_set 4 opt
+.define public loop_delay 16
+.define public instructions_per_count (loop_delay+2)
 
-start:
-    ; Save PWM period to the ISR.
-    ; It will never be cleared because we never `push`.
-    ; Also set initial motor state (off).
-    out isr, 32             side 0b1111
+; # phase A1  A2  phase B1  B2
+; 0   0   255 255   +   255 0
+; 1   ^   255 dn    v   255 up
+; 2   +   255 0     0   255 255
+; 3   v   255 up    v   dn  255
+; 4   0   255 255   -   0   255
+; 5   v   dn  255   ^   up  255
+; 6   -   0   255   0   255 255
+; 7   ^   up  255   ^   255 dn
+;     wrap around   wrap around
 
-public new_command:
-    ; Execute a new command, blocking until it's available.
-    ; Read PWM target into X, then jump to one of the phase labels.
-    out x, 16
-    out exec, 16
 
-    ; # phase A1  A2  phase B1  B2
-    ; 0   0   255 255   +   255 0
-    ; 1   ^   255 dn    v   255 up
-    ; 2   +   255 0     0   255 255
-    ; 3   v   255 up    v   dn  255
-    ; 4   0   255 255   -   0   255
-    ; 5   v   dn  255   ^   up  255
-    ; 6   -   0   255   0   255 255
-    ; 7   ^   up  255   ^   255 dn
-    ;     wrap around   wrap around
-
-    ; Pseudocode for each odd phase's PWM output:
-    ;
-    ;   output = 0;
-    ;   for (x = pwm_target, y = pwm_period; y-- != 0;) {
-    ;     if (x==y) output = 1;
-    ;   }
-    ;
-    
-    ; Even phases are a single side-set and get executed
-    ; from new_command directly. For example,
-    ;   jmp new_command         side 0b0111
-
-public phase1:
-    ; # phase A1  A2  phase B1  B2
-    ; 1   ^   255 dn    v   255 up
-    mov y, isr              side 0b0111
-phase1_pwm_countdown:
-    jmp x!=y phase1_noset
-    jmp phase1_skip         side 0b1101
-phase1_noset:
-    nop
-phase1_skip:
-    jmp y-- phase1_pwm_countdown
+; XXX: ok... it's 1:30am... but i think this will work...
+; should have no glitches. not sure if branch timings need adjusting.
+; indicate zero t1 time by setting t1:=pwm_period.
+; indicate zero t2_t3 time by setting t2_t3:=t1
+; t4 time is the remainder. skip t4 by setting t2_t3:=0.
+; NOTA BENE: i use t1/t2/t3/t4 ambiguously, to mean either:
+;       1. a duration
+;       2. a timestamp (value between 0 and pwm_period inclusive).
+; TODO: characterize what the non-loop instructions mean w.r.t.
+;       the pwm cycle. we may need to adjust t1/t2/t3/t4 when
+;       generating commands.
+new_command:
+    out isr, 32
+.wrap_target
+    mov osr, isr
+    out y, 8            ; y := pwm_period
+    out x, 8            ; x := t1
+    jmp x!=y t1
+    jmp t1_break
+t1:
+    set pins, 0b1111    ; pins := pins_t1 (fixed)
+t1_loop:
+    jmp x!=y t1_continue
+    jmp t1_break
+t1_continue:
+    jmp y--, t1_loop     [loop_delay]
+t1_break:
+    out x, 8            ; x := t2_t3
+    jmp x!=y t2_t3
+    out null, 4         ; discard pins_t2_t3 if t2_t3 time is zero
+    jmp t2_t3_break
+t2_t3:
+    out pins, 4         ; pins := pins_t2_t3
+t2_t3_loop:
+    jmp x!=y t2_t3_continue
+    jmp t2_t3_break
+t2_t3_continue:
+    jmp y--, t2_t3_loop  [loop_delay]
+t2_t3_break:
+    set x, 0            ; x := t4
+    jmp x!=y t4
+    jmp t4_break
+t4:
+    out pins, 4         ; pins := pins_t4
+t4_loop:
+    jmp y--, t4_loop     [loop_delay+1]
+t4_break:
     jmp !osre new_command
-    jmp phase1
-
-public phase3:
-    ; # phase A1  A2  phase B1  B2
-    ; 3   v   255 up    v   dn  255
-    mov y, isr              side 0b1101
-phase3_pwm_countdown:
-    jmp x!=y phase3_noset
-    jmp phase3_skip         side 0b1011
-phase3_noset:
-    nop
-phase3_skip:
-    jmp y-- phase3_pwm_countdown
-    jmp !osre new_command
-    jmp phase3
-
-public phase5:
-    ; # phase A1  A2  phase B1  B2
-    ; 5   v   dn  255   ^   up  255
-    mov y, isr              side 0b1011
-phase5_pwm_countdown:
-    jmp x!=y phase5_noset
-    jmp phase5_skip         side 0b1110
-phase5_noset:
-    nop
-phase5_skip:
-    jmp y-- phase5_pwm_countdown
-    jmp !osre new_command
-    jmp phase5
-
-public phase7:
-    ; # phase A1  A2  phase B1  B2
-    ; 7   ^   up  255   ^   255 dn
-    mov y, isr              side 0b1110
-phase7_pwm_countdown:
-    jmp x!=y phase7_noset
-    jmp phase7_skip         side 0b0111
-phase7_noset:
-    nop
-phase7_skip:
-    jmp y-- phase7_pwm_countdown
-    jmp !osre new_command
-    jmp phase7
+.wrap
