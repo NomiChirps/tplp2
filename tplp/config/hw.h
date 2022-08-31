@@ -6,6 +6,7 @@
 
 namespace tplp {
 
+// All frequencies are in hertz unless otherwise specified.
 struct Frequencies {
   // TODO: see about increasing it. TB6612 wasn't happy @ 100kHz.
   static constexpr int kStepperMotorPwm = 25'000;
