@@ -88,29 +88,44 @@ StepperMotor* StepperMotor::Init(PIO pio, const Hardware& hw) {
 
   pio_sm_init(pio, sm, offset, &c);
   pio_sm_set_consecutive_pindirs(pio, sm, hw.a1, 4, /*is_out=*/true);
-  // Put initial command into the FIFO before starting the state machine.
-  // This brings all pins high and keeps them there.
-  pio->txf[sm] = make_command(pwm_period, pwm_period, 0, 0b1111, 0);
-  pio_sm_set_enabled(pio, sm, true);
 
   StepperMotor* self = CHECK_NOTNULL(new StepperMotor());
   self->pio_ = pio;
   self->hw_ = hw;
+  self->txf_ = &pio->txf[sm];
   self->sm_ = sm;
   self->offset_ = offset;
   self->pwm_period_ = pwm_period;
   self->InitCommands();
+
+  // Put a safe initial command into the FIFO before starting the state machine.
+  self->SendCommand(self->shortbrake_command_);
+  pio_sm_set_enabled(pio, sm, true);
+
   return self;
 }
+
+inline void StepperMotor::SendCommand(uint32_t cmd) { *txf_ = cmd; }
 
 StepperMotor::StepperMotor() {}
 
 void StepperMotor::Move(int32_t count) {
   //
+  LOG(ERROR) << "not implemented";
 }
 
-void StepperMotor::Stop(bool brake) {
-  //
+void StepperMotor::Stop(StopType type) {
+  switch (type) {
+    case StopType::HOLD:
+      LOG(ERROR) << "not implemented";
+      break;
+    case StopType::SHORT_BRAKE:
+      SendCommand(shortbrake_command_);
+      break;
+    case StopType::FREEWHEEL:
+      SendCommand(freewheel_command_);
+      break;
+  }
 }
 
 void StepperMotor::InitCommands() {
@@ -194,6 +209,10 @@ void StepperMotor::InitCommands() {
   CHECK_EQ(kBufSize, commands_.size());
   LOG(INFO) << "StepperMotor command buffer initialized. Size = "
             << commands_.size();
+
+  // Auxiliary commands.
+  shortbrake_command_ = make_command(pwm_period_, pwm_period_, 0, 0b1111, 0);
+  freewheel_command_ = make_command(pwm_period_, pwm_period_, 0, 0b0000, 0);
 }
 
 void StepperMotor::RunPioTest() {
@@ -203,10 +222,10 @@ void StepperMotor::RunPioTest() {
       return;
     }
     VLOG(1) << "i=" << i << " command=0x" << std::hex << commands_[i];
-    pio_->txf[sm_] = commands_[i];
+    SendCommand(commands_[i]);
     vTaskDelay(5);
   }
-  Stop(1);
+  Stop(StopType::SHORT_BRAKE);
 }
 
 }  // namespace tplp

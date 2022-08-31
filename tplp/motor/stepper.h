@@ -89,29 +89,42 @@ class StepperMotor {
   void RunPioTest();
 
   // Step forward or backward by a certain number of microsteps.
-  // One full step is 256 microsteps.
   void Move(int32_t count);
 
-  // Set the speed of the next move, or change the speed of a move in progress.
+  // Set the speed of the next move, or change the speed of the move in progress.
   void SetSpeed(/*TODO*/);
 
-  // Abort any move in progress and either short-brake the motor (brake=1) or
-  // let it freewheel (brake=0).
-  void Stop(bool brake = true);
+  enum class StopType {
+    // Motor coils remain energized to whatever state they were in
+    // at the time of the stop. High holding torque.
+    HOLD,
+    // Motor coils are shorted together. Medium-low holding torque.
+    SHORT_BRAKE,
+    // Motor outputs are set to high impedance. Lowest holding torque.
+    FREEWHEEL
+  };
+  // Abort any move in progress and apply the given stop type.
+  void Stop(StopType type);
 
  private:
   explicit StepperMotor();
   void InitCommands();
+  void SendCommand(uint32_t);
 
  private:
   PIO pio_;
   int sm_;
+  // TX FIFO register.
+  volatile uint32_t* txf_;
+
   int offset_;
   // Iteration count.
   uint16_t pwm_period_;
   Hardware hw_;
 
   std::vector<uint32_t> commands_;
+  uint32_t shortbrake_command_;
+  uint32_t freewheel_command_;
 
  private:
   // Not copyable or moveable.
