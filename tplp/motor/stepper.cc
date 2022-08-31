@@ -43,18 +43,48 @@ StepperMotor* StepperMotor::Init(PIO pio, const Hardware& hw) {
   sm_config_set_out_shift(&c, /*shift_right=*/true, /*autopull=*/false,
                           /*pull_threshold=*/32);
   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
-  // Use the fastest possible PIO clock speed.
-  sm_config_set_clkdiv_int_frac(&c, 1, 0);
 
+  // Variables:
+  // Fpio : pio clock
+  // N    : pwm period
+  //
+  // Constants:
+  // Fpwm : desired pwm frequency
+  //
+  // We want the highest possible clock while keeping N < 256.
+  // i.e. the smallest possible clock divider. fractional is okay.
   const int sys_hz = clock_get_hz(clk_sys);
-  const int pwm_period =
-      sys_hz / (stepper_instructions_per_count * hw.pwm_freq_hz);
-  CHECK_NE(pwm_period, 0);
+  int clkdiv_int = 1;
+  int clkdiv_frac = 0;
+  int pwm_period = sys_hz / (stepper_instructions_per_count * hw.pwm_freq_hz);
+  // System clock too fast?
+  if (pwm_period > 255) {
+    // Set pwm_period to max and calculate an appropriate divider.
+    pwm_period = 255;
+    // 255 = (sys_hz / divider) / (isp * pwm_freq)
+    // 255 * isp * pwm_freq * divider = sys_hz
+    // divider = sys_hz / (255 * isp * pwm_freq)
+    int clkdiv_256 = (256 * (sys_hz / 255)) /
+                     (stepper_instructions_per_count * hw.pwm_freq_hz);
+    VLOG(1) << "sys_hz = " << sys_hz;
+    VLOG(1) << "pwm_freq_hz = " << hw.pwm_freq_hz;
+    VLOG(1) << "clkdiv_256 = " << clkdiv_256;
+    clkdiv_int = clkdiv_256 / 256;
+    clkdiv_frac = clkdiv_256 % 256;
+  }
+
+  CHECK_GT(pwm_period, 0);
+  CHECK_LE(pwm_period, 255);  // 8 bits max
+  CHECK_GT(clkdiv_int, 0);
+  CHECK_GE(clkdiv_frac, 0);
+  CHECK_LT(clkdiv_frac, 256);
+  sm_config_set_clkdiv_int_frac(&c, clkdiv_int, clkdiv_frac);
+  const int pio_hz = 256 * (sys_hz / (256 * clkdiv_int + clkdiv_frac));
 
   LOG(INFO) << "Stepper motor PWM period set to " << pwm_period
-            << " counts at PIO clock " << sys_hz
-            << "Hz. Actual PWM frequency = "
-            << sys_hz / (stepper_instructions_per_count * pwm_period) << "Hz";
+            << " counts at PIO clock " << pio_hz << "Hz (divider " << clkdiv_int
+            << " + " << clkdiv_frac << "/256). Actual PWM frequency = "
+            << pio_hz / (stepper_instructions_per_count * pwm_period) << "Hz";
 
   pio_sm_init(pio, sm, offset, &c);
   pio_sm_set_consecutive_pindirs(pio, sm, hw.a1, 4, /*is_out=*/true);
@@ -86,12 +116,13 @@ void StepperMotor::Stop(bool brake) {
 void StepperMotor::InitCommands() {
   // We need the size of the table to be a power of 2 so ring DMA works.
   // TODO: consider increasing :)
+  // FIXME: check inter-phase timings!
   constexpr size_t kBufSize = 128;
-  constexpr int kCommandsPerOddPhase = kBufSize / 4;
+  constexpr int kCommandsPerPhase = kBufSize / 4;
   commands_.clear();
   commands_.reserve(kBufSize);
   VLOG(1) << "kBufSize = " << kBufSize;
-  VLOG(1) << "kCommandsPerOddPhase = " << kCommandsPerOddPhase;
+  VLOG(1) << "kCommandsPerOddPhase = " << kCommandsPerPhase;
   VLOG(1) << "pwm_period = " << pwm_period_;
 
   const auto push = [this](uint8_t t1_duration, uint8_t t2_t3_duration,
@@ -107,7 +138,7 @@ void StepperMotor::InitCommands() {
   };
   const uint16_t kSinMax = 65535;
   const auto sine = [](uint8_t command_index) -> uint16_t {
-    int i = (command_index * kSinTableSize) / kCommandsPerOddPhase;
+    int i = (command_index * kSinTableSize) / kCommandsPerPhase;
     if (i == kSinTableSize) return kSinMax;
     return kSinTable[i];
   };
@@ -141,11 +172,11 @@ void StepperMotor::InitCommands() {
     // remainder of period, both low
     uint8_t pins_t4 = pins_t2 & pins_t3;
     // weow...
-    for (uint8_t i = 0; i < kCommandsPerOddPhase; ++i) {
+    for (uint8_t i = 0; i < kCommandsPerPhase; ++i) {
       // duty cycle for A and B pins
       int da = (pwm_period_ * (kSinMax - sine(i))) / kSinMax;
       int db =
-          (pwm_period_ * (kSinMax - sine(kCommandsPerOddPhase - i))) / kSinMax;
+          (pwm_period_ * (kSinMax - sine(kCommandsPerPhase - i))) / kSinMax;
       if (polarity) std::swap(da, db);
       int t1_duration = std::min(da, db);
       int t2_t3_duration = std::abs(da - db);
@@ -157,7 +188,7 @@ void StepperMotor::InitCommands() {
               << " db=" << db << " t1_duration=" << t1_duration
               << " t2_t3_duration=" << t2_t3_duration;
       push(t1_duration, t2_t3_duration,
-           (i < (kCommandsPerOddPhase / 2)) ? pins_t2 : pins_t3, pins_t4);
+           (i < (kCommandsPerPhase / 2)) ? pins_t2 : pins_t3, pins_t4);
     }
   }
   CHECK_EQ(kBufSize, commands_.size());
@@ -166,18 +197,16 @@ void StepperMotor::InitCommands() {
 }
 
 void StepperMotor::RunPioTest() {
-  for (int j = 0; j < 1; ++j) {
-    for (size_t i = 0; i < commands_.size(); ++i) {
-      if (pio_sm_is_tx_fifo_full(pio_, sm_)) {
-        LOG(ERROR) << "tx fifo full";
-        return;
-      }
-      VLOG(1) << "i=" << i << " command=0x" << std::hex << commands_[i];
-      pio_->txf[sm_] = commands_[i];
-      vTaskDelay(5);
+  for (size_t i = 0; i < commands_.size(); ++i) {
+    if (pio_sm_is_tx_fifo_full(pio_, sm_)) {
+      LOG(ERROR) << "tx fifo full";
+      return;
     }
-    pio_->txf[sm_] = commands_[0];
+    VLOG(1) << "i=" << i << " command=0x" << std::hex << commands_[i];
+    pio_->txf[sm_] = commands_[i];
+    vTaskDelay(5);
   }
+  Stop(1);
 }
 
 }  // namespace tplp

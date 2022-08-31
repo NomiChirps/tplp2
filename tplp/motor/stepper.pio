@@ -26,18 +26,6 @@
 ; 7   ^   up  255   ^   255 dn
 ;     wrap around   wrap around
 
-
-; XXX: ok... it's 1:30am... but i think this will work...
-; should have no glitches. not sure if branch timings need adjusting.
-; indicate zero t1 time by setting t1:=pwm_period.
-; indicate zero t2_t3 time by setting t2_t3:=t1
-; t4 time is the remainder. skip t4 by setting t2_t3:=0.
-; NOTA BENE: i use t1/t2/t3/t4 ambiguously, to mean either:
-;       1. a duration
-;       2. a timestamp (value between 0 and pwm_period inclusive).
-; TODO: characterize what the non-loop instructions mean w.r.t.
-;       the pwm cycle. we may need to adjust t1/t2/t3/t4 when
-;       generating commands.
 .wrap_target
     ; NB: "A MOV to the OSR may overwrite data which has just been autopulled"
     pull noblock

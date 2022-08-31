@@ -104,7 +104,7 @@ void StartupTask(void*) {
       .a2 = Pins::MOTOR_A_A2,
       .b1 = Pins::MOTOR_A_B1,
       .b2 = Pins::MOTOR_A_B2,
-      .pwm_freq_hz = 100'000,
+      .pwm_freq_hz = 25'000,
   }));
   StepperMotor* motor_b = nullptr;
 
