@@ -14,7 +14,7 @@
 #include "tplp/adafruit_seesaw/adafruit_seesaw.h"
 #include "tplp/bus/i2c.h"
 #include "tplp/bus/spi.h"
-#include "tplp/config/pins.h"
+#include "tplp/config/hw.h"
 #include "tplp/config/tasks.h"
 #include "tplp/graphics/lvgl_init.h"
 #include "tplp/hx711/hx711.h"
@@ -34,13 +34,9 @@ void StartupTask(void*) {
   }
   LOG(INFO) << "Begin startup...";
 
-  // Overclocking! Whoo! Doubling the nominal frequency seems to work on my
-  // breadboard, surprisingly. But let's leave it for now...
-  // const int kSpi1Frequency = 32'000'000;
-  const int kSpi1Frequency = HX8357::kNominalMaxSpiFrequency;
   DmaController* dma1_controller0 = DmaController::Init(kDma1);
   SpiController* spi1_manager =
-      SpiController::Init(spi1, kSpi1Frequency, Pins::SPI1_SCLK,
+      SpiController::Init(spi1, Frequencies::kSpi1, Pins::SPI1_SCLK,
                           Pins::SPI1_MOSI, Pins::SPI1_MISO, dma1_controller0);
   LOG(INFO) << "SpiController::Init() OK";
 
@@ -59,7 +55,7 @@ void StartupTask(void*) {
   I2cController* i2c0_controller =
       I2cController::Init(dma0_controller0, TaskPriorities::kI2cController0,
                           TaskStacks::kI2cController, i2c0, Pins::I2C0_SCL,
-                          Pins::I2C0_SDA, 100'000);
+                          Pins::I2C0_SDA, Frequencies::kI2c0);
 
   // Run a quick bus scan.
   {
@@ -99,13 +95,12 @@ void StartupTask(void*) {
   HX711* load_cell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
 
   // Steppies!
-  StepperMotor* motor_a = CHECK_NOTNULL(StepperMotor::Init(pio1, {
-      .a1 = Pins::MOTOR_A_A1,
-      .a2 = Pins::MOTOR_A_A2,
-      .b1 = Pins::MOTOR_A_B1,
-      .b2 = Pins::MOTOR_A_B2,
-      .pwm_freq_hz = 25'000,
-  }));
+  StepperMotor* motor_a = CHECK_NOTNULL(StepperMotor::Init(
+      pio1, {.a1 = Pins::MOTOR_A_A1,
+             .a2 = Pins::MOTOR_A_A2,
+             .b1 = Pins::MOTOR_A_B1,
+             .b2 = Pins::MOTOR_A_B2,
+             .pwm_freq_hz = Frequencies::kStepperMotorPwm}));
   StepperMotor* motor_b = nullptr;
 
   // Create GUI screens.

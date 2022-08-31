@@ -20,6 +20,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
 - [ ] Begin() Setup() Init(), **PICK ONE**
 - [ ] alright fine let's get StrCat in here sheeeeesh
 - [ ] Milestone: Paper Tensioning

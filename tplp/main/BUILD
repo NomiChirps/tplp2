@@ -24,7 +24,7 @@ cc_library(
         "//tplp/adafruit_seesaw",
         "//tplp/bus:i2c",
         "//tplp/bus:spi",
-        "//tplp/config:pins",
+        "//tplp/config:hw",
         "//tplp/config:tasks",
         "//tplp/graphics:lvgl_init",
         "//tplp/hx711",

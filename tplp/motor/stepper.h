@@ -96,11 +96,11 @@ class StepperMotor {
 
   enum class StopType {
     // Motor coils remain energized to whatever state they were in
-    // at the time of the stop. High holding torque.
+    // at the time of the stop. High torque.
     HOLD,
-    // Motor coils are shorted together. Medium-low holding torque.
+    // Motor coils are shorted together. Medium-low torque.
     SHORT_BRAKE,
-    // Motor outputs are set to high impedance. Lowest holding torque.
+    // Motor outputs are set to high impedance. Lowest torque.
     FREEWHEEL
   };
   // Abort any move in progress and apply the given stop type.

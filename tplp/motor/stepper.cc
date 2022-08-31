@@ -162,6 +162,17 @@ void StepperMotor::InitCommands() {
     uint8_t pins_t2 = 0;  // first half of period
     uint8_t pins_t3 = 0;  // second half of period
     bool polarity = 0;
+    // This corresponds to the full-step cycle:
+    //    0b0111
+    //    0b1101
+    //    0b1011
+    //    0b1110
+    // TODO: think about an alternate table, defaulting to freewheel instead of short-brake?
+    // does this make any sense at all? basically inverted...
+    //    0b1000
+    //    0b0010
+    //    0b0100
+    //    0b0001
     switch (phase) {
       case 0:
         pins_t2 = 0b0111;

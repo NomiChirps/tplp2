@@ -6,6 +6,19 @@
 
 namespace tplp {
 
+struct Frequencies {
+  // TODO: see about increasing it. TB6612 wasn't happy @ 100kHz.
+  static constexpr int kStepperMotorPwm = 25'000;
+
+  // HX8357 display is on SPI1 and is rated for 16MHz, although it can
+  // be overclocked significantly faster.
+  static constexpr int kSpi1 = 16'000'000;
+
+  // With I2cController in the disgraceful state it's in,
+  // no other value seems to work.
+  static constexpr int kI2c0 = 100'000;
+};
+
 struct Pins {
 #if defined(ADAFRUIT_FEATHER_RP2040)
   // See also: https://learn.adafruit.com/adafruit-feather-rp2040-pico/pinouts

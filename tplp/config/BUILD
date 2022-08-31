@@ -1,7 +1,7 @@
 cc_library(
-    name = "pins",
-    hdrs = ["pins.h"],
-    # For loose coupling reasons, only the startup task should have direct references to all the pin assignments.
+    name = "hw",
+    hdrs = ["hw.h"],
+    # For loose coupling reasons, only the startup task should have direct references to hardware parameters.
     visibility = ["//tplp/main:__pkg__"],
     deps = [
         "//tplp/bus:types",
