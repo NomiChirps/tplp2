@@ -12,7 +12,7 @@ cc_library(
         "//tplp/SharpLCD",
         "//tplp/SharpLCD:lvgl_driver",
         "//tplp/TSC2007",
-        "//tplp/TSC2007:lvgl_driver",
+        "//tplp/TSC2007:tsc2007_lvgl_driver",
         "//tplp/adafruit_seesaw",
         "//tplp/adafruit_seesaw:4991_lvgl_driver",
         "@FreeRTOS",

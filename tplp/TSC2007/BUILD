@@ -14,9 +14,9 @@ cc_library(
 )
 
 cc_library(
-    name = "lvgl_driver",
-    srcs = ["lvgl_driver.cc"],
-    hdrs = ["lvgl_driver.h"],
+    name = "tsc2007_lvgl_driver",
+    srcs = ["tsc2007_lvgl_driver.cc"],
+    hdrs = ["tsc2007_lvgl_driver.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":TSC2007",

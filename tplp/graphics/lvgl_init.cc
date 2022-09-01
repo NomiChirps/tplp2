@@ -8,7 +8,7 @@
 #include "picolog/picolog.h"
 #include "tplp/HX8357/lvgl_driver.h"
 #include "tplp/SharpLCD/lvgl_driver.h"
-#include "tplp/TSC2007/lvgl_driver.h"
+#include "tplp/TSC2007/tsc2007_lvgl_driver.h"
 #include "tplp/adafruit_seesaw/4991_lvgl_driver.h"
 #include "tplp/graphics/lvgl_mutex.h"
 #include "tplp/graphics/mouse_cursor_icon.h"

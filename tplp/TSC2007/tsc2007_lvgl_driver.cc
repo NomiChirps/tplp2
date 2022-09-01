@@ -1,4 +1,4 @@
-#include "tplp/TSC2007/lvgl_driver.h"
+#include "tplp/TSC2007/tsc2007_lvgl_driver.h"
 
 #include "picolog/picolog.h"
 #include "tplp/TSC2007/TSC2007.h"

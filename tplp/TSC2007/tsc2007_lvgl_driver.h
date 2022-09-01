@@ -1,5 +1,5 @@
-#ifndef TPLP_TSC2007_LVGL_DRIVER_H_
-#define TPLP_TSC2007_LVGL_DRIVER_H_
+#ifndef TPLP_TSC2007_TSC2007_LVGL_DRIVER_H_
+#define TPLP_TSC2007_TSC2007_LVGL_DRIVER_H_
 
 #include "lvgl/lvgl.h"
 #include "tplp/TSC2007/TSC2007.h"
@@ -10,4 +10,4 @@ lv_indev_t* RegisterInputDevice_TSC2007(TSC2007* touchscreen);
 
 }  // namespace tplp
 
-#endif  // TPLP_TSC2007_LVGL_DRIVER_H_
+#endif  // TPLP_TSC2007_TSC2007_LVGL_DRIVER_H_
