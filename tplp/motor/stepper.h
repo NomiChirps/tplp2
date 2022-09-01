@@ -36,28 +36,41 @@ class StepperMotor {
 
   void RunPioTest();
 
-  // Step forward or backward by a certain number of microsteps.
-  // Does nothing if a move is currently in progress.
-  // Does nothing if count==0.
+  // Step forward or backward by a certain number of microsteps. This triggers a
+  // DMA transfer to send commands to the motor and returns immediately, without
+  // waiting for the motor to finish moving. Does nothing if a move is currently
+  // in progress. Does nothing if count==0.
   // TODO: might it be useful to queue up moves?
+  // TODO: might it be useful to block until done, or have a callback?
   void Move(int32_t count);
 
   bool moving() const { return !current_move_handle_.finished(); }
 
+  struct ClockDivider {
+    uint16_t num;
+    uint16_t den;
+  };
+
   // Set the speed of the next move, or change the speed of a move currently
-  // in progress. This value is in units of microsteps per second.
-  // You can't set a negative speed; move by a negative step count instead.
-  // Setting the speed to zero is an error.
+  // in progress. Use `CalculateClockDivider` to get an appropriate value for
+  // clkdiv.
+  void SetSpeed(ClockDivider clkdiv);
+
+  // After Init(), returns the minimum achievable microstep rate.
+  static uint32_t microstep_hz_min();
+  // After Init(), returns the maximum achievable microstep rate.
+  static uint32_t microstep_hz_max();
+
+  // Calculates the clock divider value which most closely approximates the
+  // given frequency, in units of microsteps per second. The frequency must be
+  // positive. This is a complicated calculation and could take up to a few
+  // hundred cycles.
   //
-  // Returns true if successful, false if the given value is out of range.
-  // In that case the speed will be unchanged.
+  // Returns true if successful, false if the given value is outside of the
+  // range given by `microstep_hz_min` and `microstep_hz_max`.
   //
-  // FIXME: problem with this is it takes a while to calculate the clock
-  //        divider. there's a lot of mathematical anti-telharsic harfatum
-  //        septomin happening. might be worth building a lookup table!
-  bool SetSpeed(uint32_t microstep_hz);
-  uint32_t microstep_hz_min() const;
-  uint32_t microstep_hz_max() const;
+  // Not valid to call this before Init().
+  static bool CalculateClockDivider(int microstep_hz, ClockDivider* out_clkdiv);
 
   enum class StopType {
     // Motor coils remain energized to whatever state they were in
@@ -65,8 +78,6 @@ class StepperMotor {
     HOLD,
     // Motor coils are shorted together. Medium-low torque.
     SHORT_BRAKE,
-    // Motor outputs are set to high impedance. Lowest torque.
-    FREEWHEEL
   };
 
   // Abort any move in progress and apply the given stop type.
@@ -82,7 +93,6 @@ class StepperMotor {
   static int pio_clkdiv_frac_;
   static int pio_hz_;  // approximate clock speed
   static uint32_t shortbrake_command_;
-  static uint32_t freewheel_command_;
   // Command buffer MUST be aligned to its power-of-2 size in order for ring DMA
   // to function.
   [[gnu::aligned(

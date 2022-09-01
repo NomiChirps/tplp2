@@ -30,7 +30,6 @@ int StepperMotor::pio_clkdiv_int_ = 0;
 int StepperMotor::pio_clkdiv_frac_ = 0;
 int StepperMotor::pio_hz_ = 0;
 uint32_t StepperMotor::shortbrake_command_ = 0;
-uint32_t StepperMotor::freewheel_command_ = 0;
 uint32_t StepperMotor::commands_[kCommandBufLen] = {};
 
 StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
@@ -76,7 +75,10 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   self->program_offset_ = program_offset;
   self->dma_timer_num_ = dma_timer_num;
   self->dma_timer_dreq_ = dma_get_timer_dreq(dma_timer_num);
-  self->SetSpeed(self->microstep_hz_min());
+
+  ClockDivider clkdiv;
+  CHECK(self->CalculateClockDivider(self->microstep_hz_min(), &clkdiv));
+  self->SetSpeed(clkdiv);
 
   LOG(INFO) << "Stepper microstep_hz_min = " << self->microstep_hz_min()
             << " microstep_hz_max = " << self->microstep_hz_max();
@@ -88,7 +90,14 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   return self;
 }
 
-bool StepperMotor::SetSpeed(uint32_t microstep_hz) {
+void StepperMotor::SetSpeed(ClockDivider clkdiv) {
+  VLOG(1) << "SetSpeed( " << clkdiv.num << " / " << clkdiv.den << " ) ~ "
+          << clkdiv.num * (clock_get_hz(clk_sys) / clkdiv.den);
+  dma_timer_set_fraction(dma_timer_num_, clkdiv.num, clkdiv.den);
+}
+
+bool StepperMotor::CalculateClockDivider(int microstep_hz,
+                                         ClockDivider* out_clkdiv) {
   constexpr int kMaxCf = 8;
   const uint32_t sys_hz = clock_get_hz(clk_sys);
   if (microstep_hz >= sys_hz) {
@@ -163,20 +172,21 @@ bool StepperMotor::SetSpeed(uint32_t microstep_hz) {
 
   // See comment at declaration of x and y.
   std::swap(approx_num, approx_den);
-  VLOG(1) << "SetSpeed(" << microstep_hz << ") setting clock divider to "
-          << approx_num << " / " << approx_den << "; error ~ "
+  VLOG(1) << "CalculateClockDivider(" << microstep_hz << ") == " << approx_num
+          << " / " << approx_den << "; error ~ "
           << (approx_num * (sys_hz / approx_den)) - microstep_hz << "Hz";
-  dma_timer_set_fraction(dma_timer_num_, approx_num, approx_den);
+  out_clkdiv->num = approx_num;
+  out_clkdiv->den = approx_den;
   return true;
 }
 
-uint32_t StepperMotor::microstep_hz_min() const {
+uint32_t StepperMotor::microstep_hz_min() {
   const uint32_t sys_hz = clock_get_hz(clk_sys);
   // Clock divider on the DMA timer is 16 bits.
   return sys_hz / 65535 + (sys_hz / 65535 ? 1 : 0);
 }
 
-uint32_t StepperMotor::microstep_hz_max() const {
+uint32_t StepperMotor::microstep_hz_max() {
   // DMA can send commands as fast as 1 per system clock cycle,
   // but the PIO program is much slower and only checks for new
   // commands between PWM periods.
@@ -248,9 +258,6 @@ void StepperMotor::Stop(StopType type) {
       break;
     case StopType::SHORT_BRAKE:
       SendImmediateCommand(shortbrake_command_);
-      break;
-    case StopType::FREEWHEEL:
-      SendImmediateCommand(freewheel_command_);
       break;
   }
 }
@@ -405,7 +412,6 @@ void StepperMotor::StaticInit_Commands() {
 
   // Auxiliary commands.
   shortbrake_command_ = make_command(pwm_period_, pwm_period_, 0, 0b1111, 0);
-  freewheel_command_ = make_command(pwm_period_, pwm_period_, 0, 0b0000, 0);
 }
 
 void StepperMotor::RunPioTest() {
