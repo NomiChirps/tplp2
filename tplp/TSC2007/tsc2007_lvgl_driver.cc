@@ -2,9 +2,20 @@
 
 #include "picolog/picolog.h"
 #include "tplp/TSC2007/TSC2007.h"
+#include "tplp/config/params.h"
 
 namespace tplp {
 namespace {
+
+int CalculatePressure(int x, int y, int z1, int z2) {
+  // Formula (1) from TSC2007 data sheet.
+  return ((params::kTouchscreenResistanceOhmsX * x * z2) / z1 -
+          params::kTouchscreenResistanceOhmsX * x) /
+         4096;
+}
+
+// TODO: check adafruit tsc2007 impl for reliability tips (shocker)
+// https://github.com/adafruit/Adafruit_TouchScreen/blob/master/TouchScreen.cpp
 void read_cb_impl(lv_indev_drv_t* driver, lv_indev_data_t* data) {
   lv_coord_t hor_res = lv_disp_get_physical_hor_res(driver->disp);
   lv_coord_t ver_res = lv_disp_get_physical_ver_res(driver->disp);
@@ -12,16 +23,19 @@ void read_cb_impl(lv_indev_drv_t* driver, lv_indev_data_t* data) {
   int16_t x, y, z1, z2;
   util::Status status = touchscreen->ReadPosition(&x, &y, &z1, &z2);
   if (!status.ok()) {
-    // snap back to the middle of the screen to hopefully make it obvious something wrong happened
-    data->point.x = hor_res/2;
-    data->point.y = ver_res/2;
+    // snap back to the middle of the screen to hopefully make it obvious
+    // something wrong happened
+    data->point.x = hor_res / 2;
+    data->point.y = ver_res / 2;
     data->state = LV_INDEV_STATE_RELEASED;
     LOG(ERROR) << "Failed to read touchscreen: " << status;
     return;
   }
-  const int pressure_threshold = 20;
-  if (z1 < pressure_threshold || z2 < pressure_threshold) {
-    // Don't change x and y; those values are garbage when pressure is zero.
+  int pressure = CalculatePressure(x, y, z1, z2);
+  VLOG(1) << x << "," << y << " " << z1 << ":" << z2
+          << " pressure=" << pressure;
+  if (pressure < 0) {
+    // Don't change x and y; these values are garbage when there's no touch.
     data->state = LV_INDEV_STATE_RELEASED;
     return;
   } else {
@@ -29,17 +43,17 @@ void read_cb_impl(lv_indev_drv_t* driver, lv_indev_data_t* data) {
   }
 
   // Transform determined empirically.
-  VLOG(1) << x << "," << y << " " << z1 << ":" << z2;
   // Turns out also that x is vertical and y is horizontal.
-  // FIXME: we need to get this from the display's rotation setting
+  // TODO: we need to get this from the display's rotation setting
   const int min_x = 300;
   const int max_x = 3700;
   const int min_y = 200;
   const int max_y = 3860;
-  x = ((x - min_x)*ver_res)/(max_x - min_x);
-  y = ((y - min_y)*hor_res)/(max_y - min_y);
-  data->point.x = std::max<int16_t>(0, std::min<int16_t>(hor_res-1, y));
-  data->point.y = std::max<int16_t>(0, std::min<int16_t>(ver_res-1, ver_res - x));
+  x = ((x - min_x) * ver_res) / (max_x - min_x);
+  y = ((y - min_y) * hor_res) / (max_y - min_y);
+  data->point.x = std::max<int16_t>(0, std::min<int16_t>(hor_res - 1, y));
+  data->point.y =
+      std::max<int16_t>(0, std::min<int16_t>(ver_res - 1, ver_res - x));
 
   // TODO: provide buffering
   // "By default, LVGL calls read_cb periodically. Because of this intermittent
