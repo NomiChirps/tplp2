@@ -36,23 +36,28 @@ class DmaController {
   struct Request {
     bool c0_enable = false;
     // Default value of 0x3f means an unpaced transfer.
-    uint32_t c0_treq_sel = 0x3f;
+    uint8_t c0_treq_sel = 0x3f;
     volatile const void* c0_read_addr = nullptr;
     bool c0_read_incr = true;
     volatile void* c0_write_addr = nullptr;
     bool c0_write_incr = true;
     DataSize c0_data_size = DataSize::k8;
     size_t c0_trans_count = 0;
+    uint8_t c0_ring_size = 0;
+    // 0 = read wrap, 1 = write wrap
+    bool c0_ring_sel = false;
 
     bool c1_enable = false;
     // Default value of 0x3f means an unpaced transfer.
-    uint32_t c1_treq_sel = 0x3f;
+    uint8_t c1_treq_sel = 0x3f;
     volatile const void* c1_read_addr = nullptr;
     bool c1_read_incr = true;
     volatile void* c1_write_addr = nullptr;
     bool c1_write_incr = true;
     DataSize c1_data_size = DataSize::k8;
     size_t c1_trans_count = 0;
+    uint8_t c1_ring_size = 0;
+    bool c1_ring_sel = false;
 
     // Action to take from the interrupt handler when c0 is finished.
     std::optional<Action> c0_action;
@@ -65,12 +70,13 @@ class DmaController {
 
   class TransferHandle {
    public:
-    // Returns true if this transfer has started or finished;
+    // Returns true if this transfer has started or finished or aborted;
     // false if it's still queued.
     bool started() const { return id_ <= dma_->completed_transfers_count_; }
     // Returns true if this transfer has finished or aborted.
     bool finished() const { return id_ < dma_->completed_transfers_count_; }
 
+    // TODO: allow aborting queued transfer
     // Attempts to abort the transfer if it has started. Aborting a queued but
     // not started transfer is not supported and will CHECK-fail. If the
     // transfer has already finished, does nothing. An aborted transfer may or
@@ -80,14 +86,19 @@ class DmaController {
     // Note that this temporarily disables DMA interrupts for the pair of
     // channels managed by this DmaController and may busy-wait for a short
     // time.
-    void Abort();
+    //
+    // There is no guarantee about whether or not any configured
+    // DmaController::Action will be executed for an aborted transaction.
+    //
+    // Returns the remaining trans_count for each channel.
+    std::array<uint32_t, 2> Abort();
 
    private:
     friend class DmaController;
     TransferHandle(DmaController* dma, uint32_t id) : dma_(dma), id_(id) {}
 
-    DmaController* const dma_;
-    const uint32_t id_;
+    DmaController* dma_;
+    uint32_t id_;
   };
 
   // Queues up a DMA with the given configuration.

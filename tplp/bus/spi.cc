@@ -136,14 +136,14 @@ void SpiTransaction::Transfer(const TransferConfig& req) {
   DmaController::Request dma_req{
       // Both are always enabled, since our transfers are always full-duplex.
       .c0_enable = true,
-      .c0_treq_sel = spi_get_dreq(spi_, true),
+      .c0_treq_sel = (uint8_t)spi_get_dreq(spi_, true),
       .c0_write_addr = spi_dr,
       .c0_write_incr = false,
       .c0_data_size = DmaController::DataSize::k8,
       .c0_trans_count = req.trans_count,
 
       .c1_enable = true,
-      .c1_treq_sel = spi_get_dreq(spi_, false),
+      .c1_treq_sel = (uint8_t)spi_get_dreq(spi_, false),
       .c1_read_addr = spi_dr,
       .c1_read_incr = false,
       .c1_data_size = DmaController::DataSize::k8,

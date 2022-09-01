@@ -11,6 +11,7 @@ cc_library(
     deps = [
         ":sin_table",
         "//picolog",
+        "//tplp/bus:dma",
         "//tplp/bus:types",
         "@rules_pico//pico:hardware_clocks",
         "@rules_pico//pico:hardware_gpio",

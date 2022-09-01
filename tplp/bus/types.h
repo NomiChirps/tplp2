@@ -13,7 +13,7 @@ using gpio_pin_t = fluent::NamedType<unsigned int, struct GpioPinTag,
 using dma_channel_t =
     fluent::NamedType<int, struct DmaChannelTag, fluent::FunctionCallable>;
 
-// Either 0 or 1, referring to the DMA unit.
+// Either 0 or 1, referring to one of the two available DMA IRQ numbers.
 using dma_irq_index_t =
     fluent::NamedType<bool, struct DmaIrqIndexTag, fluent::FunctionCallable>;
 

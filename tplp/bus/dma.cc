@@ -187,11 +187,9 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
   tail->c1_done = !req.c1_enable;
 
   dma_channel_config c = {};
-  // Common options
-  channel_config_set_ring(&c, false, 0);
+  // Options not (yet?) exposed in the Request struct.
   channel_config_set_bswap(&c, false);
   channel_config_set_irq_quiet(&c, false);
-  channel_config_set_enable(&c, true);
   channel_config_set_sniff_enable(&c, false);
   channel_config_set_high_priority(&c, false);
 
@@ -206,12 +204,14 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
   if (req.c0_enable) {
     CHECK_GT(req.c0_trans_count, 0u)
         << "enabled channel must have a nonzero trans_count";
+    channel_config_set_enable(&c, req.c0_enable);
     channel_config_set_read_increment(&c, req.c0_read_incr);
     channel_config_set_write_increment(&c, req.c0_write_incr);
     channel_config_set_dreq(&c, req.c0_treq_sel);
     channel_config_set_chain_to(&c, c0_);  // self-chain disables it
     channel_config_set_transfer_data_size(
         &c, static_cast<dma_channel_transfer_size>(req.c0_data_size));
+    channel_config_set_ring(&c, req.c0_ring_sel, req.c0_ring_size);
     CHECK(req.c0_read_addr);
     CHECK(req.c0_write_addr);
     tail->c0_config[0] = reinterpret_cast<uint32_t>(req.c0_read_addr);
@@ -224,12 +224,14 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
   if (req.c1_enable) {
     CHECK_GT(req.c1_trans_count, 0u)
         << "enabled channel must have a nonzero trans_count";
+    channel_config_set_enable(&c, req.c1_enable);
     channel_config_set_read_increment(&c, req.c1_read_incr);
     channel_config_set_write_increment(&c, req.c1_write_incr);
     channel_config_set_dreq(&c, req.c1_treq_sel);
     channel_config_set_chain_to(&c, c1_);  // self-chain disables it
     channel_config_set_transfer_data_size(
         &c, static_cast<dma_channel_transfer_size>(req.c1_data_size));
+    channel_config_set_ring(&c, req.c1_ring_sel, req.c1_ring_size);
     CHECK(req.c1_read_addr);
     CHECK(req.c1_write_addr);
     tail->c1_config[0] = reinterpret_cast<uint32_t>(req.c1_read_addr);
@@ -266,45 +268,62 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
   return handle;
 }
 
-void DmaController::TransferHandle::Abort() {
+std::array<uint32_t, 2> DmaController::TransferHandle::Abort() {
   if (finished()) {
     VLOG(1) << "Abort: already finished";
-    return;
+    return {0, 0};
   }
   CHECK(started())
       << "Aborting a queued but not started transfer is not supported";
-  // Disable interrupts (narrowly)
-  dma_irqn_set_channel_enabled(dma_->irq_index_, dma_->c0_, false);
-  dma_irqn_set_channel_enabled(dma_->irq_index_, dma_->c1_, false);
+  const uint32_t channels_mask = (1u << dma_->c0_) | (1u << dma_->c1_);
+  volatile uint32_t* const inte = dma_->irq_index_ ? &dma_hw->inte1 : &dma_hw->inte0;
+  volatile uint32_t* const ints = dma_->irq_index_ ? &dma_hw->ints1 : &dma_hw->ints0;
+  std::array<uint32_t, 2> remaining_trans_count;
+  // "Due to RP2040-E13, aborting a DMA channel that is making progress (i.e.
+  // not stalled on an inactive DREQ) may cause a completion IRQ to assert. The
+  // channel interrupt enable should be cleared before performing the abort, and
+  // the interrupt should be checked and cleared after the abort."
+  // Disable channel interrupts.
+  hw_clear_bits(inte, channels_mask);
   if (finished()) {
     VLOG(1) << "Abort: already finished";
-    // Nothing to do already!
-  } else {
-    // NB: dma_channel_abort busy-waits!
-    dma_channel_abort(dma_->c0_);
-    dma_channel_abort(dma_->c1_);
-    // Clear spurious completion interrupts (errata RP2040-E13)
-    dma_irqn_acknowledge_channel(dma_->irq_index_, dma_->c0_);
-    dma_irqn_acknowledge_channel(dma_->irq_index_, dma_->c1_);
-    // Skip this transfer's actions, but launch the next one if necessary
-    // TODO: address code duplication between here and the ISR
-    dma_->head_ = dma_->RingNext(dma_->head_);
-    if (dma_->head_->launch_ready) {
-      VLOG(1) << "Abort: launching next in queue";
-      ConfigureAndLaunchImmediately(
-          dma_->c0_, dma_->head_->c0_enable, dma_->head_->c0_config, dma_->c1_,
-          dma_->head_->c1_enable, dma_->head_->c1_config);
-    } else {
-      VLOG(1) << "Abort: reached end of queue";
-      // Reached the end of the queue.
-      dma_->active_ = false;
-    }
-    dma_->completed_transfers_count_++;
-    xSemaphoreGive(dma_->free_slots_sem_);
+    return {0, 0};
   }
-  // Reenable interrupts
-  dma_irqn_set_channel_enabled(dma_->irq_index_, dma_->c0_, true);
-  dma_irqn_set_channel_enabled(dma_->irq_index_, dma_->c1_, true);
+  // Abort channels simultaneously.
+  dma_hw->abort = (1u << dma_->c0_) | (1u << dma_->c1_);
+  // Bit will go 0 once channel has reached safe state
+  // (i.e. any in-flight transfers have retired)
+  while (dma_hw->ch[dma_->c0_].ctrl_trig & DMA_CH0_CTRL_TRIG_BUSY_BITS) {
+    tight_loop_contents();
+  }
+  while (dma_hw->ch[dma_->c1_].ctrl_trig & DMA_CH0_CTRL_TRIG_BUSY_BITS) {
+    tight_loop_contents();
+  }
+  // Clear spurious completion interrupts (errata RP2040-E13)
+  *ints = channels_mask;
+  remaining_trans_count[0] = dma_channel_hw_addr(dma_->c0_)->transfer_count;
+  remaining_trans_count[1] = dma_channel_hw_addr(dma_->c1_)->transfer_count;
+  VLOG(1) << "Abort() remaining_trans_count = " << remaining_trans_count[0]
+          << ", " << remaining_trans_count[1];
+  // Skip this transfer's actions, but launch the next one if necessary
+  // TODO: address code duplication between here and the ISR
+  dma_->head_ = dma_->RingNext(dma_->head_);
+  if (dma_->head_->launch_ready) {
+    VLOG(1) << "Abort: launching next in queue";
+    ConfigureAndLaunchImmediately(
+        dma_->c0_, dma_->head_->c0_enable, dma_->head_->c0_config, dma_->c1_,
+        dma_->head_->c1_enable, dma_->head_->c1_config);
+  } else {
+    VLOG(1) << "Abort: reached end of queue";
+    // Reached the end of the queue.
+    dma_->active_ = false;
+  }
+  dma_->completed_transfers_count_++;
+  xSemaphoreGive(dma_->free_slots_sem_);
+
+  // Re-enable interrupt
+  hw_set_bits(inte, channels_mask);
+  return remaining_trans_count;
 }
 
 int DmaController::PeekQueueLength() const {

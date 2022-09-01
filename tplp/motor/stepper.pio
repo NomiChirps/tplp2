@@ -12,6 +12,7 @@
 ; Be sure to put an initial command in the FIFO before starting the SM.
 ;
 .program stepper
+; TODO: figure out how i wanna tune this
 .define public loop_delay 7
 .define public instructions_per_count (loop_delay+2)
 

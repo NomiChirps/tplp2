@@ -34,10 +34,19 @@ void StartupTask(void*) {
   }
   LOG(INFO) << "Begin startup...";
 
-  DmaController* dma1_controller0 = DmaController::Init(kDma1);
+  // DMA allocations:
+  // I2C0
+  // FIXME: I2cController is incredibly fragile and requires its own DMA IRQ.
+  DmaController* dma_i2c0 = DmaController::Init(kDma1);
+  // SPI1
+  DmaController* dma_spi1 = DmaController::Init(kDma0);
+  // Stepper motors
+  DmaController* dma_stepper_a = DmaController::Init(kDma0);
+  DmaController* dma_stepper_b = DmaController::Init(kDma0);
+
   SpiController* spi1_manager =
       SpiController::Init(spi1, Frequencies::kSpi1, Pins::SPI1_SCLK,
-                          Pins::SPI1_MOSI, Pins::SPI1_MISO, dma1_controller0);
+                          Pins::SPI1_MOSI, Pins::SPI1_MISO, dma_spi1);
   LOG(INFO) << "SpiController::Init() OK";
 
   HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
@@ -51,11 +60,9 @@ void StartupTask(void*) {
   display->SetRotation(0, 1, 1);
   LOG(INFO) << "HX8357 setup OK";
 
-  DmaController* dma0_controller0 = DmaController::Init(kDma0);
-  I2cController* i2c0_controller =
-      I2cController::Init(dma0_controller0, TaskPriorities::kI2cController0,
-                          TaskStacks::kI2cController, i2c0, Pins::I2C0_SCL,
-                          Pins::I2C0_SDA, Frequencies::kI2c0);
+  I2cController* i2c0_controller = I2cController::Init(
+      dma_i2c0, TaskPriorities::kI2cController0, TaskStacks::kI2cController,
+      i2c0, Pins::I2C0_SCL, Pins::I2C0_SDA, Frequencies::kI2c0);
 
   // Run a quick bus scan.
   {
@@ -95,12 +102,12 @@ void StartupTask(void*) {
   HX711* load_cell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
 
   // Steppies!
-  StepperMotor* motor_a = CHECK_NOTNULL(StepperMotor::Init(
-      pio1, {.a1 = Pins::MOTOR_A_A1,
-             .a2 = Pins::MOTOR_A_A2,
-             .b1 = Pins::MOTOR_A_B1,
-             .b2 = Pins::MOTOR_A_B2,
-             .pwm_freq_hz = Frequencies::kStepperMotorPwm}));
+  StepperMotor* motor_a =
+      CHECK_NOTNULL(StepperMotor::Init(dma_stepper_a, pio1,
+                                       {.a1 = Pins::MOTOR_A_A1,
+                                        .a2 = Pins::MOTOR_A_A2,
+                                        .b1 = Pins::MOTOR_A_B1,
+                                        .b2 = Pins::MOTOR_A_B2}));
   StepperMotor* motor_b = nullptr;
 
   // Create GUI screens.

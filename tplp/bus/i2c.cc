@@ -441,7 +441,7 @@ void I2cController::DoTransfer(const Event& event) {
   auto transfer_handle = dma_->Transfer({
       // TX channel
       .c0_enable = true,
-      .c0_treq_sel = i2c_get_dreq(i2c_, /*is_tx=*/true),
+      .c0_treq_sel = (uint8_t)i2c_get_dreq(i2c_, /*is_tx=*/true),
       .c0_read_addr = cmd_buf,
       .c0_read_incr = true,
       .c0_write_addr = &hw->data_cmd,
@@ -452,7 +452,7 @@ void I2cController::DoTransfer(const Event& event) {
 
       // RX channel
       .c1_enable = event.tag == Event::Tag::READ,
-      .c1_treq_sel = i2c_get_dreq(i2c_, /*is_tx=*/false),
+      .c1_treq_sel = (uint8_t)i2c_get_dreq(i2c_, /*is_tx=*/false),
       .c1_read_addr = &hw->data_cmd,
       .c1_read_incr = false,
       .c1_write_addr = event.buf,
