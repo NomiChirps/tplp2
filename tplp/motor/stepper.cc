@@ -80,8 +80,8 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   CHECK(self->CalculateClockDivider(self->microstep_hz_min(), &clkdiv));
   self->SetSpeed(clkdiv);
 
-  LOG(INFO) << "Stepper microstep_hz_min = " << self->microstep_hz_min()
-            << " microstep_hz_max = " << self->microstep_hz_max();
+  LOG(INFO) << "StepperMotor microstep_hz_min = " << self->microstep_hz_min()
+            << ", microstep_hz_max = " << self->microstep_hz_max();
 
   // Put a safe initial command into the FIFO before starting the state machine.
   self->SendImmediateCommand(self->shortbrake_command_);
@@ -99,7 +99,7 @@ void StepperMotor::SetSpeed(ClockDivider clkdiv) {
 bool StepperMotor::CalculateClockDivider(int microstep_hz,
                                          ClockDivider* out_clkdiv) {
   constexpr int kMaxCf = 8;
-  const uint32_t sys_hz = clock_get_hz(clk_sys);
+  const int sys_hz = clock_get_hz(clk_sys);
   if (microstep_hz >= sys_hz) {
     LOG(ERROR) << "Cannot step faster than the system clock. Requested "
                   "microstep_hz = "
@@ -208,15 +208,16 @@ StepperMotor::StepperMotor(DmaController* dma)
   offset_after_move_ = 0;
 }
 
-void StepperMotor::Move(int32_t count) {
-  VLOG(1) << "StepperMotor::Move(" << count << ")";
-  if (count == 0) return;
-  if (count < 0) {
+void StepperMotor::Move(int32_t microsteps) {
+  VLOG(1) << "StepperMotor::Move(" << microsteps << ")";
+  if (microsteps == 0) return;
+  if (microsteps < 0) {
     LOG(ERROR) << "Reverse moves not implemented yet";
     return;
   }
   if (!current_move_handle_.finished()) {
-    LOG(ERROR) << "Move(" << count << ") failed: a move is already in progress";
+    LOG(ERROR) << "Move(" << microsteps
+               << ") failed: a move is already in progress";
     return;
   }
   if (VLOG_IS_ON(1)) {
@@ -233,17 +234,24 @@ void StepperMotor::Move(int32_t count) {
       .c0_write_incr = false,
       .c0_data_size = DmaController::DataSize::k32,
       // XXX: positive count?
-      .c0_trans_count = static_cast<uint32_t>(count),
+      .c0_trans_count = static_cast<uint32_t>(microsteps),
       .c0_ring_size = kCommandBufRingSizeBits,
       .c0_ring_sel = false,
   });
-  offset_after_move_ += count;
+  offset_after_move_ += microsteps;
 
   if (VLOG_IS_ON(1)) {
     LOG_IF(ERROR, pio_->fdebug & (1 << (16 + sm_)))
         << "TX FIFO overflow during move";
   }
   VLOG(1) << "Move done";
+}
+
+// FIXME: not tested!
+void StepperMotor::SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
+                                    StepperMotor* b, int32_t microsteps_b) {
+  VLOG(1) << "StepperMotor::SimultaneoussMove(" << microsteps_a << ", "
+          << microsteps_b << ")";
 }
 
 void StepperMotor::Stop(StopType type) {
@@ -412,14 +420,6 @@ void StepperMotor::StaticInit_Commands() {
 
   // Auxiliary commands.
   shortbrake_command_ = make_command(pwm_period_, pwm_period_, 0, 0b1111, 0);
-}
-
-void StepperMotor::RunPioTest() {
-  if (moving()) {
-    LOG(ERROR) << "RunPioTest() skipped: still moving";
-    return;
-  }
-  Move(kMicrostepsPerStep * 30);
 }
 
 }  // namespace tplp

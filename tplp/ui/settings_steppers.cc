@@ -4,15 +4,27 @@
 #include "tplp/ui/globals.h"
 #include "tplp/config/params.h"
 
+// TODO: set LEDs on page load? poll motor state? idk
+static void set_motor_a_led(bool enabled);
+static void set_motor_b_led(bool enabled);
+
 void start_button_pressed_cb(lv_event_t* e) {
-    global_tplp_->RunDevTest();
+    // TODO: set LEDs when started and when stopped
+    // TODO: get values from spinboxes
+    // TODO: display error if not ok
+    global_tplp_->StepperMotorSetSpeed(2000, 2000);
+    global_tplp_->StepperMotorMove(1000, 1000);
 }
 
 void stop_button_pressed_cb(lv_event_t* e) {
-    //
+    // TODO: display error if not ok
+    global_tplp_->StepperMotorStopAll(tplp::ui::TplpInterface::StopType::SHORT_BRAKE);
+    set_motor_a_led(false);
+    set_motor_b_led(false);
 }
 
-static const lv_coord_t sample_data[] = {
+// TODO: populate load cell data
+static const lv_coord_t loadcell_data[] = {
     -2, 2, 0, -15, -39, -63, -71, -68, -67, -69, -84, -95, -104, -107, -108, -107, -107, -107, -107, -114, -118, -117,
         -112, -100, -89, -83, -71, -64, -58, -58, -62, -62, -58, -51, -46, -39, -27, -10, 4, 7, 1, -3, 0, 14, 24, 30, 25, 19,
         13, 7, 12, 15, 18, 21, 13, 6, 9, 8, 17, 19, 13, 11, 11, 11, 23, 30, 37, 34, 25, 14, 15, 19, 28, 31, 26, 23, 25, 31,
@@ -32,24 +44,24 @@ static void focus_event_cb(lv_event_t * e);
 static lv_obj_t * focused_spinner = nullptr;
 lv_obj_t * inc_btn;
 lv_obj_t * dec_btn;
-lv_obj_t * motor_1_led;
-lv_obj_t * motor_2_led;
+lv_obj_t * motor_a_led;
+lv_obj_t * motor_b_led;
 lv_obj_t * chart;
 lv_chart_series_t * ser;
 
-static void set_motor_1_led(bool enabled) {
+static void set_motor_a_led(bool enabled) {
     if(enabled) {
-        lv_led_set_color(motor_1_led, lv_palette_main(LV_PALETTE_RED));
+        lv_led_set_color(motor_a_led, lv_palette_main(LV_PALETTE_GREEN));
     } else {
-        lv_led_set_color(motor_1_led, lv_palette_main(LV_PALETTE_GREEN));
+        lv_led_set_color(motor_a_led, lv_palette_main(LV_PALETTE_RED));
     }
 }
 
-static void set_motor_2_led(bool enabled) {
+static void set_motor_b_led(bool enabled) {
     if(enabled) {
-        lv_led_set_color(motor_2_led, lv_palette_main(LV_PALETTE_RED));
+        lv_led_set_color(motor_b_led, lv_palette_main(LV_PALETTE_GREEN));
     } else {
-        lv_led_set_color(motor_2_led, lv_palette_main(LV_PALETTE_GREEN));
+        lv_led_set_color(motor_b_led, lv_palette_main(LV_PALETTE_RED));
     }
 }
 
@@ -90,49 +102,49 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
                              LV_GRID_ALIGN_CENTER, 0, 1);
 
     /* Motor 1 */
-    motor_1_led = lv_led_create(content);
-    set_motor_1_led(true);
-    lv_obj_t * motor_1_label = lv_label_create(motor_1_led);
-    lv_label_set_text(motor_1_label, "1");
-    lv_obj_set_size(motor_1_label, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_center(motor_1_label);
-    lv_obj_set_style_text_align(motor_1_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_grid_cell(motor_1_led, LV_GRID_ALIGN_CENTER, 0, 1,
+    motor_a_led = lv_led_create(content);
+    lv_led_set_color(motor_a_led, lv_palette_main(LV_PALETTE_YELLOW));
+    lv_obj_t * motor_a_label = lv_label_create(motor_a_led);
+    lv_label_set_text(motor_a_label, "A");
+    lv_obj_set_size(motor_a_label, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_center(motor_a_label);
+    lv_obj_set_style_text_align(motor_a_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_grid_cell(motor_a_led, LV_GRID_ALIGN_CENTER, 0, 1,
                              LV_GRID_ALIGN_CENTER, 1, 1);
 
-    lv_obj_t * motor_1_step_count = lv_spinbox_create(content);
-    lv_obj_set_width(motor_1_step_count, 100);
-    lv_obj_add_event_cb(motor_1_step_count, focus_event_cb, LV_EVENT_ALL, NULL);
-    lv_obj_set_grid_cell(motor_1_step_count, LV_GRID_ALIGN_STRETCH, 1, 1,
+    lv_obj_t * motor_a_step_count = lv_spinbox_create(content);
+    lv_obj_set_width(motor_a_step_count, 100);
+    lv_obj_add_event_cb(motor_a_step_count, focus_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_grid_cell(motor_a_step_count, LV_GRID_ALIGN_STRETCH, 1, 1,
                         LV_GRID_ALIGN_CENTER, 1, 1);
 
-    lv_obj_t * motor_1_speed = lv_spinbox_create(content);
-    lv_obj_set_width(motor_1_speed, 100);
-    lv_obj_add_event_cb(motor_1_speed, focus_event_cb, LV_EVENT_ALL, NULL);
-    lv_obj_set_grid_cell(motor_1_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
+    lv_obj_t * motor_a_speed = lv_spinbox_create(content);
+    lv_obj_set_width(motor_a_speed, 100);
+    lv_obj_add_event_cb(motor_a_speed, focus_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_grid_cell(motor_a_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
                     LV_GRID_ALIGN_CENTER, 1, 1);
 
     /* Motor 2 */
-    motor_2_led = lv_led_create(content);
-    set_motor_2_led(true);
-    lv_obj_t * motor_2_label = lv_label_create(motor_2_led);
-    lv_label_set_text(motor_2_label, "2");
-    lv_obj_set_size(motor_2_label, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_center(motor_2_label);
-    lv_obj_set_style_text_align(motor_2_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_grid_cell(motor_2_led, LV_GRID_ALIGN_CENTER, 0, 1,
+    motor_b_led = lv_led_create(content);
+    lv_led_set_color(motor_b_led, lv_palette_main(LV_PALETTE_YELLOW));
+    lv_obj_t * motor_b_label = lv_label_create(motor_b_led);
+    lv_label_set_text(motor_b_label, "B");
+    lv_obj_set_size(motor_b_label, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_center(motor_b_label);
+    lv_obj_set_style_text_align(motor_b_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_grid_cell(motor_b_led, LV_GRID_ALIGN_CENTER, 0, 1,
                              LV_GRID_ALIGN_CENTER, 2, 1);
 
-    lv_obj_t * motor_2_step_count = lv_spinbox_create(content);
-    lv_obj_set_width(motor_2_step_count, 100);
-    lv_obj_add_event_cb(motor_2_step_count, focus_event_cb, LV_EVENT_ALL, NULL);
-    lv_obj_set_grid_cell(motor_2_step_count, LV_GRID_ALIGN_STRETCH, 1, 1,
+    lv_obj_t * motor_b_step_count = lv_spinbox_create(content);
+    lv_obj_set_width(motor_b_step_count, 100);
+    lv_obj_add_event_cb(motor_b_step_count, focus_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_grid_cell(motor_b_step_count, LV_GRID_ALIGN_STRETCH, 1, 1,
                         LV_GRID_ALIGN_CENTER, 2, 1);
 
-    lv_obj_t * motor_2_speed = lv_spinbox_create(content);
-    lv_obj_set_width(motor_2_speed, 100);
-    lv_obj_add_event_cb(motor_2_speed, focus_event_cb, LV_EVENT_ALL, NULL);
-    lv_obj_set_grid_cell(motor_2_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
+    lv_obj_t * motor_b_speed = lv_spinbox_create(content);
+    lv_obj_set_width(motor_b_speed, 100);
+    lv_obj_add_event_cb(motor_b_speed, focus_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_grid_cell(motor_b_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
                     LV_GRID_ALIGN_CENTER, 2, 1);
 
     /* load cell chart */
@@ -146,8 +158,8 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_set_grid_cell(chart, LV_GRID_ALIGN_STRETCH, 0, 3,
                     LV_GRID_ALIGN_CENTER, 3, 1);
 
-    uint32_t point_count = sizeof(sample_data) / sizeof(sample_data[0]);
-    set_load_cell_data((lv_coord_t*)sample_data, point_count);
+    uint32_t point_count = sizeof(loadcell_data) / sizeof(loadcell_data[0]);
+    set_load_cell_data((lv_coord_t*)loadcell_data, point_count);
 
     /* inc/dec footer buttons */
     lv_obj_t * setting_button_bar = lv_obj_create(content);

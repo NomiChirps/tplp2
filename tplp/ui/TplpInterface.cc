@@ -19,6 +19,17 @@ int32_t TplpInterface::GetRawLoadCellValue() { return 0; }
 void TplpInterface::SetLoadCellParams(const LoadCellParams& params) {}
 LoadCellParams TplpInterface::GetLoadCellParams() { return LoadCellParams(); }
 void TplpInterface::RunDevTest() {}
+util::Status TplpInterface::StepperMotorSetSpeed(int microstep_hz_a,
+                                                 int microstep_hz_b) {
+  return util::OkStatus();
+}
+util::Status TplpInterface::StepperMotorMove(int microsteps_a,
+                                             int microsteps_b) {
+  return util::OkStatus();
+}
+util::Status TplpInterface::StepperMotorStopAll(StopType type) {
+  return util::OkStatus();
+}
 
 }  // namespace ui
 }  // namespace tplp

@@ -34,15 +34,20 @@ class StepperMotor {
 
   static StepperMotor* Init(DmaController* dma, PIO pio, const Hardware& hw);
 
-  void RunPioTest();
-
   // Step forward or backward by a certain number of microsteps. This triggers a
   // DMA transfer to send commands to the motor and returns immediately, without
   // waiting for the motor to finish moving. Does nothing if a move is currently
   // in progress. Does nothing if count==0.
   // TODO: might it be useful to queue up moves?
   // TODO: might it be useful to block until done, or have a callback?
-  void Move(int32_t count);
+  void Move(int32_t microsteps);
+
+  // Moves both motors simultaneously. This is guaranteed to keep them
+  // synchronized, unlike calling a->Move() followed by b->Move().
+  // Note that after starting two motors with SimultaneousMove, calling Stop()
+  // on EITHER motor will stop both of them, simultaneously.
+  static void SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
+                               StepperMotor* b, int32_t microsteps_b);
 
   bool moving() const { return !current_move_handle_.finished(); }
 
@@ -59,6 +64,7 @@ class StepperMotor {
   // After Init(), returns the minimum achievable microstep rate.
   static uint32_t microstep_hz_min();
   // After Init(), returns the maximum achievable microstep rate.
+  // TODO: test at this frequency
   static uint32_t microstep_hz_max();
 
   // Calculates the clock divider value which most closely approximates the

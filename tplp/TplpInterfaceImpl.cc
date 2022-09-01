@@ -98,10 +98,65 @@ LoadCellParams TplpInterfaceImpl::GetLoadCellParams() {
   return {.offset = load_cell_->offset(), .scale = load_cell_->scale()};
 }
 
+util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,
+                                                     int microstep_hz_b) {
+  StepperMotor::ClockDivider clkdiv_a;
+  StepperMotor::ClockDivider clkdiv_b;
+  if (motor_a_ &&
+      !StepperMotor::CalculateClockDivider(microstep_hz_a, &clkdiv_a)) {
+    return util::InvalidArgumentError("microstep_hz_a out of range");
+  }
+  if (motor_b_ &&
+      !StepperMotor::CalculateClockDivider(microstep_hz_b, &clkdiv_b)) {
+    return util::InvalidArgumentError("microstep_hz_b out of range");
+  }
+  if (motor_a_) motor_a_->SetSpeed(clkdiv_a);
+  if (motor_b_) motor_b_->SetSpeed(clkdiv_b);
+  return util::OkStatus();
+}
+
+util::Status TplpInterfaceImpl::StepperMotorMove(int microsteps_a,
+                                                 int microsteps_b) {
+  if ((motor_a_ && motor_a_->moving()) || (motor_b_ && motor_b_->moving())) {
+    return util::UnavailableError("motor is already moving");
+  }
+  if (!microsteps_b || !motor_b_) {
+    motor_a_->Move(microsteps_a);
+  } else if (!microsteps_a || !motor_a_) {
+    motor_b_->Move(microsteps_b);
+  } else {
+    StepperMotor::SimultaneousMove(motor_a_, microsteps_a, motor_b_,
+                                   microsteps_b);
+  }
+  return util::OkStatus();
+}
+
+util::Status TplpInterfaceImpl::StepperMotorStopAll(StopType type) {
+  StepperMotor::StopType impl_type;
+  switch (type) {
+    case TplpInterface::StopType::HOLD:
+      impl_type = StepperMotor::StopType::HOLD;
+      break;
+    case TplpInterface::StopType::SHORT_BRAKE:
+      impl_type = StepperMotor::StopType::SHORT_BRAKE;
+      break;
+    case TplpInterface::StopType::FREEWHEEL:
+      return util::UnimplementedError("FREEWHEEL stop not implemented");
+      break;
+    default:
+      return util::InvalidArgumentError("bad StopType");
+  }
+  if (motor_a_) {
+    motor_a_->Stop(impl_type);
+  }
+  if (motor_b_) {
+    motor_b_->Stop(impl_type);
+  }
+  return util::OkStatus();
+}
+
 void TplpInterfaceImpl::RunDevTest() {
-  LOG(WARNING) << "RunDevTest() starting";
-  if (motor_a_) motor_a_->RunPioTest();
-  if (motor_b_) motor_b_->RunPioTest();
+  LOG(WARNING) << "RunDevTest() (nothing to do)";
 }
 
 }  // namespace ui
