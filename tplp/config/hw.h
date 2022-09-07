@@ -8,8 +8,6 @@ namespace tplp {
 
 // All frequencies are in hertz unless otherwise specified.
 struct Frequencies {
-  // See also: StepperMotor::kPwmFreqHz.
-
   // HX8357 display is on SPI1 and is rated for 16MHz, although it can
   // be overclocked significantly faster.
   static constexpr int kSpi1 = 16'000'000;
@@ -17,6 +15,9 @@ struct Frequencies {
   // With I2cController in the disgraceful state it's in,
   // no other value seems to work.
   static constexpr int kI2c0 = 100'000;
+
+  // TODO: see about increasing it. TB6612 wasn't happy @ 100kHz.
+  static constexpr int kStepperPwm = 25'000;
 };
 
 struct Pins {

@@ -7,9 +7,7 @@
 #include "hardware/spi.h"
 #include "picolog/picolog.h"
 #include "picolog/status_macros.h"
-#include "tplp/hx8357/hx8357.h"
 #include "tplp/RuntimeStats.h"
-#include "tplp/tsc2007/tsc2007.h"
 #include "tplp/TplpInterfaceImpl.h"
 #include "tplp/adafruit_seesaw/adafruit_seesaw.h"
 #include "tplp/bus/i2c.h"
@@ -18,6 +16,8 @@
 #include "tplp/config/tasks.h"
 #include "tplp/graphics/lvgl_init.h"
 #include "tplp/hx711/hx711.h"
+#include "tplp/hx8357/hx8357.h"
+#include "tplp/tsc2007/tsc2007.h"
 
 // hmm, maybe lvgl_init should have these instead
 #include "tplp/graphics/lvgl_mutex.h"
@@ -102,6 +102,7 @@ void StartupTask(void*) {
   HX711* load_cell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
 
   // Steppies!
+  StepperMotor::StaticInit(Frequencies::kStepperPwm);
   StepperMotor* motor_a =
       CHECK_NOTNULL(StepperMotor::Init(dma_stepper_a, pio1,
                                        {.a1 = Pins::MOTOR_A_A1,

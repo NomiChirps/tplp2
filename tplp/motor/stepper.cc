@@ -38,7 +38,7 @@ uint32_t StepperMotor::commands_[kCommandBufLen] = {};
 
 StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
                                  const Hardware& hw) {
-  StaticInit();
+  LOG_IF(FATAL, !static_init_done_) << "must call StaticInit() before Init()";
   CHECK_EQ(hw.a1 + 1, hw.a2) << "StepperMotor pins must be consecutive";
   CHECK_EQ(hw.a2 + 1, hw.b1) << "StepperMotor pins must be consecutive";
   CHECK_EQ(hw.b1 + 1, hw.b2) << "StepperMotor pins must be consecutive";
@@ -345,14 +345,14 @@ void StepperMotor::Stop(StopType type) {
   }
 }
 
-void StepperMotor::StaticInit() {
+void StepperMotor::StaticInit(int pwm_freq_hz) {
   if (static_init_done_) return;
-  StaticInit_Clocks();
+  StaticInit_Clocks(pwm_freq_hz);
   StaticInit_Commands();
   static_init_done_ = true;
 }
 
-void StepperMotor::StaticInit_Clocks() {
+void StepperMotor::StaticInit_Clocks(int pwm_freq_hz) {
   // Variables:
   // Fpio : pio clock
   // N    : pwm period
@@ -365,7 +365,7 @@ void StepperMotor::StaticInit_Clocks() {
   const int sys_hz = clock_get_hz(clk_sys);
   pio_clkdiv_int_ = 1;
   pio_clkdiv_frac_ = 0;
-  pwm_period_ = sys_hz / (stepper_instructions_per_count * kPwmFreqHz);
+  pwm_period_ = sys_hz / (stepper_instructions_per_count * pwm_freq_hz);
   // System clock too fast?
   if (pwm_period_ > 255) {
     // Set pwm_period to max and calculate an appropriate divider.
@@ -374,9 +374,9 @@ void StepperMotor::StaticInit_Clocks() {
     // 255 * isp * pwm_freq * divider = sys_hz
     // divider = sys_hz / (255 * isp * pwm_freq)
     int clkdiv_256 =
-        (256 * (sys_hz / 255)) / (stepper_instructions_per_count * kPwmFreqHz);
+        (256 * (sys_hz / 255)) / (stepper_instructions_per_count * pwm_freq_hz);
     VLOG(1) << "sys_hz = " << sys_hz;
-    VLOG(1) << "pwm_freq_hz = " << kPwmFreqHz;
+    VLOG(1) << "pwm_freq_hz = " << pwm_freq_hz;
     VLOG(1) << "clkdiv_256 = " << clkdiv_256;
     pio_clkdiv_int_ = clkdiv_256 / 256;
     pio_clkdiv_frac_ = clkdiv_256 % 256;

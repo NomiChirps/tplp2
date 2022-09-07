@@ -28,10 +28,9 @@ class StepperMotor {
     gpio_pin_t b2;
   };
 
-  // TODO: see about increasing it. TB6612 wasn't happy @ 100kHz.
-  static constexpr int kPwmFreqHz = 25'000;
   static constexpr size_t kMicrostepsPerStep = kCommandBufLen;
 
+  static void StaticInit(int pwm_freq_hz);
   static StepperMotor* Init(DmaController* dma, PIO pio, const Hardware& hw);
 
   // Step forward or backward by a certain number of microsteps. This triggers a
@@ -91,7 +90,7 @@ class StepperMotor {
 
  private:
   static void StaticInit();
-  static void StaticInit_Clocks();
+  static void StaticInit_Clocks(int pwm_freq_hz);
   static void StaticInit_Commands();
   static bool static_init_done_;
   static uint16_t pwm_period_;  // num iterations
