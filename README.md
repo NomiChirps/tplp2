@@ -20,35 +20,38 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
+  - use the MicroSD card behind the display. fat32?
 - [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
 - [ ] Begin() Setup() Init(), **PICK ONE**
 - [ ] alright fine let's get StrCat in here sheeeeesh
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
-  - [ ] needs steppers working
+  - [x] needs steppers working
   - [ ] needs load cell persistently calibrated & installed
+    - [ ] calibrate/zero button on the load cell gui. and a save settings button.
   - [ ] needs a PID loop with all the accoutrements
     - i want a mathematically sound PID tuning UI
 - UX Improvements
   - [ ] make the touch target for the settings back button bigger
-  - [ ] explicit Save button for load cell settings
   - [x] fix everything in the ui being scrollable
   - [x] numeric display of load cell value & raw value
   - [x] oops changed my mind about the load cell units. they're actually completely arbitrary.
-- [ ] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Create a front panel UI (assignee: wembly :)
+  - [ ] some kind of display for non-fatal errors. modal dialog box? little icon in the corner to tap on and expand? idk.
   - [ ] fatal error handler to display the stack trace before crashing
     - will require support from picolog. make sure picolog prevents the crashed task from proceeding, and has a watchdog or something to finish crashing the device if the fatal error handler doesn't finish in time.
   - [ ] runtime stats / logging screen
-  - [ ] manual motor control screen
   - [ ] (later) print status / job control / main screen ?
+  - [x] manual motor control screen
   - [x] I2C bus scan
   - [x] virtual class interface for callbacks 'n' stuff
   - [x] Use [LVGL](https://lvgl.io)
 - [ ] Get peripheral hardware running
-  - [ ] Stepper drivers (use pico_stepper)
-  - [ ] Laser module
+  - [ ] Roller encoder
+    - neglected to add this to the original hardware design ;(
+  - [ ] Laser module (PWM control)
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
   - [ ] pinhole photodiode for self-calibration and/or self-test
@@ -56,6 +59,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
     - we may want two. the one in the display is very difficult to access, so it's more suited to being the internal storage.
     - alternatively, forget using SD cards to upload and go ahead with the wi-fi interface, haha
       - an embedded target and a command-line client tool, in the same project? time for bazel to shine ~
+  - [x] Stepper drivers
   - [x] HX711 load cell reader
   - [x] Shiny new front panel display + LVGL driver
   - [x] touchscreen input (SPI breakout)
