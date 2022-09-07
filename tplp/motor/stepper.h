@@ -4,6 +4,7 @@
 #include "hardware/pio.h"
 #include "tplp/bus/dma.h"
 #include "tplp/bus/types.h"
+#include "tplp/clkdiv.h"
 
 namespace tplp {
 
@@ -50,11 +51,6 @@ class StepperMotor {
 
   bool moving() const { return !current_move_handle_.finished(); }
 
-  struct ClockDivider {
-    uint16_t num;
-    uint16_t den;
-  };
-
   // Set the speed of the next move, or change the speed of a move currently
   // in progress. Use `CalculateClockDivider` to get an appropriate value for
   // clkdiv.
@@ -65,17 +61,6 @@ class StepperMotor {
   // After Init(), returns the maximum achievable microstep rate.
   // TODO: test at this frequency
   static uint32_t microstep_hz_max();
-
-  // Calculates the clock divider value which most closely approximates the
-  // given frequency, in units of microsteps per second. The frequency must be
-  // positive. This is a complicated calculation and could take up to a few
-  // hundred cycles.
-  //
-  // Returns true if successful, false if the given value is outside of the
-  // range given by `microstep_hz_min` and `microstep_hz_max`.
-  //
-  // Not valid to call this before Init().
-  static bool CalculateClockDivider(int microstep_hz, ClockDivider* out_clkdiv);
 
   enum class StopType {
     // Motor coils remain energized to whatever state they were in

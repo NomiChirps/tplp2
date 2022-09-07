@@ -89,12 +89,28 @@ cc_library(
     hdrs = ["TplpInterfaceImpl.h"],
     deps = [
         "//picolog",
-        "//tplp/hx8357",
-        "//tplp/motor:stepper",
         "//tplp/bus:i2c",
         "//tplp/graphics:lvgl_mutex",
         "//tplp/hx711",
+        "//tplp/hx8357",
+        "//tplp/motor:stepper",
         "//tplp/ui:TplpInterface",
         "@FreeRTOS",
+    ],
+)
+
+cc_library(
+    name = "clkdiv",
+    srcs = ["clkdiv.cc"],
+    hdrs = ["clkdiv.h"],
+    deps = ["//picolog"],
+)
+
+cc_test(
+    name = "clkdiv_test",
+    srcs = ["clkdiv_test.cc"],
+    deps = [
+        ":clkdiv",
+        "@com_google_googletest//:gtest_main",
     ],
 )

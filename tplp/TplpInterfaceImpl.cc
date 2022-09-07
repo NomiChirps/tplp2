@@ -3,7 +3,9 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
+#include "hardware/clocks.h"
 #include "picolog/picolog.h"
+#include "tplp/clkdiv.h"
 #include "tplp/graphics/lvgl_mutex.h"
 
 namespace tplp {
@@ -100,14 +102,13 @@ LoadCellParams TplpInterfaceImpl::GetLoadCellParams() {
 
 util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,
                                                      int microstep_hz_b) {
-  StepperMotor::ClockDivider clkdiv_a;
-  StepperMotor::ClockDivider clkdiv_b;
-  if (motor_a_ &&
-      !StepperMotor::CalculateClockDivider(microstep_hz_a, &clkdiv_a)) {
+  const int sys_hz = clock_get_hz(clk_sys);
+  ClockDivider clkdiv_a;
+  ClockDivider clkdiv_b;
+  if (motor_a_ && !CalculateClockDivider(sys_hz, microstep_hz_a, &clkdiv_a)) {
     return util::InvalidArgumentError("microstep_hz_a out of range");
   }
-  if (motor_b_ &&
-      !StepperMotor::CalculateClockDivider(microstep_hz_b, &clkdiv_b)) {
+  if (motor_b_ && !CalculateClockDivider(sys_hz, microstep_hz_b, &clkdiv_b)) {
     return util::InvalidArgumentError("microstep_hz_b out of range");
   }
   if (motor_a_) motor_a_->SetSpeed(clkdiv_a);
