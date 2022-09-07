@@ -124,6 +124,10 @@ bool StepperMotor::CalculateClockDivider(int microstep_hz,
                                          ClockDivider* out_clkdiv) {
   constexpr int kMaxCf = 8;
   const int sys_hz = clock_get_hz(clk_sys);
+  if (microstep_hz < 0) {
+    LOG(ERROR) << "CalculateClockDivider: speed must be positive";
+    return false;
+  }
   if (microstep_hz >= sys_hz) {
     LOG(ERROR) << "Cannot step faster than the system clock (" << sys_hz <<"). Requested "
                   "microstep_hz = "
