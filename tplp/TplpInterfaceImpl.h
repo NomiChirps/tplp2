@@ -1,7 +1,7 @@
 #ifndef TPLP_TPLPINTERFACEIMPL_H_
 #define TPLP_TPLPINTERFACEIMPL_H_
 
-#include "tplp/HX8357/HX8357.h"
+#include "tplp/hx8357/hx8357.h"
 #include "tplp/bus/i2c.h"
 #include "tplp/hx711/hx711.h"
 #include "tplp/motor/stepper.h"

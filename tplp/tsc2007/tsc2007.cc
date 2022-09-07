@@ -1,4 +1,4 @@
-#include "tplp/TSC2007/TSC2007.h"
+#include "tplp/tsc2007/tsc2007.h"
 
 #include <iomanip>
 

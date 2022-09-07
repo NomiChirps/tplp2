@@ -1,4 +1,4 @@
-#include "tplp/HX8357/HX8357.h"
+#include "tplp/hx8357/hx8357.h"
 
 #include <iomanip>
 

@@ -89,7 +89,7 @@ cc_library(
     hdrs = ["TplpInterfaceImpl.h"],
     deps = [
         "//picolog",
-        "//tplp/HX8357",
+        "//tplp/hx8357",
         "//tplp/motor:stepper",
         "//tplp/bus:i2c",
         "//tplp/graphics:lvgl_mutex",

@@ -2,7 +2,7 @@
 #define TPLP_TSC2007_TSC2007_LVGL_DRIVER_H_
 
 #include "lvgl/lvgl.h"
-#include "tplp/TSC2007/TSC2007.h"
+#include "tplp/tsc2007/tsc2007.h"
 
 namespace tplp {
 

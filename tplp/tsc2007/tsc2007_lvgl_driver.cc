@@ -1,7 +1,7 @@
-#include "tplp/TSC2007/tsc2007_lvgl_driver.h"
+#include "tplp/tsc2007/tsc2007_lvgl_driver.h"
 
 #include "picolog/picolog.h"
-#include "tplp/TSC2007/TSC2007.h"
+#include "tplp/tsc2007/tsc2007.h"
 #include "tplp/config/params.h"
 
 namespace tplp {

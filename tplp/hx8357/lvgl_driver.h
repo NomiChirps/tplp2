@@ -2,7 +2,7 @@
 #define TPLP_HX8357_LVGL_DRIVER_H_
 
 #include "lvgl/lvgl.h"
-#include "tplp/HX8357/HX8357.h"
+#include "tplp/hx8357/hx8357.h"
 
 namespace tplp {
 

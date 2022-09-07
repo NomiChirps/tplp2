@@ -28,8 +28,8 @@ cc_library(
         "//tplp/config:tasks",
         "//tplp/graphics:lvgl_init",
         "//tplp/hx711",
-        "//tplp/HX8357",
-        "//tplp/TSC2007",
+        "//tplp/hx8357",
+        "//tplp/tsc2007",
 
         # TODO: maybe lvgl_init should have these instead
         "//tplp/graphics:lvgl_mutex",

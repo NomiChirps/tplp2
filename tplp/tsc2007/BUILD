@@ -1,7 +1,7 @@
 cc_library(
-    name = "TSC2007",
-    srcs = ["TSC2007.cc"],
-    hdrs = ["TSC2007.h"],
+    name = "tsc2007",
+    srcs = ["tsc2007.cc"],
+    hdrs = ["tsc2007.h"],
     visibility = ["//visibility:public"],
     deps = [
         "//picolog",
@@ -19,7 +19,7 @@ cc_library(
     hdrs = ["tsc2007_lvgl_driver.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":TSC2007",
+        ":tsc2007",
         "//picolog",
         "//tplp/config:params",
         "//tplp/graphics:lvgl_mutex",

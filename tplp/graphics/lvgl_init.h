@@ -1,9 +1,9 @@
 #ifndef TPLP_GRAPHICS_LVGL_INIT_H_
 #define TPLP_GRAPHICS_LVGL_INIT_H_
 
-#include "tplp/HX8357/HX8357.h"
+#include "tplp/hx8357/hx8357.h"
 #include "tplp/SharpLCD/SharpLCD.h"
-#include "tplp/TSC2007/TSC2007.h"
+#include "tplp/tsc2007/tsc2007.h"
 #include "tplp/adafruit_seesaw/adafruit_seesaw.h"
 
 namespace tplp {

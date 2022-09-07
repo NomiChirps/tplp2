@@ -1,7 +1,7 @@
 cc_library(
-    name = "HX8357",
-    srcs = ["HX8357.cc"],
-    hdrs = ["HX8357.h"],
+    name = "hx8357",
+    srcs = ["hx8357.cc"],
+    hdrs = ["hx8357.h"],
     visibility = ["//visibility:public"],
     deps = [
         "//tplp:rtos_util",
@@ -18,7 +18,7 @@ cc_library(
     hdrs = ["lvgl_driver.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":HX8357",
+        ":hx8357",
         "//picolog",
         "//tplp/graphics:lvgl_mutex",
         "@lvgl",

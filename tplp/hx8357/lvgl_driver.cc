@@ -1,4 +1,4 @@
-#include "tplp/HX8357/lvgl_driver.h"
+#include "tplp/hx8357/lvgl_driver.h"
 
 #include "hardware/sync.h"
 #include "picolog/picolog.h"
