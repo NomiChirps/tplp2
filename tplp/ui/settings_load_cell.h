@@ -3,7 +3,7 @@
 
 #include "lvgl/lvgl.h"
 
-lv_obj_t * ui_settings_load_cell_create(lv_obj_t * parent);
+lv_obj_t* ui_settings_load_cell_create(lv_obj_t* parent);
 void ui_settings_load_cell_on_load_cb();
 void ui_settings_load_cell_on_unload_cb();
 
