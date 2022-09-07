@@ -101,7 +101,7 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   self->dma_timer_dreq_ = dma_get_timer_dreq(dma_timer_num);
 
   ClockDivider clkdiv;
-  CHECK(CalculateClockDivider(clock_get_hz(clk_sys), self->microstep_hz_min(),
+  CHECK(ComputeClockDivider(clock_get_hz(clk_sys), self->microstep_hz_min(),
                               &clkdiv));
   self->SetSpeed(clkdiv);
 

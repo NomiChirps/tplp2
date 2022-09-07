@@ -40,7 +40,7 @@ build:iterate -c opt
 
 # picolog config
 # Verbosity
-build --copt="-DPICOLOG_VMODULE=\"i2c=0,stepper=1,tsc2007_lvgl_driver=0\""
+build --copt="-DPICOLOG_VMODULE=\"i2c=0,stepper=1,clkdiv=0,tsc2007_lvgl_driver=0\""
 # Compile out logs below a certain severity
 #--copt="-DPICOLOG_STRIP_LOG=0"
 

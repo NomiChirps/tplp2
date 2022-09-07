@@ -7,92 +7,104 @@
 #include "picolog/picolog.h"
 
 namespace tplp {
+namespace {
+struct Rational64 {
+  int64_t num;
+  int64_t den;
 
-bool CalculateClockDivider(int sys_hz, int target_hz,
-                           ClockDivider* out_clkdiv) {
-  constexpr int kMaxCf = 8;
-  if (target_hz < 0) {
-    LOG(ERROR) << "CalculateClockDivider: speed must be positive";
-    return false;
+  bool operator<(const Rational64& rhs) {
+    return (num * rhs.den) < (den * rhs.num);
   }
-  if (target_hz >= sys_hz) {
-    LOG(ERROR) << "Cannot divide faster than the system clock (" << sys_hz
-               << "). Requested "
-                  "target_hz = "
-               << target_hz;
-    return false;
+  bool operator>(const Rational64& rhs) {
+    return (num * rhs.den) > (den * rhs.num);
   }
-  // y * sys_hz / x = target_hz
-  // y / x = target_hz / sys_hz
-  // NB: we'll be calculating stuff with x and y swapped
-  //     so that the fraction is greater than 1.
-  const int y = target_hz;
-  const int x = sys_hz;
-  // we need the closest rational approximation to x/y
-  // such that both the numerator and the denominator
-  // fit into a uint16_t. strap in we're gonna do math.
-  // continued fraction expansion of x/y:
-  int cf[kMaxCf];
-  int cf_len = 0;
-  int num = x;
-  int den = y;
-  for (; cf_len < kMaxCf;) {
-    int whole = num / den;
-    int remainder = num % den;
-    cf[cf_len++] = whole;
-    VLOG(1) << "cf[" << cf_len - 1 << "] = " << whole;
-    if (!remainder) break;
-    num = den;
-    den = remainder;
-  }
-  CHECK_GT(cf_len, 0);
-  // calculate rational approximations from right to left
-  int nds[cf_len][2];
-  nds[cf_len - 1][0] = cf[0];
-  nds[cf_len - 1][1] = 1;
-  if (nds[cf_len - 1][0] > std::numeric_limits<uint16_t>::max() ||
-      nds[cf_len - 1][1] > std::numeric_limits<uint16_t>::max()) {
-    // the necessary clock divider is too large and can't be represented.
-    LOG(WARNING) << "Cannot divide lower than sys_clk/65535==" << sys_hz / 65535
-                 << ". Requested target_hz = " << target_hz;
-    return false;
-  }
-  VLOG(1) << x << " / " << y << " ~ " << nds[cf_len - 1][0] << " / "
-          << nds[cf_len - 1][1];
-  bool found = false;
-  int approx_num;
-  int approx_den;
-  for (int i = cf_len - 2; i >= 0; --i) {
-    nds[i][0] = cf[i] * nds[i + 1][0] + nds[i + 1][1];
-    nds[i][1] = nds[i + 1][0];
-    VLOG(1) << x << " / " << y << " ~ " << nds[i][0] << " / " << nds[i][1];
-    // is this one too big?
-    if (nds[i][0] > std::numeric_limits<uint16_t>::max() ||
-        nds[i][1] > std::numeric_limits<uint16_t>::max()) {
-      // use the previous one
-      approx_num = nds[i + 1][0];
-      approx_den = nds[i + 1][1];
-      found = true;
-      break;
+};
+
+Rational64 mediant(Rational64 a, Rational64 b) {
+  return {a.num + b.num, a.den + b.den};
+}
+
+// returns true if |f-x| < |b-x|, i.e.,
+// if f is closer to x than b is.
+bool IsCloser(Rational64 x, Rational64 f, Rational64 b) {
+  if (f < x) {
+    if (b < x) {
+      return b < f;
+    } else {
+      return 2 * x.num * b.den * f.den <
+             b.num * x.den * f.den + f.num * x.den * b.den;
+    }
+  } else {
+    if (b < x) {
+      return 2 * x.num * b.den * f.den >
+             b.num * x.den * f.den + f.num * x.den * b.den;
+    } else {
+      return b > f;
     }
   }
-  if (!found) {
-    // cool, all of the approximations will fit;
-    // use the closest one
-    approx_num = nds[0][0];
-    approx_den = nds[0][1];
-  }
-  CHECK_GT(approx_num, 0);
-  CHECK_GT(approx_den, 0);
+}
 
-  // See comment at declaration of x and y.
-  std::swap(approx_num, approx_den);
-  VLOG(1) << "CalculateClockDivider(" << target_hz << ") == " << approx_num
-          << " / " << approx_den << "; error ~ "
-          << (approx_num * (sys_hz / approx_den)) - target_hz << "Hz";
-  out_clkdiv->num = approx_num;
-  out_clkdiv->den = approx_den;
+// https://math.stackexchange.com/questions/2555205/best-rational-approximation-with-numerator-denominator-less-than-255
+Rational64 Approximate(Rational64 x, int max_den) {
+  Rational64 l, r, f, b;
+  // left
+  l = {1, 0};
+  // right
+  r = {0, 1};
+  // current fraction
+  f = {1, 1};
+  // best fraction
+  b = {1, 1};
+
+  for (;;) {
+    if (x < f) {
+      l = f;
+      f = mediant(r, f);
+    } else if (x > f) {
+      r = f;
+      f = mediant(l, f);
+    } else {
+      return f;
+    }
+    if (f.den > max_den) {
+      return b;
+    }
+    if (IsCloser(x, f, b)) {
+      b = f;
+    }
+  }
+}
+
+}  // namespace
+
+bool ComputeClockDivider(int sys_hz, int target_hz, ClockDivider* out_clkdiv) {
+  if (target_hz < 0) {
+    VLOG(1) << "ComputeClockDivider: target frequency must be positive";
+    return false;
+  }
+  if (target_hz > sys_hz) {
+    VLOG(1) << "Cannot divide to faster than the system clock (" << sys_hz
+            << "). Requested "
+               "target_hz = "
+            << target_hz;
+    return false;
+  }
+  if (target_hz < sys_hz / 65535) {
+    VLOG(1) << "Cannot divide to slower than sys_hz/65535 (" << sys_hz / 65535
+            << ". Requested target_hz = " << target_hz;
+    return false;
+  }
+  Rational64 clkdiv = Approximate({target_hz, sys_hz}, 65535);
+  CHECK_GT(clkdiv.num, 0);
+  CHECK_LE(clkdiv.den, 65535);
+
+  out_clkdiv->num = clkdiv.num;
+  out_clkdiv->den = clkdiv.den;
   return true;
+}
+
+std::ostream& operator<<(std::ostream& out, const ClockDivider& self) {
+  return out << "(" << self.num << "/" << self.den << ")";
 }
 
 }  // namespace tplp

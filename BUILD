@@ -14,6 +14,6 @@ refresh_compile_commands(
 refresh_compile_commands(
     name = "refresh_compile_commands_tests",
     targets = {
-        "//tplp/bus:dma_program_test": "",
+        "//tplp/...": "",
     },
 )
