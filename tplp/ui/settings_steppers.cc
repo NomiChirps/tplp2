@@ -4,16 +4,36 @@
 #include "tplp/ui/globals.h"
 #include "tplp/config/params.h"
 
+static lv_obj_t * focused_spinner = nullptr;
+lv_obj_t * inc_btn;
+lv_obj_t * dec_btn;
+lv_obj_t * motor_a_speed;
+lv_obj_t * motor_a_step_count;
+lv_obj_t * motor_a_led;
+lv_obj_t * motor_b_speed;
+lv_obj_t * motor_b_step_count;
+lv_obj_t * motor_b_led;
+lv_obj_t * chart;
+lv_chart_series_t * ser;
+
 // TODO: set LEDs on page load? poll motor state? idk
 static void set_motor_a_led(bool enabled);
 static void set_motor_b_led(bool enabled);
 
 void start_button_pressed_cb(lv_event_t* e) {
-    // TODO: set LEDs when started and when stopped
-    // TODO: get values from spinboxes
-    // TODO: display error if not ok
-    global_tplp_->StepperMotorSetSpeed(2000, 2000);
-    global_tplp_->StepperMotorMove(1000, 1000);
+    util::Status status;
+    status = global_tplp_->StepperMotorSetSpeed(lv_spinbox_get_value(motor_a_speed) , lv_spinbox_get_value(motor_b_speed));
+    if (!status.ok()) {
+    // TODO: display error
+    return;
+    }
+    status = global_tplp_->StepperMotorMove(lv_spinbox_get_value(motor_a_step_count), lv_spinbox_get_value(motor_b_step_count));
+    if (!status.ok()) {
+    // TODO: display error
+    return;
+    }
+    set_motor_a_led(true);
+    set_motor_b_led(true);
 }
 
 void stop_button_pressed_cb(lv_event_t* e) {
@@ -40,14 +60,6 @@ static const lv_coord_t loadcell_data[] = {
 static void increment_event_cb(lv_event_t * e);
 static void decrement_event_cb(lv_event_t * e);
 static void focus_event_cb(lv_event_t * e);
-
-static lv_obj_t * focused_spinner = nullptr;
-lv_obj_t * inc_btn;
-lv_obj_t * dec_btn;
-lv_obj_t * motor_a_led;
-lv_obj_t * motor_b_led;
-lv_obj_t * chart;
-lv_chart_series_t * ser;
 
 static void set_motor_a_led(bool enabled) {
     if(enabled) {
@@ -112,13 +124,13 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_set_grid_cell(motor_a_led, LV_GRID_ALIGN_CENTER, 0, 1,
                              LV_GRID_ALIGN_CENTER, 1, 1);
 
-    lv_obj_t * motor_a_step_count = lv_spinbox_create(content);
+    motor_a_step_count = lv_spinbox_create(content);
     lv_obj_set_width(motor_a_step_count, 100);
     lv_obj_add_event_cb(motor_a_step_count, focus_event_cb, LV_EVENT_ALL, NULL);
     lv_obj_set_grid_cell(motor_a_step_count, LV_GRID_ALIGN_STRETCH, 1, 1,
                         LV_GRID_ALIGN_CENTER, 1, 1);
 
-    lv_obj_t * motor_a_speed = lv_spinbox_create(content);
+    motor_a_speed = lv_spinbox_create(content);
     lv_obj_set_width(motor_a_speed, 100);
     lv_obj_add_event_cb(motor_a_speed, focus_event_cb, LV_EVENT_ALL, NULL);
     lv_obj_set_grid_cell(motor_a_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
@@ -135,13 +147,13 @@ lv_obj_t * ui_settings_steppers_create(lv_obj_t * parent)
     lv_obj_set_grid_cell(motor_b_led, LV_GRID_ALIGN_CENTER, 0, 1,
                              LV_GRID_ALIGN_CENTER, 2, 1);
 
-    lv_obj_t * motor_b_step_count = lv_spinbox_create(content);
+    motor_b_step_count = lv_spinbox_create(content);
     lv_obj_set_width(motor_b_step_count, 100);
     lv_obj_add_event_cb(motor_b_step_count, focus_event_cb, LV_EVENT_ALL, NULL);
     lv_obj_set_grid_cell(motor_b_step_count, LV_GRID_ALIGN_STRETCH, 1, 1,
                         LV_GRID_ALIGN_CENTER, 2, 1);
 
-    lv_obj_t * motor_b_speed = lv_spinbox_create(content);
+    motor_b_speed = lv_spinbox_create(content);
     lv_obj_set_width(motor_b_speed, 100);
     lv_obj_add_event_cb(motor_b_speed, focus_event_cb, LV_EVENT_ALL, NULL);
     lv_obj_set_grid_cell(motor_b_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
