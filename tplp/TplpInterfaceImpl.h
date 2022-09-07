@@ -1,9 +1,9 @@
 #ifndef TPLP_TPLPINTERFACEIMPL_H_
 #define TPLP_TPLPINTERFACEIMPL_H_
 
-#include "tplp/hx8357/hx8357.h"
 #include "tplp/bus/i2c.h"
 #include "tplp/hx711/hx711.h"
+#include "tplp/hx8357/hx8357.h"
 #include "tplp/motor/stepper.h"
 #include "tplp/ui/TplpInterface.h"
 
@@ -15,27 +15,27 @@ class TplpInterfaceImpl : public ui::TplpInterface {
   explicit TplpInterfaceImpl(HX8357* display, I2cController* i2c0_controller,
                              HX711* load_cell, StepperMotor* motor_a,
                              StepperMotor* motor_b);
-  virtual ~TplpInterfaceImpl();
+  ~TplpInterfaceImpl() override;
 
   // Starts the UI background work task.
   void StartTask(int priority, int stack_depth);
 
-  virtual void FlashScreen();
+  void FlashScreen() override;
 
-  virtual void ScanI2cBus(
-      const std::function<void(const I2cScanResult&)>& callback);
+  void ScanI2cBus(
+      const std::function<void(const I2cScanResult&)>& callback) override;
 
-  virtual int32_t GetLoadCellValue();
-  virtual int32_t GetRawLoadCellValue();
-  virtual void SetLoadCellParams(const LoadCellParams& params);
-  virtual LoadCellParams GetLoadCellParams();
+  int32_t GetLoadCellValue() override;
+  int32_t GetRawLoadCellValue() override;
+  void SetLoadCellParams(const LoadCellParams& params) override;
+  LoadCellParams GetLoadCellParams() override;
 
-  virtual util::Status StepperMotorSetSpeed(int microstep_hz_a,
-                                            int microstep_hz_b);
-  virtual util::Status StepperMotorMove(int microsteps_a, int microsteps_b);
-  virtual util::Status StepperMotorStopAll(StopType type);
+  util::Status StepperMotorSetSpeed(int microstep_hz_a,
+                                    int microstep_hz_b) override;
+  util::Status StepperMotorMove(int microsteps_a, int microsteps_b) override;
+  util::Status StepperMotorStopAll(StopType type) override;
 
-  virtual void RunDevTest();
+  void RunDevTest() override;
 
  private:
   static void TaskFn(void*);
