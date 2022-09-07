@@ -6,6 +6,9 @@
 #include "tplp/config/params.h"
 #include "tplp/ui/globals.h"
 
+// 5 digits in the spinbox
+static constexpr int kMaxSpeed = 99'999;
+
 static lv_obj_t* focused_spinner = nullptr;
 lv_obj_t* inc_btn;
 lv_obj_t* dec_btn;
@@ -143,12 +146,17 @@ lv_obj_t* ui_settings_steppers_create(lv_obj_t* parent) {
                        LV_GRID_ALIGN_CENTER, 1, 1);
 
   motor_a_step_count = lv_spinbox_create(content);
+  lv_obj_set_style_text_font(motor_a_step_count, &lv_font_unscii_16, 0);
+  lv_obj_clear_flag(motor_a_step_count, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_width(motor_a_step_count, 100);
   lv_obj_add_event_cb(motor_a_step_count, focus_event_cb, LV_EVENT_ALL, NULL);
   lv_obj_set_grid_cell(motor_a_step_count, LV_GRID_ALIGN_STRETCH, 1, 1,
                        LV_GRID_ALIGN_CENTER, 1, 1);
 
   motor_a_speed = lv_spinbox_create(content);
+  lv_spinbox_set_range(motor_a_speed, 0, kMaxSpeed);
+  lv_obj_set_style_text_font(motor_a_speed, &lv_font_unscii_16, 0);
+  lv_obj_clear_flag(motor_a_speed, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_width(motor_a_speed, 100);
   lv_obj_add_event_cb(motor_a_speed, focus_event_cb, LV_EVENT_ALL, NULL);
   lv_obj_set_grid_cell(motor_a_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
@@ -166,12 +174,17 @@ lv_obj_t* ui_settings_steppers_create(lv_obj_t* parent) {
                        LV_GRID_ALIGN_CENTER, 2, 1);
 
   motor_b_step_count = lv_spinbox_create(content);
+  lv_obj_set_style_text_font(motor_b_step_count, &lv_font_unscii_16, 0);
+  lv_obj_clear_flag(motor_b_step_count, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_width(motor_b_step_count, 100);
   lv_obj_add_event_cb(motor_b_step_count, focus_event_cb, LV_EVENT_ALL, NULL);
   lv_obj_set_grid_cell(motor_b_step_count, LV_GRID_ALIGN_STRETCH, 1, 1,
                        LV_GRID_ALIGN_CENTER, 2, 1);
 
   motor_b_speed = lv_spinbox_create(content);
+  lv_spinbox_set_range(motor_b_speed, 0, kMaxSpeed);
+  lv_obj_set_style_text_font(motor_b_speed, &lv_font_unscii_16, 0);
+  lv_obj_clear_flag(motor_b_speed, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_width(motor_b_speed, 100);
   lv_obj_add_event_cb(motor_b_speed, focus_event_cb, LV_EVENT_ALL, NULL);
   lv_obj_set_grid_cell(motor_b_speed, LV_GRID_ALIGN_STRETCH, 2, 1,
