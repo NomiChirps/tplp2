@@ -125,7 +125,7 @@ bool StepperMotor::CalculateClockDivider(int microstep_hz,
   constexpr int kMaxCf = 8;
   const int sys_hz = clock_get_hz(clk_sys);
   if (microstep_hz >= sys_hz) {
-    LOG(ERROR) << "Cannot step faster than the system clock. Requested "
+    LOG(ERROR) << "Cannot step faster than the system clock (" << sys_hz <<"). Requested "
                   "microstep_hz = "
                << microstep_hz;
     return false;
@@ -161,9 +161,8 @@ bool StepperMotor::CalculateClockDivider(int microstep_hz,
   if (nds[cf_len - 1][0] > std::numeric_limits<uint16_t>::max() ||
       nds[cf_len - 1][1] > std::numeric_limits<uint16_t>::max()) {
     // the necessary clock divider is too large and can't be represented.
-    LOG(WARNING)
-        << "Cannot step slower than sys_clk/65535. Requested microstep_hz = "
-        << microstep_hz;
+    LOG(WARNING) << "Cannot step slower than sys_clk/65535==" << sys_hz / 65535
+                 << ". Requested microstep_hz = " << microstep_hz;
     return false;
   }
   VLOG(1) << x << " / " << y << " ~ " << nds[cf_len - 1][0] << " / "
@@ -275,7 +274,8 @@ void StepperMotor::SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
                                     StepperMotor* b, int32_t microsteps_b) {
   VLOG(1) << "StepperMotor::SimultaneousMove(" << microsteps_a << ", "
           << microsteps_b << ")";
-  if (!a->current_move_handle_.finished() || !b->current_move_handle_.finished()) {
+  if (!a->current_move_handle_.finished() ||
+      !b->current_move_handle_.finished()) {
     LOG(ERROR) << "SimultaneousMove failed: a move is already in progress";
     return;
   }
@@ -292,31 +292,32 @@ void StepperMotor::SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
   }
   // Choose an arbitrary DMA controller.
   StepperMotor* dma_owner = a;
-  a->current_move_handle_ = b->current_move_handle_ = dma_owner->dma_->Transfer({
-      .c0_enable = true,
-      .c0_treq_sel = a->dma_timer_dreq_,
-      .c0_read_addr = &commands_[a->command_index_after_move()],
-      .c0_read_incr = true,
-      .c0_write_addr = a->txf_,
-      .c0_write_incr = false,
-      .c0_data_size = DmaController::DataSize::k32,
-      // XXX: positive count?
-      .c0_trans_count = static_cast<uint32_t>(microsteps_a),
-      .c0_ring_size = kCommandBufRingSizeBits,
-      .c0_ring_sel = false,
+  a->current_move_handle_ = b->current_move_handle_ =
+      dma_owner->dma_->Transfer({
+          .c0_enable = true,
+          .c0_treq_sel = a->dma_timer_dreq_,
+          .c0_read_addr = &commands_[a->command_index_after_move()],
+          .c0_read_incr = true,
+          .c0_write_addr = a->txf_,
+          .c0_write_incr = false,
+          .c0_data_size = DmaController::DataSize::k32,
+          // XXX: positive count?
+          .c0_trans_count = static_cast<uint32_t>(microsteps_a),
+          .c0_ring_size = kCommandBufRingSizeBits,
+          .c0_ring_sel = false,
 
-      .c1_enable = true,
-      .c1_treq_sel = b->dma_timer_dreq_,
-      .c1_read_addr = &commands_[b->command_index_after_move()],
-      .c1_read_incr = true,
-      .c1_write_addr = b->txf_,
-      .c1_write_incr = false,
-      .c1_data_size = DmaController::DataSize::k32,
-      // XXX: positive count?
-      .c1_trans_count = static_cast<uint32_t>(microsteps_a),
-      .c1_ring_size = kCommandBufRingSizeBits,
-      .c1_ring_sel = false,
-  });
+          .c1_enable = true,
+          .c1_treq_sel = b->dma_timer_dreq_,
+          .c1_read_addr = &commands_[b->command_index_after_move()],
+          .c1_read_incr = true,
+          .c1_write_addr = b->txf_,
+          .c1_write_incr = false,
+          .c1_data_size = DmaController::DataSize::k32,
+          // XXX: positive count?
+          .c1_trans_count = static_cast<uint32_t>(microsteps_b),
+          .c1_ring_size = kCommandBufRingSizeBits,
+          .c1_ring_sel = false,
+      });
   a->offset_after_move_ += microsteps_a;
   b->offset_after_move_ += microsteps_b;
 
