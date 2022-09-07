@@ -22,6 +22,10 @@ uint32_t make_command(uint8_t pwm_period, uint8_t t1, uint8_t t2_t3,
   return (pwm_period << 0) | (t1 << 8) | (t2_t3 << 16) | (pins_t2_t3 << 24) |
          (pins_t4 << 28);
 }
+
+static std::optional<int> pio0_program_offset = std::nullopt;
+static std::optional<int> pio1_program_offset = std::nullopt;
+
 }  // namespace
 
 bool StepperMotor::static_init_done_ = false;
@@ -39,9 +43,29 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   CHECK_EQ(hw.a2 + 1, hw.b1) << "StepperMotor pins must be consecutive";
   CHECK_EQ(hw.b1 + 1, hw.b2) << "StepperMotor pins must be consecutive";
 
-  CHECK(pio_can_add_program(pio, &stepper_program))
-      << "Not enough free instruction space in PIO" << pio_get_index(pio);
-  int program_offset = pio_add_program(pio, &stepper_program);
+  int program_offset;
+  if (pio_get_index(pio) == 0) {
+    if (pio0_program_offset.has_value()) {
+      program_offset = *pio0_program_offset;
+    } else {
+      CHECK(pio_can_add_program(pio, &stepper_program))
+          << "Not enough free instruction space in PIO" << pio_get_index(pio);
+      pio0_program_offset = program_offset =
+          pio_add_program(pio, &stepper_program);
+    }
+  } else if (pio_get_index(pio) == 1) {
+    if (pio1_program_offset.has_value()) {
+      program_offset = *pio1_program_offset;
+    } else {
+      CHECK(pio_can_add_program(pio, &stepper_program))
+          << "Not enough free instruction space in PIO" << pio_get_index(pio);
+      pio1_program_offset = program_offset =
+          pio_add_program(pio, &stepper_program);
+    }
+  } else {
+    LOG(FATAL) << "bad pio index";
+  }
+
   int sm = pio_claim_unused_sm(pio, false);
   LOG_IF(FATAL, sm < 0) << "No free state machines in PIO"
                         << pio_get_index(pio);
@@ -247,11 +271,62 @@ void StepperMotor::Move(int32_t microsteps) {
   VLOG(1) << "Move done";
 }
 
-// FIXME: not tested!
 void StepperMotor::SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
                                     StepperMotor* b, int32_t microsteps_b) {
-  VLOG(1) << "StepperMotor::SimultaneoussMove(" << microsteps_a << ", "
+  VLOG(1) << "StepperMotor::SimultaneousMove(" << microsteps_a << ", "
           << microsteps_b << ")";
+  if (!a->current_move_handle_.finished() || !b->current_move_handle_.finished()) {
+    LOG(ERROR) << "SimultaneousMove failed: a move is already in progress";
+    return;
+  }
+  if (microsteps_a != 0 && microsteps_b == 0) {
+    a->Move(microsteps_a);
+  }
+  if (microsteps_a == 0 && microsteps_b != 0) {
+    b->Move(microsteps_b);
+  }
+  if (VLOG_IS_ON(1)) {
+    // clear TXOVER debug registers
+    a->pio_->fdebug = 1 << (16 + a->sm_);
+    b->pio_->fdebug = 1 << (16 + b->sm_);
+  }
+  // Choose an arbitrary DMA controller.
+  StepperMotor* dma_owner = a;
+  a->current_move_handle_ = b->current_move_handle_ = dma_owner->dma_->Transfer({
+      .c0_enable = true,
+      .c0_treq_sel = a->dma_timer_dreq_,
+      .c0_read_addr = &commands_[a->command_index_after_move()],
+      .c0_read_incr = true,
+      .c0_write_addr = a->txf_,
+      .c0_write_incr = false,
+      .c0_data_size = DmaController::DataSize::k32,
+      // XXX: positive count?
+      .c0_trans_count = static_cast<uint32_t>(microsteps_a),
+      .c0_ring_size = kCommandBufRingSizeBits,
+      .c0_ring_sel = false,
+
+      .c1_enable = true,
+      .c1_treq_sel = b->dma_timer_dreq_,
+      .c1_read_addr = &commands_[b->command_index_after_move()],
+      .c1_read_incr = true,
+      .c1_write_addr = b->txf_,
+      .c1_write_incr = false,
+      .c1_data_size = DmaController::DataSize::k32,
+      // XXX: positive count?
+      .c1_trans_count = static_cast<uint32_t>(microsteps_a),
+      .c1_ring_size = kCommandBufRingSizeBits,
+      .c1_ring_sel = false,
+  });
+  a->offset_after_move_ += microsteps_a;
+  b->offset_after_move_ += microsteps_b;
+
+  if (VLOG_IS_ON(1)) {
+    LOG_IF(ERROR, a->pio_->fdebug & (1 << (16 + a->sm_)))
+        << "TX FIFO overflow on during move (arg a)";
+    LOG_IF(ERROR, b->pio_->fdebug & (1 << (16 + b->sm_)))
+        << "TX FIFO overflow on during move (arg b)";
+  }
+  VLOG(1) << "SimultaneousMove done";
 }
 
 void StepperMotor::Stop(StopType type) {

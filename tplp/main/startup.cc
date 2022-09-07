@@ -108,7 +108,12 @@ void StartupTask(void*) {
                                         .a2 = Pins::MOTOR_A_A2,
                                         .b1 = Pins::MOTOR_A_B1,
                                         .b2 = Pins::MOTOR_A_B2}));
-  StepperMotor* motor_b = nullptr;
+  StepperMotor* motor_b =
+      CHECK_NOTNULL(StepperMotor::Init(dma_stepper_b, pio1,
+                                       {.a1 = Pins::MOTOR_B_A1,
+                                        .a2 = Pins::MOTOR_B_A2,
+                                        .b1 = Pins::MOTOR_B_B1,
+                                        .b2 = Pins::MOTOR_B_B2}));
 
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(
