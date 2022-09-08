@@ -109,6 +109,10 @@ cc_library(
 cc_test(
     name = "clkdiv_test",
     srcs = ["clkdiv_test.cc"],
+    target_compatible_with = select({
+        "@platforms//os:none": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":clkdiv",
         "@com_google_googletest//:gtest_main",
