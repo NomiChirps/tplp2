@@ -1,5 +1,8 @@
 workspace(name = "tplp2")
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load("//:defs.bzl", "new_archive_repository")
+
 local_repository(
     name = "lvgl",
     path = "third_party/lvgl",
@@ -8,8 +11,6 @@ local_repository(
 load("@lvgl//:repositories.bzl", "lvgl_dependencies")
 
 lvgl_dependencies()
-
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 RULES_PICO_COMMIT = "5562cfc9ea4e61a6ae28fb54a4e8a3607a556565"
 
@@ -110,4 +111,11 @@ http_archive(
     sha256 = "ca2d683a5ed38d0c9a5c5ab6a2ab67bc5ce8772444133029b2bfc5c3bf05db2f",
     strip_prefix = "googletest-15460959cbbfa20e66ef0b5ab497367e47fc0a04",
     urls = ["https://github.com/google/googletest/archive/15460959cbbfa20e66ef0b5ab497367e47fc0a04.zip"],
+)
+
+new_archive_repository(
+    name = "fatfs",
+    src = "//vendor:fatfs-R0.14b.tar.gz",
+    build_file = "//third_party:BUILD.fatfs",
+    strip_prefix = "fatfs-R0.14b/source",
 )

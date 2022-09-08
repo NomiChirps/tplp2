@@ -1,0 +1,11 @@
+cc_library(
+    name = "fatfs",
+    srcs = ["ff.c"],
+    hdrs = [
+        "diskio.h",
+        "ff.h",
+    ],
+    include_prefix = "fatfs",
+    visibility = ["//visibility:public"],
+    deps = ["@//tplp/fatfs:ffconf"],
+)
