@@ -7,5 +7,5 @@ cc_library(
     ],
     include_prefix = "fatfs",
     visibility = ["//visibility:public"],
-    deps = ["@//tplp/fatfs:ffconf"],
+    deps = ["@//tplp/fs:ffconf"],
 )
