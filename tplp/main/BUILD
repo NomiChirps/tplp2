@@ -4,6 +4,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":startup",
+        "//tplp/config:hw",
         "@FreeRTOS",
         "@rules_pico//pico:pico_stdlib",
     ],

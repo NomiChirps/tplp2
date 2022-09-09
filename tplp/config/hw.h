@@ -33,7 +33,7 @@ struct Pins {
   static constexpr gpio_pin_t HX8357_CS = gpio_pin_t(24);
   static constexpr gpio_pin_t HX8357_DC = gpio_pin_t(25);
 #elif defined(RASPBERRYPI_PICO)
-  // GP0 free (UART0 TX)
+  static constexpr gpio_pin_t UART0_TX = gpio_pin_t(0);
   // Each stepper motor's 4 pins must be consecutively numbered.
   static constexpr gpio_pin_t MOTOR_A_A1 = gpio_pin_t(1);
   static constexpr gpio_pin_t MOTOR_A_A2 = gpio_pin_t(2);

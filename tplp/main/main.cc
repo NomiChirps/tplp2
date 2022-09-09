@@ -2,11 +2,17 @@
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
+#include "tplp/config/hw.h"
 #include "tplp/config/tasks.h"
 #include "tplp/main/startup.h"
 
 #if LIB_PICO_STDIO_USB
 #include "pico/stdio_usb.h"
+#endif
+#if LIB_PICO_STDIO_UART
+#include "pico/stdio_uart.h"
+#include "hardware/gpio.h"
+#include "hardware/timer.h"
 #endif
 
 int main() {
@@ -14,8 +20,10 @@ int main() {
   stdio_usb_init();
 #endif
 #if LIB_PICO_STDIO_UART
-  stdio_uart_init_full(uart_default, PICO_DEFAULT_UART_BAUD_RATE, Pins::UART_TX,
-                       -1);
+  stdio_uart_init_full(uart0, 115200, tplp::Pins::UART0_TX, -1);
+  // Invert UART signal to be compatible with RS232.
+  gpio_set_outover(tplp::Pins::UART0_TX, GPIO_OVERRIDE_INVERT);
+  busy_wait_ms(100);
 #endif
 
   // TODO: add a build timestamp and version line at bootup

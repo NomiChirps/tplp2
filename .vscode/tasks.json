@@ -38,7 +38,7 @@
             "dependsOn": [
                 "[iterate] build",
                 "flash tplp",
-                "monitor usb serial output",
+                "monitor uart output",
             ],
             "dependsOrder": "sequence",
         },
@@ -54,6 +54,26 @@
             "label": "monitor usb serial output",
             "command": "./tools/monitor_usbserial.sh",
             "type": "shell",
+            "runOptions": {
+                "instanceLimit": 1
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": true
+            }
+        },
+        {
+            "label": "monitor uart output",
+            "command": "./tools/monitor_uart.sh",
+            "type": "shell",
+            "runOptions": {
+                "instanceLimit": 1,
+                "reevaluateOnRerun": true
+            },
             "presentation": {
                 "echo": true,
                 "reveal": "always",
