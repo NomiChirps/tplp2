@@ -119,8 +119,8 @@ SpiTransaction::SpiTransaction(SpiTransaction&& other)
 void SpiTransaction::Transfer(const TransferConfig& req) {
   VLOG(1) << "Transfer() trans_count=" << req.trans_count;
 
-  static uint32_t kDummyTxBuffer = 0x0a;
-  static uint32_t kDummyRxBuffer = 0xa0;
+  static uint32_t kDummyTxBuffer = 0;
+  static uint32_t kDummyRxBuffer = 0;
 
   CHECK(!spi_is_busy(spi_));
 
