@@ -10,6 +10,7 @@ namespace tplp {
 struct Frequencies {
   // HX8357 display is on SPI1 and is rated for 16MHz, although it can
   // be overclocked significantly faster.
+  // The SD card attached to the display is on the same bus.
   static constexpr int kSpi1 = 16'000'000;
 
   // With I2cController in the disgraceful state it's in,
@@ -32,7 +33,7 @@ struct Pins {
   static constexpr gpio_pin_t HX8357_CS = gpio_pin_t(24);
   static constexpr gpio_pin_t HX8357_DC = gpio_pin_t(25);
 #elif defined(RASPBERRYPI_PICO)
-  // GP0 free
+  // GP0 free (UART0 TX)
   // Each stepper motor's 4 pins must be consecutively numbered.
   static constexpr gpio_pin_t MOTOR_A_A1 = gpio_pin_t(1);
   static constexpr gpio_pin_t MOTOR_A_A2 = gpio_pin_t(2);
@@ -60,7 +61,13 @@ struct Pins {
   // GP25 == PICO_DEFAULT_LED_PIN
   // GP26 free
   // GP27 free
-  // GP28 free
+  static constexpr gpio_pin_t HX8357SD_CS = gpio_pin_t(28);
+  // Future needs:
+  // - GP0 for UART TX debug output, instead of USB
+  // - 1 for mirror motor PWM
+  // - 1-2 for mirror optointerrupter and/or pinhole photodiode
+  // - 2 for roller encoder (quadrature)
+  // - that leaves 2 unspoken-for. 3 if we hack out the board LED.
 #else
 #error "Board not detected"
 #endif
