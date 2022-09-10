@@ -122,8 +122,6 @@ void SpiTransaction::Transfer(const TransferConfig& req) {
   static uint32_t kDummyTxBuffer = 0;
   static uint32_t kDummyRxBuffer = 0;
 
-  CHECK(!spi_is_busy(spi_));
-
   if (req.trans_count == 0) {
     VLOG(1) << "Skipping zero-length transfer";
     return;
