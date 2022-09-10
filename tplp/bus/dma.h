@@ -128,8 +128,6 @@ class DmaController {
   const dma_irq_index_t irq_index_;
   const dma_channel_t c0_;
   const dma_channel_t c1_;
-  const SemaphoreHandle_t tail_mutex_;
-  const SemaphoreHandle_t free_slots_sem_;
   struct TransferSlot {
     // Whether channel 0 should run.
     bool c0_enable = 0;
@@ -149,34 +147,13 @@ class DmaController {
     std::optional<Action> c0_action;
     std::optional<Action> c1_action;
     std::optional<Action> both_action;
-
-    // If true, channel configs are filled out.
-    bool launch_ready = 0;
   };
-  TransferSlot ring_[kQueueLength];
-  const TransferSlot* const ring_end_;
-  inline TransferSlot* RingNext(TransferSlot* p) {
-    if (p + 1 == ring_end_)
-      return ring_;
-    else
-      return p + 1;
-  }
+  QueueHandle_t queue_;
 
-  // Currently active transfer slot. Never null.
-  // Readers: DmaFinishedISR() only
-  // Writers: DmaFinishedISR() only
-  TransferSlot* head_;
-  // Next free transfer slot.
-  // Readers: Transfer() only
-  // Writers: Transfer() only
-  TransferSlot* tail_;
+  TransferSlot active_transfer_;
 
   volatile uint32_t queued_transfers_count_;
   volatile uint32_t completed_transfers_count_;
-
-  // If false, no transfer is in progress, and DmaFinishedISR() cannot trigger.
-  // If true, it's more complicated than that.
-  bool active_;
 };
 
 }  // namespace tplp
