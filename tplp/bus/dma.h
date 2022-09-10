@@ -101,7 +101,7 @@ class DmaController {
     uint32_t id_;
   };
 
-  // Queues up a DMA with the given configuration.
+  // Queues up a DMA with the given configuration. Thread-safe.
   //
   // Returns immediately after enqueueing the transfer. `action` specifies an
   // optional set of actions to take when the transfer has been completed. The
@@ -150,8 +150,8 @@ class DmaController {
   };
   QueueHandle_t queue_;
 
+  SemaphoreHandle_t transfer_mutex_;
   TransferSlot active_transfer_;
-
   volatile uint32_t queued_transfers_count_;
   volatile uint32_t completed_transfers_count_;
 };

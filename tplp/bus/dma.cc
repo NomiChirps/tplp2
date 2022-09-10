@@ -145,6 +145,7 @@ DmaController::DmaController(dma_irq_index_t irq_index, dma_channel_t c0,
       c0_(c0),
       c1_(c1),
       queue_(CHECK_NOTNULL(xQueueCreate(kQueueLength, sizeof(TransferSlot)))),
+      transfer_mutex_(CHECK_NOTNULL(xSemaphoreCreateMutex())),
       active_transfer_(),
       queued_transfers_count_(0),
       completed_transfers_count_(0) {}
@@ -157,11 +158,11 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
 
   CHECK(req.c0_enable || req.c1_enable);
 
-  TransferSlot tail;
-  tail.c0_enable = req.c0_enable;
-  tail.c1_enable = req.c1_enable;
-  tail.c0_done = !req.c0_enable;
-  tail.c1_done = !req.c1_enable;
+  TransferSlot cfg;
+  cfg.c0_enable = req.c0_enable;
+  cfg.c1_enable = req.c1_enable;
+  cfg.c0_done = !req.c0_enable;
+  cfg.c1_done = !req.c1_enable;
 
   dma_channel_config c = {};
   // Options not (yet?) exposed in the Request struct.
@@ -191,11 +192,11 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
     channel_config_set_ring(&c, req.c0_ring_sel, req.c0_ring_size);
     CHECK(req.c0_read_addr);
     CHECK(req.c0_write_addr);
-    tail.c0_config[0] = reinterpret_cast<uint32_t>(req.c0_read_addr);
-    tail.c0_config[1] = reinterpret_cast<uint32_t>(req.c0_write_addr);
-    tail.c0_config[2] = req.c0_trans_count;
-    tail.c0_config[3] = c.ctrl;
-    tail.c0_action = req.c0_action;
+    cfg.c0_config[0] = reinterpret_cast<uint32_t>(req.c0_read_addr);
+    cfg.c0_config[1] = reinterpret_cast<uint32_t>(req.c0_write_addr);
+    cfg.c0_config[2] = req.c0_trans_count;
+    cfg.c0_config[3] = c.ctrl;
+    cfg.c0_action = req.c0_action;
   }
 
   if (req.c1_enable) {
@@ -211,27 +212,28 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
     channel_config_set_ring(&c, req.c1_ring_sel, req.c1_ring_size);
     CHECK(req.c1_read_addr);
     CHECK(req.c1_write_addr);
-    tail.c1_config[0] = reinterpret_cast<uint32_t>(req.c1_read_addr);
-    tail.c1_config[1] = reinterpret_cast<uint32_t>(req.c1_write_addr);
-    tail.c1_config[2] = req.c1_trans_count;
-    tail.c1_config[3] = c.ctrl;
-    tail.c1_action = req.c1_action;
+    cfg.c1_config[0] = reinterpret_cast<uint32_t>(req.c1_read_addr);
+    cfg.c1_config[1] = reinterpret_cast<uint32_t>(req.c1_write_addr);
+    cfg.c1_config[2] = req.c1_trans_count;
+    cfg.c1_config[3] = c.ctrl;
+    cfg.c1_action = req.c1_action;
   }
 
   if (req.c0_enable && req.c1_enable) {
-    tail.both_action = req.both_action;
+    cfg.both_action = req.both_action;
   }
 
+  CHECK(xSemaphoreTake(transfer_mutex_, portMAX_DELAY));
   VLOG(2) << completed_transfers_count_ << " / " << queued_transfers_count_;
-  CHECK(xQueueSendToBack(queue_, &tail, portMAX_DELAY));
+  CHECK(xQueueSendToBack(queue_, &cfg, portMAX_DELAY));
   if (queued_transfers_count_ == completed_transfers_count_) {
     // ISR isn't running. Launch queued thing (if it hasn't been already).
     if (xQueueReceive(queue_, &active_transfer_, 0)) {
       VLOG(1) << "Transfer(): immediate launch";
       CHECK(!dma_channel_is_busy(c0_));
       CHECK(!dma_channel_is_busy(c1_));
-      ConfigureAndLaunchImmediately(c0_, tail.c0_enable, tail.c0_config, c1_,
-                                    tail.c1_enable, tail.c1_config);
+      ConfigureAndLaunchImmediately(c0_, cfg.c0_enable, cfg.c0_config, c1_,
+                                    cfg.c1_enable, cfg.c1_config);
     } else {
       VLOG(1) << "Transfer(): already done";
     }
@@ -239,6 +241,7 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
     VLOG(1) << "Transfer(): pending (" << PeekQueueLength() << ")";
   }
   TransferHandle handle(this, queued_transfers_count_++);
+  CHECK(xSemaphoreGive(transfer_mutex_));
   return handle;
 }
 
@@ -284,6 +287,7 @@ std::array<uint32_t, 2> DmaController::TransferHandle::Abort() {
   VLOG(1) << "Abort() remaining_trans_count = " << remaining_trans_count[0]
           << ", " << remaining_trans_count[1];
   // Skip this transfer's actions, but launch the next one if necessary
+  CHECK(xSemaphoreTake(dma_->transfer_mutex_, portMAX_DELAY));
   // TODO: address code duplication between here and the ISR
   dma_->completed_transfers_count_++;
   if (xQueueReceive(dma_->queue_, &dma_->active_transfer_, 0)) {
@@ -295,6 +299,7 @@ std::array<uint32_t, 2> DmaController::TransferHandle::Abort() {
   } else {
     VLOG(1) << "Abort: reached end of queue";
   }
+  CHECK(xSemaphoreGive(dma_->transfer_mutex_));
 
   // Re-enable interrupt
   hw_set_bits(inte, channels_mask);
