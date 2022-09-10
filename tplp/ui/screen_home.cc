@@ -16,7 +16,7 @@ static lv_obj_t* label = NULL;
 lv_obj_t* ui_screen_home_create(lv_obj_t* parent) {
   lv_obj_t* root = lv_obj_create(parent);
   lv_obj_set_layout(root, LV_LAYOUT_FLEX);
-  lv_obj_set_size(root, LV_PCT(100), LV_PCT(100));
+  lv_obj_set_size(root, LV_PCT(100), LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
 
   ui_header_create(root);
@@ -42,7 +42,7 @@ static lv_obj_t* ui_contents_create(lv_obj_t* parent) {
   lv_obj_remove_style_all(content);
   lv_obj_set_layout(content, LV_LAYOUT_FLEX);
 
-  lv_obj_set_size(content, LV_PCT(100), LV_PCT(100));
+  lv_obj_set_size(content, LV_PCT(100), LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
 
   label = lv_label_create(content);
