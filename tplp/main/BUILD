@@ -27,6 +27,7 @@ cc_library(
         "//tplp/bus:spi",
         "//tplp/config:hw",
         "//tplp/config:tasks",
+        "//tplp/fs:sdspi",
         "//tplp/graphics:lvgl_init",
         "//tplp/hx711",
         "//tplp/hx8357",

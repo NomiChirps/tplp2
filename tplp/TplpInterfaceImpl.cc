@@ -157,7 +157,8 @@ util::Status TplpInterfaceImpl::StepperMotorStopAll(StopType type) {
 }
 
 void TplpInterfaceImpl::RunDevTest() {
-  LOG(WARNING) << "RunDevTest() (nothing to do)";
+  LOG(INFO) << "RunDevTest()";
+  LOG(INFO) << "*** " << sdspi_->Init();
 }
 
 }  // namespace ui

@@ -54,8 +54,7 @@ class HX8357 {
 
  protected:
   enum class DisplayType;
-  explicit HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs,
-                  gpio_pin_t dc);
+  explicit HX8357(DisplayType type, SpiDevice* spi, gpio_pin_t dc);
 
   // Contract: dc_ must be low before these transfers, and will be low after.
   void SendCommand(SpiTransaction& txn, uint8_t command,
@@ -69,9 +68,7 @@ class HX8357 {
 
  private:
   const DisplayType type_;
-  SpiController* const spi_;
-  SpiDevice* spi_device_;
-  const gpio_pin_t cs_;
+  SpiDevice* const spi_device_;
   const gpio_pin_t dc_;
   // Dimensions as modified by current rotation
   int16_t width_;
@@ -85,18 +82,16 @@ class HX8357B : public HX8357 {
  public:
   // Caller retains ownership of `spi`. SPI frequency should be no greater
   // than `kNominalMaxSpiFrequency`.
-  // `cs`: SPI chip select.
-  // `dc`: Data/Command.
-  explicit HX8357B(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc);
+  // `dc`: Data/Command pin.
+  explicit HX8357B(SpiDevice* spi, gpio_pin_t dc);
 };
 
 class HX8357D : public HX8357 {
  public:
   // Caller retains ownership of `spi`. SPI frequency should be no greater
   // than `kNominalMaxSpiFrequency`.
-  // `cs`: SPI chip select.
-  // `dc`: Data/Command.
-  explicit HX8357D(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc);
+  // `dc`: Data/Command pin.
+  explicit HX8357D(SpiDevice* spi, gpio_pin_t dc);
 };
 
 }  // namespace tplp

@@ -14,6 +14,7 @@
 #include "tplp/bus/spi.h"
 #include "tplp/config/hw.h"
 #include "tplp/config/tasks.h"
+#include "tplp/fs/sdspi.h"
 #include "tplp/graphics/lvgl_init.h"
 #include "tplp/hx711/hx711.h"
 #include "tplp/hx8357/hx8357.h"
@@ -34,13 +35,10 @@ void StartupTask(void*) {
   }
   LOG(INFO) << "Begin startup...";
 
-  // DMA allocations:
-  // I2C0
+  // DMA allocations.
   // FIXME: I2cController is incredibly fragile and requires its own DMA IRQ.
   DmaController* dma_i2c0 = DmaController::Init(kDma1);
-  // SPI1
   DmaController* dma_spi1 = DmaController::Init(kDma0);
-  // Stepper motors
   DmaController* dma_stepper_a = DmaController::Init(kDma0);
   DmaController* dma_stepper_b = DmaController::Init(kDma0);
 
@@ -48,13 +46,21 @@ void StartupTask(void*) {
       SpiController::Init(spi1, Frequencies::kSpi1, Pins::SPI1_SCLK,
                           Pins::SPI1_MOSI, Pins::SPI1_MISO, dma_spi1);
   LOG(INFO) << "SpiController::Init() OK";
+  SpiDevice* spi_sdcard = spi1_manager->AddDevice(Pins::HX8357SD_CS, "SD Card");
+  SpiDevice* spi_hx8357 = spi1_manager->AddDevice(Pins::HX8357_CS, "HX8357");
 
-  HX8357* display = new HX8357D(spi1_manager, Pins::HX8357_CS, Pins::HX8357_DC);
+  SdSpi* sdcard = CHECK_NOTNULL(new SdSpi(spi_sdcard));
+  status = sdcard->Init();
+  // TODO: this error should be prominently displayed on the UI
+  // we could also retry later
+  LOG_IF(ERROR, !status.ok()) << "SD card init failed: " << status;
+
+  HX8357* display = new HX8357D(spi_hx8357, Pins::HX8357_DC);
   display->Begin();
-  if (!display->SelfTest()) {
+  while (!display->SelfTest()) {
     // TODO: flash out an error code on something? board LED?
-    // reduce the SPI frequency?
     LOG(ERROR) << "HX8357 self test failed";
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
   // Rotate to widescreen and so it's the right way around on my workbench.
   display->SetRotation(0, 1, 1);
@@ -119,6 +125,7 @@ void StartupTask(void*) {
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(
       display, i2c0_controller, load_cell, motor_a, motor_b));
+  ui_adapter->sdspi_ = sdcard;
   ui_adapter->StartTask(TaskPriorities::kUiWorker, TaskStacks::kUiWorker);
   {
     LvglMutex mutex;

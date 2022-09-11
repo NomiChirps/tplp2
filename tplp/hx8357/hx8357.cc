@@ -270,18 +270,16 @@ static constexpr uint8_t kInitD[] = {
 
 enum class HX8357::DisplayType { HX8357D = 0xD, HX8357B = 0xB };
 
-HX8357::HX8357(DisplayType type, SpiController* spi, gpio_pin_t cs,
-               gpio_pin_t dc)
-    : type_(type), spi_(spi), cs_(cs), dc_(dc) {}
+HX8357::HX8357(DisplayType type, SpiDevice* spi, gpio_pin_t dc)
+    : type_(type), spi_device_(spi), dc_(dc) {}
 
-HX8357B::HX8357B(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
-    : HX8357(DisplayType::HX8357B, spi, cs, dc) {}
+HX8357B::HX8357B(SpiDevice* spi, gpio_pin_t dc)
+    : HX8357(DisplayType::HX8357B, spi, dc) {}
 
-HX8357D::HX8357D(SpiController* spi, gpio_pin_t cs, gpio_pin_t dc)
-    : HX8357(DisplayType::HX8357D, spi, cs, dc) {}
+HX8357D::HX8357D(SpiDevice* spi, gpio_pin_t dc)
+    : HX8357(DisplayType::HX8357D, spi, dc) {}
 
 void HX8357::Begin() {
-  spi_device_ = spi_->AddDevice(cs_, "HX8357");
   // Screen dimensions for default rotation (1,1,0)
   width_ = HX8357_TFTWIDTH;
   height_ = HX8357_TFTHEIGHT;
