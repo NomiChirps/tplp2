@@ -107,6 +107,10 @@ class SpiTransaction {
   // the SPI bus.
   void Dispose();
 
+  // Toggles the Chip-Select line and returns the new value. This can be useful
+  // for persnickety devices.
+  bool ToggleCS();
+
  private:
   SpiTransaction(const SpiTransaction&) = delete;
   SpiTransaction& operator=(const SpiTransaction&) = delete;

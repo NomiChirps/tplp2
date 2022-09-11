@@ -227,4 +227,9 @@ void SpiTransaction::Flush() {
   }
 }
 
+bool SpiTransaction::ToggleCS() {
+  gpio_put(cs_, !gpio_get(cs_));
+  return gpio_get(cs_);
+}
+
 }  // namespace tplp
