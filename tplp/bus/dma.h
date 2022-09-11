@@ -150,6 +150,11 @@ class DmaController {
   };
   QueueHandle_t queue_;
 
+  // transfer_mutex_ protects:
+  // - active_transfer_
+  // - queued_transfers_count_
+  // - completed_transfers_count_
+  // (except the ISR doesn't participate)
   SemaphoreHandle_t transfer_mutex_;
   TransferSlot active_transfer_;
   volatile uint32_t queued_transfers_count_;
