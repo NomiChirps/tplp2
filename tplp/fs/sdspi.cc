@@ -115,6 +115,16 @@ util::Status SdSpi::Init() {
       type_ = CardType::SDHC;
     }
   }
+  // Done with low-level init sequence.
+  txn.Dispose();
+
+  ASSIGN_OR_RETURN(size_, GetSize());
+  cid_t cid;
+  ASSIGN_OR_RETURN(cid, ReadCID());
+  LOG(INFO) << "Initialized card: "
+            << std::string_view(cid.oid, sizeof(cid.oid)) << " "
+            << std::string_view(cid.pnm, sizeof(cid.pnm)) << " SN#" << cid.psn
+            << "; " << size_ << " blocks";
 
   initialized_ = true;
   return util::OkStatus();
@@ -202,6 +212,83 @@ util::Status SdSpi::R1ToStatus(R1 r1) {
     return util::UnknownError("card is in idle state; protocol error?");
   } else {
     return util::OkStatus();
+  }
+  return util::OkStatus();
+}
+
+util::StatusOr<uint32_t> SdSpi::GetSize() {
+  csd_t csd;
+  ASSIGN_OR_RETURN(csd, ReadCSD());
+  if (csd.v1.csd_ver == 0) {
+    uint8_t read_bl_len = csd.v1.read_bl_len;
+    uint16_t c_size = (csd.v1.c_size_high << 10) | (csd.v1.c_size_mid << 2) |
+                      csd.v1.c_size_low;
+    uint8_t c_size_mult =
+        (csd.v1.c_size_mult_high << 1) | csd.v1.c_size_mult_low;
+    return (uint32_t)(c_size + 1) << (c_size_mult + read_bl_len - 7);
+  } else if (csd.v2.csd_ver == 1) {
+    uint32_t c_size = ((uint32_t)csd.v2.c_size_high << 16) |
+                      (csd.v2.c_size_mid << 8) | csd.v2.c_size_low;
+    return (c_size + 1) << 10;
+  } else {
+    return util::UnknownError("Bad CSD");
+  }
+}
+
+util::StatusOr<SdSpi::csd_t> SdSpi::ReadCSD() {
+  csd_t csd;
+  static_assert(sizeof(csd) == 16);
+  RETURN_IF_ERROR(ReadRegister(9, reinterpret_cast<uint8_t*>(&csd)));
+  return csd;
+}
+
+util::StatusOr<SdSpi::cid_t> SdSpi::ReadCID() {
+  cid_t cid;
+  static_assert(sizeof(cid) == 16);
+  RETURN_IF_ERROR(ReadRegister(10, reinterpret_cast<uint8_t*>(&cid)));
+  return cid;
+}
+
+util::Status SdSpi::ReadRegister(uint8_t cmd, uint8_t buf[16]) {
+  SpiTransaction txn = spi_->StartTransaction();
+  RETURN_IF_ERROR(CardCommand(txn, cmd, 0).status());
+  RETURN_IF_ERROR(WaitStartBlock(txn));
+  txn.Transfer({
+      .read_addr = kDummyTxBuf,
+      .write_addr = buf,
+      .trans_count = 16,
+  });
+  uint16_t crc;
+  txn.Transfer({
+      .read_addr = kDummyTxBuf,
+      .write_addr = &crc,
+      .trans_count = 2,
+  });
+  // TODO: check crc16
+  txn.Dispose();
+  return util::OkStatus();
+}
+
+util::Status SdSpi::WaitStartBlock(SpiTransaction& txn, int timeout_ms,
+                                   int delay_ms) {
+  uint8_t buf;
+  RETURN_IF_ERROR(
+      WaitUntil(timeout_ms, delay_ms, [&txn, &buf]() -> util::StatusOr<bool> {
+        txn.TransferImmediate({
+            .read_addr = kDummyTxBuf,
+            .write_addr = &buf,
+            .trans_count = 1,
+        });
+        VLOG(1) << "WaitStartBlock: 0x" << std::hex << std::setw(2)
+                << std::setfill('0') << (int)buf;
+        return buf != 0xff;
+      }));
+  // 0xfe is the start block token
+  if (buf != 0xfe) {
+    LOG(ERROR) << "Got R1 = 0x" << std::hex << std::setw(2) << std::setfill('0')
+               << (int)buf << " instead of start block token";
+    return util::UnknownError(
+        "timed out waiting for start block token; protocol error?");
   }
   return util::OkStatus();
 }
