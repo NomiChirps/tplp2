@@ -94,6 +94,12 @@ class SpiTransaction {
   // returns immediately, without waiting for the transfer to finish.
   void Transfer(const TransferConfig& req);
 
+  // Performs the given transfer immediately, in the current thread,
+  // busy-waiting until it completes. The transaction must be new or have had
+  // all pending Transfer()s explicitly Flush()ed before calling this; otherwise
+  // it will CHECK-fail. `trans_count` must be less than or equal to 8.
+  void TransferImmediate(const TransferConfig& req);
+
   // Waits until queued transfers are complete.
   void Flush();
 

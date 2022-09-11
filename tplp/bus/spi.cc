@@ -127,7 +127,7 @@ void SpiTransaction::Transfer(const TransferConfig& req) {
     return;
   }
 
-  volatile io_rw_32* spi_dr = &spi_get_hw(spi_)->dr;
+  volatile io_rw_32* const spi_dr = &spi_get_hw(spi_)->dr;
   // TODO: increase transfer width (8b,16b,32b) if buf is big and the right
   // size? alternatively, let the caller choose.
   // (is this even worth doing? would it make any difference?)
@@ -172,6 +172,36 @@ void SpiTransaction::Transfer(const TransferConfig& req) {
   pending_transfer_count_ += 1;
 
   VLOG(1) << "Transfer() queued trans_count=" << req.trans_count;
+}
+
+void SpiTransaction::TransferImmediate(const TransferConfig& req) {
+  CHECK_EQ(pending_transfer_count_, 0)
+      << "TransferImmediate called before Flush()";
+  // The SPI TX FIFO is 16 bits wide and 8 locations deep.
+  CHECK_LE(req.trans_count, 8u);
+
+  volatile io_rw_32* const spi_dr = &spi_get_hw(spi_)->dr;
+  for (uint32_t i = 0; i < req.trans_count; ++i) {
+    CHECK(spi_is_writable(spi_));
+    if (req.read_addr) {
+      *spi_dr = static_cast<const uint8_t*>(req.read_addr)[i];
+    } else {
+      *spi_dr = 0;
+    }
+  }
+  for (uint32_t i = 0; i < req.trans_count; ++i) {
+    while (!spi_is_readable(spi_)) tight_loop_contents();
+    if (req.write_addr) {
+      static_cast<uint8_t*>(req.write_addr)[i] = *spi_dr;
+    } else {
+      (void)*spi_dr;
+    }
+  }
+  // Wait for transfer to finish.
+  while (spi_is_busy(spi_)) tight_loop_contents();
+  if (req.toggle_gpio >= 0) {
+    gpio_put(req.toggle_gpio, !gpio_get(req.toggle_gpio));
+  }
 }
 
 SpiTransaction::~SpiTransaction() { Dispose(); }
