@@ -20,6 +20,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] fix all instances of std::setw(). it only sticks for one output field...
 - [ ] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
   - use the MicroSD card behind the display. fat32?
 - [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
