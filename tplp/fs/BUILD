@@ -1,4 +1,16 @@
 cc_library(
+    name = "fs",
+    srcs = ["fs.cc"],
+    hdrs = ["fs.h"],
+    deps = [
+        ":fatfs_diskio_impl",
+        ":sdspi",
+        "//picolog",
+        "@fatfs",
+    ],
+)
+
+cc_library(
     name = "ffconf",
     hdrs = ["ffconf.h"],
     strip_include_prefix = "/tplp/fs",
@@ -56,6 +68,5 @@ cc_library(
         ":sdspi",
         "//picolog",
         "@fatfs",
-        "@rules_pico//pico:hardware_rtc",
     ],
 )
