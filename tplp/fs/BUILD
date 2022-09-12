@@ -47,3 +47,15 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "fatfs_diskio_impl",
+    srcs = ["fatfs_diskio_impl.cc"],
+    hdrs = ["fatfs_diskio_impl.h"],
+    deps = [
+        ":sdspi",
+        "//picolog",
+        "@fatfs",
+        "@rules_pico//pico:hardware_rtc",
+    ],
+)
