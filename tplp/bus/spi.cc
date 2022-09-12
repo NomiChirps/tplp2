@@ -154,7 +154,7 @@ void SpiTransaction::Transfer(const TransferConfig& req) {
 
   if (req.read_addr) {
     dma_req.c0_read_addr = req.read_addr;
-    dma_req.c0_read_incr = true;
+    dma_req.c0_read_incr = req.read_incr;
   } else {
     dma_req.c0_read_addr = &kDummyTxBuffer;
     dma_req.c0_read_incr = false;
@@ -162,7 +162,7 @@ void SpiTransaction::Transfer(const TransferConfig& req) {
 
   if (req.write_addr) {
     dma_req.c1_write_addr = req.write_addr;
-    dma_req.c1_write_incr = true;
+    dma_req.c1_write_incr = req.write_incr;
   } else {
     dma_req.c1_write_addr = &kDummyRxBuffer;
     dma_req.c1_write_incr = false;
@@ -184,7 +184,8 @@ void SpiTransaction::TransferImmediate(const TransferConfig& req) {
   for (uint32_t i = 0; i < req.trans_count; ++i) {
     CHECK(spi_is_writable(spi_));
     if (req.read_addr) {
-      *spi_dr = static_cast<const uint8_t*>(req.read_addr)[i];
+      *spi_dr =
+          static_cast<const uint8_t*>(req.read_addr)[req.read_incr ? i : 0];
     } else {
       *spi_dr = 0;
     }
@@ -192,7 +193,7 @@ void SpiTransaction::TransferImmediate(const TransferConfig& req) {
   for (uint32_t i = 0; i < req.trans_count; ++i) {
     while (!spi_is_readable(spi_)) tight_loop_contents();
     if (req.write_addr) {
-      static_cast<uint8_t*>(req.write_addr)[i] = *spi_dr;
+      static_cast<uint8_t*>(req.write_addr)[req.write_incr ? i : 0] = *spi_dr;
     } else {
       (void)*spi_dr;
     }

@@ -71,8 +71,10 @@ class SpiTransaction {
   struct TransferConfig {
     // Optional data to transmit.
     const void* read_addr = nullptr;
+    bool read_incr = true;
     // Optional buffer to hold received bytes.
     void* write_addr = nullptr;
+    bool write_incr = true;
     // Number of bytes to transfer.
     uint32_t trans_count = 0;
 
