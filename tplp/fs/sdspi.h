@@ -10,6 +10,9 @@ namespace tplp {
 // Provides block-device operations on an SD card via an SPI interface.
 class SdSpi {
  public:
+  // Data blocks have a fixed size of 512 bytes.
+  static constexpr uint32_t kBlockSize = 512;
+
   explicit SdSpi(SpiDevice* spi);
 
   util::Status Init();
@@ -25,6 +28,9 @@ class SdSpi {
   util::StatusOr<csd_t> ReadCSD();
   struct cid_t;
   util::StatusOr<cid_t> ReadCID();
+
+  util::Status ReadBlock(uint32_t block, void* buf);
+  util::Status WriteBlock(uint32_t block, const void* buf);
 
  private:
   enum R1 : uint8_t {
@@ -51,10 +57,8 @@ class SdSpi {
                                        uint32_t arg);
   util::Status R1ToStatus(R1 r1);
 
-  // TODO: add dma ring support to SPI interface
-  static constexpr uint8_t kDummyTxBuf[16] = {
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  // SD protocol expects us to hold MOSI high while receiving bits.
+  static constexpr uint8_t kDummyTxBuf = 0xff;
 
   util::StatusOr<uint32_t> GetSize();
   // Read CID or CSR register (16 bytes)
@@ -71,13 +75,10 @@ class SdSpi {
   uint32_t size_;  // blocks
 
  public:
-  // Data blocks are 512 bytes.
-  static constexpr uint32_t kBlockSize = 512;
-
   enum class CardType {
     SD1,
-    SD2,
-    SDHC,
+    SD2_SC,
+    SD2_HC,
   };
 
   struct cid_t {

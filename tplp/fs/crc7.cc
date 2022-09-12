@@ -3,7 +3,8 @@
 namespace {
 
 /* Table for CRC-7 (polynomial x^7 + x^3 + 1) */
-const uint8_t crc7_syndrome_table[256] = {
+static constexpr uint8_t __attribute((section(".flashdata.crc7")))
+crc7_syndrome_table[256] = {
     0x00, 0x09, 0x12, 0x1b, 0x24, 0x2d, 0x36, 0x3f, 0x48, 0x41, 0x5a, 0x53,
     0x6c, 0x65, 0x7e, 0x77, 0x19, 0x10, 0x0b, 0x02, 0x3d, 0x34, 0x2f, 0x26,
     0x51, 0x58, 0x43, 0x4a, 0x75, 0x7c, 0x67, 0x6e, 0x32, 0x3b, 0x20, 0x29,
@@ -45,7 +46,8 @@ static inline uint8_t crc7_byte(uint8_t crc, uint8_t data) {
  * makes the computation easier, and all callers want it in that form.
  *
  */
-uint8_t crc7(uint8_t crc, const uint8_t* buffer, size_t len) {
-  while (len--) crc = crc7_byte(crc, *buffer++);
+uint8_t crc7(uint8_t crc, const void* buffer, size_t len) {
+  const uint8_t* ptr = static_cast<const uint8_t*>(buffer);
+  while (len--) crc = crc7_byte(crc, *ptr++);
   return crc;
 }

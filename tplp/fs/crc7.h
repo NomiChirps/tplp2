@@ -4,6 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 
-uint8_t crc7(uint8_t crc, const uint8_t* buffer, size_t len);
+uint8_t crc7(uint8_t crc, const void* buffer, size_t len);
 
 #endif  // CRC7_H_

@@ -11,6 +11,7 @@ cc_library(
     hdrs = ["sdspi.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":crc16",
         ":crc7",
         "//picolog",
         "//picolog:status",
@@ -27,14 +28,21 @@ cc_library(
     hdrs = ["crc7.h"],
 )
 
+cc_library(
+    name = "crc16",
+    srcs = ["crc16.cc"],
+    hdrs = ["crc16.h"],
+)
+
 cc_test(
-    name = "crc7_test",
-    srcs = ["crc7_test.cc"],
+    name = "crc_test",
+    srcs = ["crc_test.cc"],
     target_compatible_with = select({
         "@platforms//os:none": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
     deps = [
+        ":crc16",
         ":crc7",
         "@com_google_googletest//:gtest_main",
     ],

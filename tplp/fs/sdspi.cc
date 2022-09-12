@@ -5,6 +5,7 @@
 
 #include "picolog/picolog.h"
 #include "picolog/status_macros.h"
+#include "tplp/fs/crc16.h"
 #include "tplp/fs/crc7.h"
 #include "tplp/rtos_util.h"
 
@@ -29,6 +30,16 @@ util::Status WaitUntil(uint32_t timeout_ms, uint32_t delay_ms,
   return util::DeadlineExceededError("timed out");
 }
 
+util::Status CheckCrc16(uint16_t given, uint16_t computed) {
+  if (computed != given) {
+    LOG(ERROR) << "CRC error, given != computed: 0x" << std::hex
+               << std::setfill('0') << std::setw(4) << given << " != 0x"
+               << std::setw(4) << computed;
+    return util::DataLossError("CRC error");
+  }
+  return util::OkStatus();
+}
+
 }  // namespace
 
 SdSpi::SdSpi(SpiDevice* spi) : spi_(spi), initialized_(false) {}
@@ -47,7 +58,8 @@ util::Status SdSpi::Init() {
   for (int i = 0; i < 2; ++i) {
     constexpr int k = 5;
     txn.TransferImmediate({
-        .read_addr = kDummyTxBuf,
+        .read_addr = &kDummyTxBuf,
+        .read_incr = false,
         .trans_count = k,
     });
   }
@@ -73,7 +85,8 @@ util::Status SdSpi::Init() {
   } else {
     uint8_t r7[4];
     txn.TransferImmediate({
-        .read_addr = kDummyTxBuf,
+        .read_addr = &kDummyTxBuf,
+        .read_incr = false,
         .write_addr = r7,
         .trans_count = 4,
     });
@@ -83,15 +96,20 @@ util::Status SdSpi::Init() {
                  << (int)r7[1] << " " << (int)r7[2] << " " << (int)r7[3];
       return util::UnknownError("device failed to echo check pattern");
     }
-    LOG(INFO) << "Detected SD2 card.";
-    type_ = CardType::SD2;
+    // actually it might be SDHC, we'll check in a sec.
+    type_ = CardType::SD2_SC;
   }
 
+  // Enable card-side CRC verification (probably?)
+  ASSIGN_OR_RETURN(r1, CardCommand(txn, 59, 1));
+
+  // Issue ACMD41 "Initialization command"
   status = WaitUntil(
       /*timeout=*/1000, /*delay=*/0,
       [this, &txn, &r1]() -> util::StatusOr<bool> {
         ASSIGN_OR_RETURN(
-            r1, CardACommand(txn, 41, type_ == CardType::SD2 ? 0x40000000 : 0));
+            r1,
+            CardACommand(txn, 41, type_ == CardType::SD2_SC ? 0x40000000 : 0));
         return r1 == 0;
       });
   if (!status.ok()) {
@@ -101,19 +119,24 @@ util::Status SdSpi::Init() {
   }
 
   // if SD2 read OCR register to check for SDHC card
-  if (type() == CardType::SD2) {
+  if (type() == CardType::SD2_SC) {
     ASSIGN_OR_RETURN(r1, CardCommand(txn, 58, 0));
     RETURN_IF_ERROR(R1ToStatus(r1));
     uint8_t ocr[4];
     txn.TransferImmediate({
-        .read_addr = kDummyTxBuf,
+        .read_addr = &kDummyTxBuf,
+        .read_incr = false,
         .write_addr = ocr,
         .trans_count = 4,
     });
-    if ((ocr[0] & 0XC0) == 0XC0) {
+    if ((ocr[0] & 0xc0) == 0xc0) {
       LOG(INFO) << "Detected SDHC card.";
-      type_ = CardType::SDHC;
+      type_ = CardType::SD2_HC;
+    } else {
+      LOG(INFO) << "Detected SDSC card.";
     }
+  } else {
+    LOG(INFO) << "Detected SD 1.x card.";
   }
   // Done with low-level init sequence.
   txn.Dispose();
@@ -136,7 +159,8 @@ util::StatusOr<uint8_t> SdSpi::WaitNotBusy(SpiTransaction& txn, int timeout_ms,
   RETURN_IF_ERROR(
       WaitUntil(timeout_ms, delay_ms, [&txn, &buf]() -> util::StatusOr<bool> {
         txn.TransferImmediate({
-            .read_addr = kDummyTxBuf,
+            .read_addr = &kDummyTxBuf,
+            .read_incr = false,
             .write_addr = &buf,
             .trans_count = 1,
         });
@@ -178,7 +202,8 @@ util::StatusOr<SdSpi::R1> SdSpi::CardCommandNoWait(SpiTransaction& txn,
   RETURN_IF_ERROR(WaitUntil(kDefaultBusyTimeoutMs, 0,
                             [&txn, &r1]() -> util::StatusOr<bool> {
                               txn.TransferImmediate({
-                                  .read_addr = kDummyTxBuf,
+                                  .read_addr = &kDummyTxBuf,
+                                  .read_incr = false,
                                   .write_addr = &r1,
                                   .trans_count = 1,
                               });
@@ -254,18 +279,21 @@ util::Status SdSpi::ReadRegister(uint8_t cmd, uint8_t buf[16]) {
   RETURN_IF_ERROR(CardCommand(txn, cmd, 0).status());
   RETURN_IF_ERROR(WaitStartBlock(txn));
   txn.Transfer({
-      .read_addr = kDummyTxBuf,
+      .read_addr = &kDummyTxBuf,
+      .read_incr = false,
       .write_addr = buf,
       .trans_count = 16,
   });
-  uint16_t crc;
+  uint8_t crc_buf[2];
   txn.Transfer({
-      .read_addr = kDummyTxBuf,
-      .write_addr = &crc,
+      .read_addr = &kDummyTxBuf,
+      .read_incr = false,
+      .write_addr = &crc_buf,
       .trans_count = 2,
   });
-  // TODO: check crc16
+  uint16_t crc = (crc_buf[0] << 8) | crc_buf[1];
   txn.Dispose();
+  RETURN_IF_ERROR(CheckCrc16(crc, crc16(0, buf, 16)));
   return util::OkStatus();
 }
 
@@ -275,7 +303,8 @@ util::Status SdSpi::WaitStartBlock(SpiTransaction& txn, int timeout_ms,
   RETURN_IF_ERROR(
       WaitUntil(timeout_ms, delay_ms, [&txn, &buf]() -> util::StatusOr<bool> {
         txn.TransferImmediate({
-            .read_addr = kDummyTxBuf,
+            .read_addr = &kDummyTxBuf,
+            .read_incr = false,
             .write_addr = &buf,
             .trans_count = 1,
         });
@@ -290,6 +319,108 @@ util::Status SdSpi::WaitStartBlock(SpiTransaction& txn, int timeout_ms,
     return util::UnknownError(
         "timed out waiting for start block token; protocol error?");
   }
+  return util::OkStatus();
+}
+
+util::Status SdSpi::ReadBlock(uint32_t block, void* buf) {
+  SpiTransaction txn = spi_->StartTransaction();
+  R1 r1;
+  if (type_ == CardType::SD2_SC) {
+    ASSIGN_OR_RETURN(r1, CardCommand(txn, 17, block * kBlockSize));
+  } else {
+    ASSIGN_OR_RETURN(r1, CardCommand(txn, 17, block));
+  }
+  if (r1) return R1ToStatus(r1);
+  RETURN_IF_ERROR(WaitStartBlock(txn));
+  txn.Transfer({
+      .read_addr = &kDummyTxBuf,
+      .read_incr = false,
+      .write_addr = buf,
+      .trans_count = 512,
+  });
+  uint8_t crc_buf[2];
+  txn.Transfer({
+      .read_addr = &kDummyTxBuf,
+      .read_incr = false,
+      .write_addr = crc_buf,
+      .trans_count = 2,
+  });
+  txn.Dispose();
+  uint16_t crc = (crc_buf[0] << 8) | crc_buf[1];
+  RETURN_IF_ERROR(CheckCrc16(crc, crc16(0, buf, 512)));
+  return util::OkStatus();
+}
+
+util::Status SdSpi::WriteBlock(uint32_t block, const void* buf) {
+  SpiTransaction txn = spi_->StartTransaction();
+  R1 r1;
+  if (type_ == CardType::SD2_SC) {
+    ASSIGN_OR_RETURN(r1, CardCommand(txn, 24, block * kBlockSize));
+  } else {
+    ASSIGN_OR_RETURN(r1, CardCommand(txn, 24, block));
+  }
+  if (r1) return R1ToStatus(r1);
+  constexpr uint8_t kStartBlockToken = 0xfe;
+  txn.Transfer({
+      .read_addr = &kStartBlockToken,
+      .trans_count = 1,
+  });
+  txn.Transfer({
+      .read_addr = buf,
+      .trans_count = 512,
+  });
+  uint8_t crc_buf[2];
+  uint16_t crc = crc16(0, buf, 512);
+  crc_buf[0] = crc >> 8;
+  crc_buf[1] = crc >> 0;
+  txn.Transfer({
+      .read_addr = crc_buf,
+      .trans_count = 2,
+  });
+  txn.Transfer({
+      .read_addr = &kDummyTxBuf,
+      .read_incr = false,
+      .write_addr = &r1,
+      .trans_count = 1,
+  });
+  txn.Flush();
+  VLOG(1) << "WriteBlock response token: 0x" << std::hex << std::setfill('0')
+          << std::setw(2) << (int)r1;
+  // parse response token
+  switch (r1 & 0x1f) {
+    case 0b00101:
+      // data accepted
+      break;
+    case 0b01011:
+      // data rejected due to crc error
+      return util::DataLossError("SD card rejected data due to CRC error");
+    case 0b01101:
+      // data rejected due to write error
+      return util::UnknownError("SD card reported a write error");
+      default:
+      LOG(ERROR) << "Bad WriteBlock response token: 0x" << std::hex << (int)r1;
+      return util::UnknownError("Bad WriteBlock response token");
+  }
+  // wait for flash programming to complete
+  RETURN_IF_ERROR(WaitNotBusy(txn).status());
+  ASSIGN_OR_RETURN(r1, CardCommand(txn, 13, 0));
+  if (r1) {
+    LOG(ERROR) << "CMD13 error 0x" << std::hex << (int)r1;
+    return R1ToStatus(r1);
+  }
+  uint8_t r2;
+  txn.TransferImmediate({
+      .read_addr = &kDummyTxBuf,
+      .read_incr = false,
+      .write_addr = &r2,
+      .trans_count = 1,
+  });
+  if (r2) {
+    LOG(ERROR) << "Write error (R2 format): 0x" << (int)r2;
+    // TODO: translate error codes
+    return util::UnknownError("Write error (see log)");
+  }
+
   return util::OkStatus();
 }
 

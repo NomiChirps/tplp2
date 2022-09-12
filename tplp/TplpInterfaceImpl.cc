@@ -1,5 +1,7 @@
 #include "tplp/TplpInterfaceImpl.h"
 
+#include <iomanip>
+
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/queue.h"
 #include "FreeRTOS/task.h"
@@ -157,8 +159,47 @@ util::Status TplpInterfaceImpl::StepperMotorStopAll(StopType type) {
 }
 
 void TplpInterfaceImpl::RunDevTest() {
+  static uint32_t block = 0;
+  static uint8_t buf[512];
   LOG(INFO) << "RunDevTest()";
-  LOG(INFO) << "*** " << sdspi_->Init();
+  if (!sdspi_->initialized()) {
+    LOG(INFO) << sdspi_->Init();
+    return;
+  }
+
+  util::Status status = sdspi_->ReadBlock(block++, buf);
+  if (!status.ok()) {
+    LOG(ERROR) << status;
+    return;
+  }
+  std::ostringstream dump;
+  dump << std::setfill('0');
+  const int kRow = 16;
+  for (int i = 0; i < 512; i += kRow) {
+    dump << std::dec << std::setw(8) << (512 * (block - 1) + i) << std::hex
+         << ' ';
+    for (int k = 0; k < kRow && i < 512; ++k) {
+      dump << std::setw(2) << (int)buf[i + k] << ' ';
+    }
+    dump << ' ';
+    for (int k = 0; k < kRow && i < 512; ++k) {
+      if (std::isprint(buf[i + k])) {
+        dump << (char)buf[i + k];
+      } else {
+        dump << '.';
+      }
+    }
+    LOG(INFO) << dump.str();
+    dump.seekp(0);
+  }
+
+  if (block == 2) {
+    uint8_t x = 0;
+    for (int i = 0; i < 512; ++i) {
+      buf[i] = x++;
+    }
+    LOG(INFO) << "WRITE: " << sdspi_->WriteBlock(block, buf);
+  }
 }
 
 }  // namespace ui
