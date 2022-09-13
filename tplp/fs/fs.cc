@@ -81,7 +81,7 @@ util::Status Init(SdSpi* card) {
   return util::OkStatus();
 }
 
-util::StatusOr<size_t> ReadContents(const char* path, char* buf, size_t n) {
+util::StatusOr<size_t> GetContents(const char* path, char* buf, size_t n) {
   VLOG(1) << "ReadContents(" << path << ", " << (void*)buf << ", " << n << ")";
   static_assert(sizeof(UINT) == sizeof(size_t));
   FIL fp;

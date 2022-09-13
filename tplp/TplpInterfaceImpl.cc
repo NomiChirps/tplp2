@@ -163,7 +163,7 @@ void TplpInterfaceImpl::RunDevTest() {
   static const char* const kFilename = "devtest.txt";
   LOG(INFO) << "RunDevTest()";
   char buf[16];
-  auto bytes_read = fs::ReadContents(kFilename, buf, sizeof(buf));
+  auto bytes_read = fs::GetContents(kFilename, buf, sizeof(buf));
   LOG(INFO) << "ReadContents: " << bytes_read.status();
   int x = 0;
   if (bytes_read.ok()) {

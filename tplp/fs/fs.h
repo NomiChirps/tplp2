@@ -15,7 +15,7 @@ util::Status Init(SdSpi* card);
 
 // Reads the contents of a file into `buf`, up to at most `n` bytes. Returns the
 // number of bytes read or an error.
-util::StatusOr<size_t> ReadContents(const char* path, char* buf,
+util::StatusOr<size_t> GetContents(const char* path, char* buf,
                                     size_t n);
 
 // Sets the contents of a file to the first `n` bytes of `buf`.
