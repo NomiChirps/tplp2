@@ -45,7 +45,9 @@ util::Status CheckCrc16(uint16_t given, uint16_t computed) {
 SdSpi::SdSpi(SpiDevice* spi) : spi_(spi), initialized_(false) {}
 
 util::Status SdSpi::Init() {
-  initialized_ = false;
+  if (initialized()) {
+    return util::OkStatus();
+  }
 
   // For initialization sequence details see Figure 7-2 in the
   // Physical Layer Simplified Specification Version 2.0
@@ -260,6 +262,11 @@ util::StatusOr<uint32_t> SdSpi::GetSize() {
   }
 }
 
+uint32_t SdSpi::size() const {
+  LOG_IF(FATAL, !initialized()) << "SdSpi not initialized";
+  return size_;
+}
+
 util::StatusOr<SdSpi::csd_t> SdSpi::ReadCSD() {
   csd_t csd;
   static_assert(sizeof(csd) == 16);
@@ -397,7 +404,7 @@ util::Status SdSpi::WriteBlock(uint32_t block, const void* buf) {
     case 0b01101:
       // data rejected due to write error
       return util::UnknownError("SD card reported a write error");
-      default:
+    default:
       LOG(ERROR) << "Bad WriteBlock response token: 0x" << std::hex << (int)r1;
       return util::UnknownError("Bad WriteBlock response token");
   }

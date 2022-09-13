@@ -40,7 +40,7 @@ build:iterate -c opt
 
 # picolog config
 # Verbosity
-build --copt="-DPICOLOG_VMODULE=\"sdspi=1,fatfs_diskio_impl=1\""
+build --copt="-DPICOLOG_VMODULE=\"sdspi=0,fatfs_diskio_impl=0\""
 # Compile out logs below a certain severity
 #--copt="-DPICOLOG_STRIP_LOG=0"
 

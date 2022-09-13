@@ -2,10 +2,13 @@ cc_library(
     name = "fs",
     srcs = ["fs.cc"],
     hdrs = ["fs.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":fatfs_diskio_impl",
         ":sdspi",
         "//picolog",
+        "//picolog:status",
+        "//picolog:status_macros",
         "@fatfs",
     ],
 )

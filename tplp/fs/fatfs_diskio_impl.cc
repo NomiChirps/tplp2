@@ -39,8 +39,8 @@ DSTATUS disk_status(BYTE pdrv) {
 }
 
 DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
-  VLOG(1) << "disk_read(" << (int)pdrv << ", " << buff << ", " << sector << ", "
-          << count << ")";
+  VLOG(1) << "disk_read(" << (int)pdrv << ", " << (void*)buff << ", " << sector
+          << ", " << count << ")";
   if (!disk_ || !disk_->initialized()) {
     return RES_NOTRDY;
   }
@@ -59,7 +59,7 @@ DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
 }
 
 DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count) {
-  VLOG(1) << "disk_write(" << (int)pdrv << ", " << buff << ", " << sector
+  VLOG(1) << "disk_write(" << (int)pdrv << ", " << (void*)buff << ", " << sector
           << ", " << count << ")";
   if (!disk_ || !disk_->initialized()) {
     return RES_NOTRDY;

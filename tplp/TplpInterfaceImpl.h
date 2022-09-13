@@ -1,7 +1,6 @@
 #ifndef TPLP_TPLPINTERFACEIMPL_H_
 #define TPLP_TPLPINTERFACEIMPL_H_
 
-#include "fs/sdspi.h"
 #include "tplp/bus/i2c.h"
 #include "tplp/hx711/hx711.h"
 #include "tplp/hx8357/hx8357.h"
@@ -9,9 +8,6 @@
 #include "tplp/ui/TplpInterface.h"
 
 namespace tplp {
-
-void StartupTask(void*); // XXX: testing only
-
 namespace ui {
 
 class TplpInterfaceImpl : public ui::TplpInterface {
@@ -55,10 +51,6 @@ class TplpInterfaceImpl : public ui::TplpInterface {
   StepperMotor* const motor_b_;
 
   QueueHandle_t work_queue_;
-
-  // XXX testing only
-  friend void ::tplp::StartupTask(void*);
-  SdSpi* sdspi_;
 };
 
 }  // namespace ui

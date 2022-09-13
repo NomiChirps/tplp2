@@ -8,6 +8,7 @@
 #include "hardware/clocks.h"
 #include "picolog/picolog.h"
 #include "tplp/clkdiv.h"
+#include "tplp/fs/fs.h"
 #include "tplp/graphics/lvgl_mutex.h"
 
 namespace tplp {
@@ -159,47 +160,21 @@ util::Status TplpInterfaceImpl::StepperMotorStopAll(StopType type) {
 }
 
 void TplpInterfaceImpl::RunDevTest() {
-  static uint32_t block = 0;
-  static uint8_t buf[512];
+  static const char* const kFilename = "devtest.txt";
   LOG(INFO) << "RunDevTest()";
-  if (!sdspi_->initialized()) {
-    LOG(INFO) << sdspi_->Init();
-    return;
+  char buf[16];
+  auto bytes_read = fs::ReadContents(kFilename, buf, sizeof(buf));
+  LOG(INFO) << "ReadContents: " << bytes_read.status();
+  int x = 0;
+  if (bytes_read.ok()) {
+    LOG(INFO) << "Read " << *bytes_read
+              << " bytes: " << std::string_view(buf, *bytes_read);
+    std::sscanf(buf, "%d", &x);
   }
-
-  util::Status status = sdspi_->ReadBlock(block++, buf);
-  if (!status.ok()) {
-    LOG(ERROR) << status;
-    return;
-  }
-  std::ostringstream dump;
-  dump << std::setfill('0');
-  const int kRow = 16;
-  for (int i = 0; i < 512; i += kRow) {
-    dump << std::dec << std::setw(8) << (512 * (block - 1) + i) << std::hex
-         << ' ';
-    for (int k = 0; k < kRow && i < 512; ++k) {
-      dump << std::setw(2) << (int)buf[i + k] << ' ';
-    }
-    dump << ' ';
-    for (int k = 0; k < kRow && i < 512; ++k) {
-      if (std::isprint(buf[i + k])) {
-        dump << (char)buf[i + k];
-      } else {
-        dump << '.';
-      }
-    }
-    LOG(INFO) << dump.str();
-    dump.seekp(0);
-  }
-
-  if (block == 2) {
-    uint8_t x = 0;
-    for (int i = 0; i < 512; ++i) {
-      buf[i] = x++;
-    }
-    LOG(INFO) << "WRITE: " << sdspi_->WriteBlock(block, buf);
-  }
+  x++;
+  LOG(INFO) << "SetContents: "
+            << fs::SetContents(kFilename, buf,
+                               std::snprintf(buf, sizeof(buf), "%d", x));
 }
 
 }  // namespace ui

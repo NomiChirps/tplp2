@@ -14,6 +14,7 @@
 #include "tplp/bus/spi.h"
 #include "tplp/config/hw.h"
 #include "tplp/config/tasks.h"
+#include "tplp/fs/fs.h"
 #include "tplp/fs/sdspi.h"
 #include "tplp/graphics/lvgl_init.h"
 #include "tplp/hx711/hx711.h"
@@ -53,7 +54,12 @@ void StartupTask(void*) {
   status = sdcard->Init();
   // TODO: this error should be prominently displayed on the UI
   // we could also retry later
-  LOG_IF(ERROR, !status.ok()) << "SD card init failed: " << status;
+  if (status.ok()) {
+    status = fs::Init(sdcard);
+    LOG_IF(ERROR, !status.ok()) << "Filesystem init failed: " << status;
+  } else {
+    LOG(ERROR) << "SD card init failed: " << status;
+  }
 
   HX8357* display = new HX8357D(spi_hx8357, Pins::HX8357_DC);
   display->Begin();
@@ -125,7 +131,6 @@ void StartupTask(void*) {
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(
       display, i2c0_controller, load_cell, motor_a, motor_b));
-  ui_adapter->sdspi_ = sdcard;
   ui_adapter->StartTask(TaskPriorities::kUiWorker, TaskStacks::kUiWorker);
   {
     LvglMutex mutex;
