@@ -3,7 +3,7 @@
 #include <limits>
 
 #include "lvgl/lvgl.h"
-#include "tplp/config/params.h"
+#include "tplp/config/constants.h"
 #include "tplp/ui/globals.h"
 
 static lv_obj_t* meter;
@@ -199,8 +199,8 @@ static lv_obj_t* meter_create(lv_obj_t* parent) {
   lv_meter_set_scale_major_ticks(meter, meter_scale, 10, 4, 10,
                                  lv_color_black(), 15);
   lv_meter_set_scale_range(
-      meter, meter_scale, -tplp::params::kLoadCellExpectedRangeAfterScaling,
-      tplp::params::kLoadCellExpectedRangeAfterScaling, 270, 135);
+      meter, meter_scale, -tplp::constants::kLoadCellExpectedRangeAfterScaling,
+      tplp::constants::kLoadCellExpectedRangeAfterScaling, 270, 135);
 
   /*Add a needle line indicator*/
   indic = lv_meter_add_needle_line(meter, meter_scale, 4,

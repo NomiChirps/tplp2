@@ -1,13 +1,13 @@
-#ifndef TPLP_CONFIG_PARAMS_H_
-#define TPLP_CONFIG_PARAMS_H_
+#ifndef TPLP_CONFIG_CONSTANTS_H_
+#define TPLP_CONFIG_CONSTANTS_H_
 
 #include <cstdint>
 
-// Well-known parameters, expected not to change often if at all,
+// Well-known values, expected not to change often if at all,
 // and expected not to cause any dependency or coupling issues.
 
 namespace tplp {
-namespace params {
+namespace constants {
 
 static constexpr int32_t kLoadCellExpectedRangeAfterScaling = 1000;
 
@@ -16,7 +16,7 @@ static constexpr int32_t kLoadCellExpectedRangeAfterScaling = 1000;
 static constexpr int kTouchscreenResistanceOhmsX = 300;
 static constexpr int kTouchscreenResistanceOhmsY = 300;
 
-}  // namespace params
+}  // namespace constants
 }  // namespace tplp
 
-#endif  // TPLP_CONFIG_PARAMS_H_
+#endif  // TPLP_CONFIG_CONSTANTS_H_

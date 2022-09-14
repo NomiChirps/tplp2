@@ -34,8 +34,8 @@ cc_library(
 )
 
 cc_library(
-    name = "params",
-    hdrs = ["params.h"],
+    name = "constants",
+    hdrs = ["constants.h"],
     visibility = ["//visibility:public"],
     deps = [],
 )

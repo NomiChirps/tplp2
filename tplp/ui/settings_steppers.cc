@@ -3,7 +3,7 @@
 #include <cstddef>
 
 #include "lvgl/lvgl.h"
-#include "tplp/config/params.h"
+#include "tplp/config/constants.h"
 #include "tplp/ui/globals.h"
 
 // 5 digits in the spinbox
@@ -196,8 +196,8 @@ lv_obj_t* ui_settings_steppers_create(lv_obj_t* parent) {
   lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR);
   lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
   lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y,
-                     -tplp::params::kLoadCellExpectedRangeAfterScaling,
-                     tplp::params::kLoadCellExpectedRangeAfterScaling);
+                     -tplp::constants::kLoadCellExpectedRangeAfterScaling,
+                     tplp::constants::kLoadCellExpectedRangeAfterScaling);
   ser = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED),
                             LV_CHART_AXIS_PRIMARY_Y);
   lv_obj_set_grid_cell(chart, LV_GRID_ALIGN_STRETCH, 0, 3, LV_GRID_ALIGN_CENTER,

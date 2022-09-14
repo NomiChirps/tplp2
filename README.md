@@ -177,7 +177,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
   - [x] hx711 pio driver
   - [x] gui for monitoring & calibration
   - [x] print some brackets to calibrate it against my digital scale
-- [x] put the load cell period (100ms) in params.h
+- [x] put the load cell period (100ms) in constants.h
 - [x] read about the hardware interpolators in rp2040
   - does what it says on the tin. good for linear scaling, affine texture mapping, that kinda thing.
 - [x] Mission: DMA 9000

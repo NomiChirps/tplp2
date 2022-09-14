@@ -21,7 +21,7 @@ cc_library(
     deps = [
         ":tsc2007",
         "//picolog",
-        "//tplp/config:params",
+        "//tplp/config:constants",
         "//tplp/graphics:lvgl_mutex",
         "@lvgl",
     ],

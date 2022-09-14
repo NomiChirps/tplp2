@@ -25,7 +25,7 @@ cc_library(
     deps = [
         ":TplpInterface",
         ":globals",
-        "//tplp/config:params",
+        "//tplp/config:constants",
         "@lvgl",
     ],
 )

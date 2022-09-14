@@ -2,15 +2,15 @@
 
 #include "picolog/picolog.h"
 #include "tplp/tsc2007/tsc2007.h"
-#include "tplp/config/params.h"
+#include "tplp/config/constants.h"
 
 namespace tplp {
 namespace {
 
 int CalculatePressure(int x, int y, int z1, int z2) {
   // Formula (1) from TSC2007 data sheet.
-  return ((params::kTouchscreenResistanceOhmsX * x * z2) / z1 -
-          params::kTouchscreenResistanceOhmsX * x) /
+  return ((constants::kTouchscreenResistanceOhmsX * x * z2) / z1 -
+          constants::kTouchscreenResistanceOhmsX * x) /
          4096;
 }
 
