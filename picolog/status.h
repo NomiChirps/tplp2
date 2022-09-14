@@ -284,7 +284,7 @@ class [[nodiscard]] Status final {
   // This default constructor creates an OK status with no message or payload.
   // Avoid this constructor and prefer explicit construction of an OK status
   // with `util::OkStatus()`.
-  Status();
+  constexpr Status();
 
   // Creates a status in the canonical error space with the specified
   // `util::StatusCode` and error message.  If `code == util::StatusCode::kOk`,  // NOLINT
@@ -403,7 +403,7 @@ class [[nodiscard]] Status final {
 
   // Convert between error::Code and the inlined uintptr_t representation used
   // by rep_. See rep_ for details.
-  static uintptr_t CodeToInlinedRep(util::StatusCode code);
+  static constexpr uintptr_t CodeToInlinedRep(util::StatusCode code);
   static util::StatusCode InlinedRepToCode(uintptr_t rep);
 
   // Converts between StatusRep* and the external uintptr_t representation used
@@ -512,7 +512,7 @@ Status UnknownError(std::string_view message);
 // Implementation details follow
 //------------------------------------------------------------------------------
 
-inline Status::Status() : rep_(CodeToInlinedRep(util::StatusCode::kOk)) {}
+inline constexpr Status::Status() : rep_(CodeToInlinedRep(util::StatusCode::kOk)) {}
 
 inline Status::Status(util::StatusCode code) : rep_(CodeToInlinedRep(code)) {}
 
@@ -584,7 +584,7 @@ inline uintptr_t Status::MovedFromRep() {
   return CodeToInlinedRep(util::StatusCode::kInternal) | 2;
 }
 
-inline uintptr_t Status::CodeToInlinedRep(util::StatusCode code) {
+inline constexpr uintptr_t Status::CodeToInlinedRep(util::StatusCode code) {
   return static_cast<uintptr_t>(code) << 2;
 }
 
