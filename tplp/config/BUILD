@@ -41,9 +41,9 @@ cc_library(
 )
 
 cc_library(
-    name = "flags",
-    srcs = ["flags.cc"],
-    hdrs = ["flags.h"],
+    name = "params",
+    srcs = ["params.cc"],
+    hdrs = ["params.h"],
     visibility = ["//visibility:public"],
     deps = [
         "//absl/strings",
