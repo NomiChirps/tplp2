@@ -8,6 +8,7 @@
 #include "hardware/clocks.h"
 #include "picolog/picolog.h"
 #include "tplp/clkdiv.h"
+#include "tplp/config/params.h"
 #include "tplp/fs/fs.h"
 #include "tplp/graphics/lvgl_mutex.h"
 
@@ -23,12 +24,13 @@ struct WorkQueueItem {
 
 TplpInterfaceImpl::TplpInterfaceImpl(HX8357* display,
                                      I2cController* i2c0_controller,
-                                     HX711* load_cell, StepperMotor* motor_a,
+                                     PaperController* paper,
+                                     StepperMotor* motor_a,
                                      StepperMotor* motor_b)
     : task_(nullptr),
       display_(display),
       i2c0_controller_(i2c0_controller),
-      load_cell_(load_cell),
+      paper_(paper),
       motor_a_(motor_a),
       motor_b_(motor_b),
       work_queue_(nullptr) {}
@@ -89,18 +91,21 @@ void TplpInterfaceImpl::ScanI2cBus(
   });
 }
 
-int32_t TplpInterfaceImpl::GetLoadCellValue() { return load_cell_->value(); }
+int32_t TplpInterfaceImpl::GetLoadCellValue() {
+  return paper_->GetLoadCellValue();
+}
 int32_t TplpInterfaceImpl::GetRawLoadCellValue() {
-  return load_cell_->raw_value();
+  return paper_->GetRawLoadCellValue();
 }
 void TplpInterfaceImpl::SetLoadCellParams(const LoadCellParams& params) {
   LOG(INFO) << "Load cell parameters updated: offset = " << params.offset
             << ", scale = " << params.scale;
-  load_cell_->SetOffset(params.offset);
-  load_cell_->SetScale(params.scale);
+  PARAM_loadcell_offset.Set(params.offset);
+  PARAM_loadcell_scale.Set(params.scale);
 }
 LoadCellParams TplpInterfaceImpl::GetLoadCellParams() {
-  return {.offset = load_cell_->offset(), .scale = load_cell_->scale()};
+  return {.offset = PARAM_loadcell_offset.Get(),
+          .scale = PARAM_loadcell_scale.Get()};
 }
 
 util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,

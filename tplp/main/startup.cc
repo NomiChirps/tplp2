@@ -121,7 +121,7 @@ void StartupTask(void*) {
   lvgl.Start();
 
   // Load cell reader.
-  HX711* load_cell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
+  HX711* loadcell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
 
   // Steppies!
   StepperMotor::StaticInit(Frequencies::kStepperPwm);
@@ -138,9 +138,12 @@ void StartupTask(void*) {
                                         .b1 = Pins::MOTOR_B_B1,
                                         .b2 = Pins::MOTOR_B_B2}));
 
+  PaperController* paper_controller =
+      CHECK_NOTNULL(new PaperController(loadcell));
+
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(
-      display, i2c0_controller, load_cell, motor_a, motor_b));
+      display, i2c0_controller, paper_controller, motor_a, motor_b));
   ui_adapter->StartTask(TaskPriorities::kUiWorker, TaskStacks::kUiWorker);
   {
     LvglMutex mutex;

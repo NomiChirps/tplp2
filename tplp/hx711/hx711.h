@@ -26,17 +26,6 @@ class HX711 {
     return signextend<int32_t, 24>(sampled_value_);
   }
 
-  // Returns raw_value modified by scale and offset.
-  int32_t value() const {
-    return (raw_value() + offset_) / scale_;
-  }
-
-  int32_t offset() const { return offset_; }
-  int32_t scale() const { return scale_; }
-
-  void SetOffset(int32_t offset) { offset_ = offset; }
-  void SetScale(int32_t scale) { scale_ = scale; }
-
  private:
   explicit HX711();
   // Not copyable or movable.
@@ -54,8 +43,6 @@ class HX711 {
 
  private:
   volatile int32_t sampled_value_;
-  int32_t offset_;
-  int32_t scale_;
 };
 
 };  // namespace tplp

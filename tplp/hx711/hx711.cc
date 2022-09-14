@@ -85,6 +85,6 @@ HX711* HX711::Init(pio_hw_t* pio, gpio_pin_t sck, gpio_pin_t dout) {
   return self;
 }
 
-HX711::HX711() : sampled_value_(0), offset_(0), scale_(1000) {}
+HX711::HX711() : sampled_value_(0) {}
 
 }  // namespace tplp

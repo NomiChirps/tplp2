@@ -12,6 +12,16 @@ pico_binary(
 )
 
 cc_library(
+    name = "paper_controller",
+    srcs = ["paper_controller.cc"],
+    hdrs = ["paper_controller.h"],
+    deps = [
+        "//tplp/config:params",
+        "//tplp/hx711",
+    ],
+)
+
+cc_library(
     name = "hook_impl",
     srcs = ["hook_impl.cc"],
     deps = [
@@ -88,11 +98,11 @@ cc_library(
     srcs = ["TplpInterfaceImpl.cc"],
     hdrs = ["TplpInterfaceImpl.h"],
     deps = [
+        ":paper_controller",
         "//picolog",
         "//tplp/bus:i2c",
         "//tplp/fs",
         "//tplp/graphics:lvgl_mutex",
-        "//tplp/hx711",
         "//tplp/hx8357",
         "//tplp/motor:stepper",
         "//tplp/ui:TplpInterface",

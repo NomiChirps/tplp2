@@ -2,10 +2,10 @@
 #define TPLP_TPLPINTERFACEIMPL_H_
 
 #include "tplp/bus/i2c.h"
-#include "tplp/hx711/hx711.h"
 #include "tplp/hx8357/hx8357.h"
 #include "tplp/motor/stepper.h"
 #include "tplp/ui/TplpInterface.h"
+#include "tplp/paper_controller.h"
 
 namespace tplp {
 namespace ui {
@@ -13,7 +13,7 @@ namespace ui {
 class TplpInterfaceImpl : public ui::TplpInterface {
  public:
   explicit TplpInterfaceImpl(HX8357* display, I2cController* i2c0_controller,
-                             HX711* load_cell, StepperMotor* motor_a,
+                             PaperController* paper, StepperMotor* motor_a,
                              StepperMotor* motor_b);
   ~TplpInterfaceImpl() override;
 
@@ -45,7 +45,7 @@ class TplpInterfaceImpl : public ui::TplpInterface {
   TaskHandle_t task_;
   HX8357* const display_;
   I2cController* const i2c0_controller_;
-  HX711* const load_cell_;
+  PaperController* const paper_;
 
   StepperMotor* const motor_a_;
   StepperMotor* const motor_b_;
