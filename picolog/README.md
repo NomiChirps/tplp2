@@ -10,6 +10,7 @@ Add the `-mpoke-function-name` compiler flag to get function names in the backtr
 
 ## Wishlist
 
+- [ ] okay it might be time to move the non-logging ABSL ripoff stuff to somewhere else? or just consider it a PORT of parts of absl??
 - [ ] LOG_EVERY
 - [ ] track the maximum timestamp as logs are flushed, and make it visually obvious if it ever goes backwards (due to a task being interrupted while logging)
 - [ ] arena storage for the non-inlined StatusRep. or maybe we can get rid of it and require that the message be a compile-time constant...? or even better, provide a special case to make that path alloc-free.
