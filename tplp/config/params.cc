@@ -42,6 +42,13 @@ AllParameters::iterator_t AllParameters::end() const {
 }
 ParameterBase* AllParameters::iterator_t::operator*() { return params[index_]; }
 
+const util::Status& DeferredInitError() { return deferred_init_error; }
+
+/////////////////// Template definitions //////////////////////
+
+template Parameter<int32_t>::Parameter(const char*, const int32_t&,
+                                       const char*);
+
 // TODO: extend to any numeric type
 template <>
 util::Status Parameter<uint32_t>::Parse(std::string_view str) {
@@ -92,8 +99,6 @@ template <>
 std::string Parameter<int32_t>::DebugString() const {
   return absl::StrCat(value_);
 }
-
-const util::Status& DeferredInitError() { return deferred_init_error; }
 
 }  // namespace config
 }  // namespace tplp

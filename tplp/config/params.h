@@ -55,7 +55,7 @@ class Parameter : public ParameterBase {
   explicit Parameter(const char* name, const T& default_value,
                      const char* help);
 
-  const T& Get() const { return value_; }
+  inline const T& Get() const { return value_; }
   void Set(const T& new_value) { value_ = new_value; }
 
   util::Status Parse(std::string_view str) override;
