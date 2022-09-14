@@ -122,5 +122,14 @@ util::Status SetContents(const char* path, const char* buf, size_t n) {
   return ToStatus(f_close(&fp));
 }
 
+util::Status MkDir(const char* path) {
+  VLOG(1) << "MkDir(" << path << ")";
+  FRESULT res = f_mkdir(path);
+  if (res == FR_EXIST) {
+    return util::OkStatus();
+  }
+  return ToStatus(res);
+}
+
 }  // namespace fs
 }  // namespace tplp

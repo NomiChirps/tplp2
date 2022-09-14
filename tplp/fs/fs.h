@@ -21,6 +21,9 @@ util::StatusOr<size_t> GetContents(const char* path, char* buf,
 // Sets the contents of a file to the first `n` bytes of `buf`.
 util::Status SetContents(const char* path, const char* buf, size_t n);
 
+// Creates the given directory. Returns OK if it already exists.
+util::Status MkDir(const char* path);
+
 }  // namespace fs
 }  // namespace tplp
 
