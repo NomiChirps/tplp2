@@ -7,6 +7,10 @@
 namespace tplp {
 namespace config {
 
+// Creates the config directory if it doesn't exist and checks for name
+// collisions.
+util::Status InitParameterStorage();
+
 // Saves a parameter's current value to the filesystem.
 util::Status SaveParameter(const ParameterBase* param);
 // Loads a parameter's value from the filesystem, replacing the current value.

@@ -12,27 +12,15 @@ namespace config {
 namespace {
 
 static constexpr int kMaxNumParams = 32;
-// Directory on the filesystem where parameter values shall be stored.
-static const char* const kConfigDirectory = "params";
 
 ABSL_CONST_INIT static int num_params = 0;
 ABSL_CONST_INIT static ParameterBase* params[kMaxNumParams];
 ABSL_CONST_INIT static util::Status deferred_init_error;
 
-// Generates an 8.3 file path inspired by the given parameter name.
-static std::string GenerateFilePath(std::string_view param_name) {
-  if (param_name.size() <= 8) {
-    return absl::StrCat(kConfigDirectory, "/", param_name, ".flg");
-  } else {
-    return absl::StrCat(kConfigDirectory, "/", param_name.substr(0, 4), "~",
-                        param_name.substr(param_name.size() - 4, 3), ".flg");
-  }
-}
-
 }  // namespace
 
 ParameterBase::ParameterBase(const char* name, const char* help)
-    : name_(name), help_(help), file_path_(GenerateFilePath(name)) {
+    : name_(name), help_(help) {
   if (num_params >= kMaxNumParams) {
     deferred_init_error = util::ResourceExhaustedError(
         "Too many parameters; increase kMaxNumParams");

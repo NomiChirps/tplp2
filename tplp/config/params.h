@@ -39,7 +39,6 @@ class ParameterBase {
 
   const char* name() const { return name_; }
   const char* help() const { return help_; }
-  const char* file_path() const { return file_path_.c_str(); }
 
   virtual std::string DebugString() const = 0;
 
@@ -48,7 +47,6 @@ class ParameterBase {
 
   const char* const name_;
   const char* const help_;
-  const std::string file_path_;
 };
 
 template <typename T>

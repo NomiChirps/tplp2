@@ -1,6 +1,9 @@
 
 #include "tplp/config/params_storage.h"
 
+#include <map>
+
+#include "absl/strings/str_cat.h"
 #include "picolog/picolog.h"
 #include "picolog/status_macros.h"
 #include "tplp/config/params.h"
@@ -10,6 +13,36 @@ namespace tplp {
 namespace config {
 namespace {
 static constexpr size_t kMaxSerializedValueLen = 512;
+// Directory on the filesystem where parameter values shall be stored.
+static const char* const kConfigDirectory = "params";
+
+// Generates an 8.3 file path loosely inspired by the given parameter name.
+static std::string GenerateFilePath(std::string_view param_name) {
+  if (param_name.size() <= 8) {
+    return absl::StrCat(kConfigDirectory, "/", param_name, ".flg");
+  } else {
+    return absl::StrCat(kConfigDirectory, "/", param_name.substr(0, 4), "~",
+                        param_name.substr(param_name.size() - 4, 3), ".flg");
+  }
+}
+}  // namespace
+
+util::Status InitParameterStorage() {
+  RETURN_IF_ERROR(fs::MkDir(kConfigDirectory));
+  // Check for name collisions.
+  std::map<std::string, ParameterBase*> names;
+  for (ParameterBase* param : AllParameters()) {
+    std::string path = GenerateFilePath(param->name());
+    if (names.count(path)) {
+      LOG(ERROR) << "File path collision: " << param->name() << " vs. "
+                 << names[path]->name();
+      return util::InternalError(
+          "Generate parameter filename collision. Please improve the "
+          "algorithm.");
+    }
+    names[path] = param;
+  }
+  return util::OkStatus();
 }
 
 util::Status SaveParameter(const ParameterBase* param) {
@@ -20,9 +53,10 @@ util::Status SaveParameter(const ParameterBase* param) {
                << bytes_count.status();
     return util::InternalError("serialization error");
   }
-  util::Status status = fs::SetContents(param->file_path(), buf, *bytes_count);
+  std::string file_path = GenerateFilePath(param->name());
+  util::Status status = fs::SetContents(file_path.c_str(), buf, *bytes_count);
   if (!status.ok()) {
-    LOG(ERROR) << "Error writing " << param->file_path() << ": " << status;
+    LOG(ERROR) << "Error writing " << file_path << ": " << status;
     return status;
   }
   LOG(INFO) << "Saved parameter: " << param->name() << " = "
@@ -32,11 +66,11 @@ util::Status SaveParameter(const ParameterBase* param) {
 
 util::Status LoadParameter(ParameterBase* param) {
   char buf[kMaxSerializedValueLen];
+  std::string file_path = GenerateFilePath(param->name());
   auto bytes_read =
-      fs::GetContents(param->file_path(), buf, kMaxSerializedValueLen);
+      fs::GetContents(file_path.c_str(), buf, kMaxSerializedValueLen);
   if (!bytes_read.ok()) {
-    LOG(ERROR) << "Error reading " << param->file_path() << ": "
-               << bytes_read.status();
+    LOG(ERROR) << "Error reading " << file_path << ": " << bytes_read.status();
     return std::move(bytes_read).status();
   }
   auto status = param->Parse(std::string_view(buf, *bytes_read));

@@ -64,6 +64,10 @@ void StartupTask(void*) {
   LOG_IF(FATAL, !status.ok()) << "Filesystem init failed: " << status;
 
   // Load flag values ASAP after getting the SD card up.
+  status = config::InitParameterStorage();
+  if (!status.ok()) {
+    LOG(FATAL) << "Failed to init parameter storage: " << status;
+  }
   status = config::LoadAllParameters();
   LOG_IF(ERROR, !status.ok()) << "Error loading flags: " << status;
 
