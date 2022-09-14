@@ -52,6 +52,15 @@ util::Status Parameter<uint32_t>::Parse(std::string_view str) {
   }
 }
 
+template <>
+util::Status Parameter<int32_t>::Parse(std::string_view str) {
+  if (absl::SimpleAtoi(str, &value_)) {
+    return util::OkStatus();
+  } else {
+    return util::InvalidArgumentError("parse error");
+  }
+}
+
 // TODO: extend to any numeric type
 template <>
 util::StatusOr<size_t> Parameter<uint32_t>::Serialize(char* buf,
@@ -63,9 +72,24 @@ util::StatusOr<size_t> Parameter<uint32_t>::Serialize(char* buf,
   return str.copy(buf, n);
 }
 
+template <>
+util::StatusOr<size_t> Parameter<int32_t>::Serialize(char* buf,
+                                                     size_t n) const {
+  auto str = absl::StrCat(value_);
+  if (str.size() > n) {
+    return util::ResourceExhaustedError("serialized value too large");
+  }
+  return str.copy(buf, n);
+}
+
 // TODO: extend to any numeric type
 template <>
 std::string Parameter<uint32_t>::DebugString() const {
+  return absl::StrCat(value_);
+}
+
+template <>
+std::string Parameter<int32_t>::DebugString() const {
   return absl::StrCat(value_);
 }
 

@@ -60,7 +60,7 @@ class Parameter : public ParameterBase {
 
   util::Status Parse(std::string_view str) override;
   util::StatusOr<size_t> Serialize(char* buf, size_t n) const override;
-  std::string DebugString() const override = 0;
+  std::string DebugString() const override;
 
  private:
   T value_;
