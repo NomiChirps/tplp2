@@ -39,3 +39,16 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [],
 )
+
+cc_library(
+    name = "flags",
+    srcs = ["flags.cc"],
+    hdrs = ["flags.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//absl/strings",
+        "//picolog",
+        "//picolog:status",
+        "//tplp/fs",
+    ],
+)

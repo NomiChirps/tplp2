@@ -25,6 +25,7 @@ cc_library(
         "//tplp/adafruit_seesaw",
         "//tplp/bus:i2c",
         "//tplp/bus:spi",
+        "//tplp/config:flags",
         "//tplp/config:hw",
         "//tplp/config:tasks",
         "//tplp/fs",

@@ -12,6 +12,7 @@
 #include "tplp/adafruit_seesaw/adafruit_seesaw.h"
 #include "tplp/bus/i2c.h"
 #include "tplp/bus/spi.h"
+#include "tplp/config/flags.h"
 #include "tplp/config/hw.h"
 #include "tplp/config/tasks.h"
 #include "tplp/fs/fs.h"
@@ -52,14 +53,13 @@ void StartupTask(void*) {
 
   SdSpi* sdcard = CHECK_NOTNULL(new SdSpi(spi_sdcard));
   status = sdcard->Init();
-  // TODO: this error should be prominently displayed on the UI
-  // we could also retry later
-  if (status.ok()) {
-    status = fs::Init(sdcard);
-    LOG_IF(ERROR, !status.ok()) << "Filesystem init failed: " << status;
-  } else {
-    LOG(ERROR) << "SD card init failed: " << status;
-  }
+  LOG_IF(FATAL, !status.ok()) << "SD card init failed: " << status;
+  status = fs::Init(sdcard);
+  LOG_IF(FATAL, !status.ok()) << "Filesystem init failed: " << status;
+
+  // Load flag values ASAP after getting the SD card up.
+  status = config::LoadAllFlags();
+  LOG_IF(ERROR, !status.ok()) << "Error loading flags: " << status;
 
   HX8357* display = new HX8357D(spi_hx8357, Pins::HX8357_DC);
   display->Begin();
