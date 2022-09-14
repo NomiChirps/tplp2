@@ -14,6 +14,7 @@
 #include "tplp/bus/spi.h"
 #include "tplp/config/hw.h"
 #include "tplp/config/params.h"
+#include "tplp/config/params_storage.h"
 #include "tplp/config/tasks.h"
 #include "tplp/fs/fs.h"
 #include "tplp/fs/sdspi.h"
@@ -36,6 +37,11 @@ void StartupTask(void*) {
     panic("Failed to start log task");
   }
   LOG(INFO) << "Begin startup...";
+
+  if (!config::DeferredInitError().ok()) {
+    LOG(FATAL) << "Error during params static initialization: "
+               << config::DeferredInitError();
+  }
 
   // DMA allocations.
   // FIXME: I2cController is incredibly fragile and requires its own DMA IRQ.

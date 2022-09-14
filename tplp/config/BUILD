@@ -29,7 +29,8 @@ cc_library(
     name = "lv_conf",
     hdrs = ["lv_conf.h"],
     strip_include_prefix = "/tplp/config",
-    visibility = ["//lib:__pkg__"],
+    # Private visibility, but it's actually injected by a command line flag.
+    visibility = ["//visibility:private"],
     deps = ["@rules_pico//pico:pico_time"],
 )
 
@@ -49,6 +50,23 @@ cc_library(
         "//absl/strings",
         "//picolog",
         "//picolog:status",
+        "//picolog:status_macros",
+        "//picolog:statusor",
+    ],
+)
+
+cc_library(
+    name = "params_storage",
+    srcs = ["params_storage.cc"],
+    hdrs = ["params_storage.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":params",
+        "//absl/strings",
+        "//picolog",
+        "//picolog:status",
+        "//picolog:statusor",
+        "//picolog:status_macros",
         "//tplp/fs",
     ],
 )

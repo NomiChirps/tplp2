@@ -26,6 +26,7 @@ cc_library(
         "//tplp/bus:i2c",
         "//tplp/bus:spi",
         "//tplp/config:params",
+        "//tplp/config:params_storage",
         "//tplp/config:hw",
         "//tplp/config:tasks",
         "//tplp/fs",
