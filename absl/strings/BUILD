@@ -49,7 +49,6 @@ cc_library(
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
         "//absl/numeric:int128",
-        "//absl:pico_port",
     ],
 )
 
