@@ -21,30 +21,25 @@ ls -lh bazel-bin/tplp/firmware.uf2
 ## TODO / Notes
 
 - [ ] fix all instances of std::setw(). it only sticks for one output field...
-- [ ] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
-  - use the MicroSD card behind the display. fat32?
+  - use the MicroSD card behind the display. fat32
 - [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
 - [ ] Begin() Setup() Init(), **PICK ONE**
-- [ ] alright fine let's get StrCat in here sheeeeesh
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
   - [x] needs steppers working
-  - [ ] needs load cell persistently calibrated & installed
-    - [ ] calibrate/zero button on the load cell gui. and a save settings button.
+  - [x] needs load cell persistently calibrated & installed
+    - [x] save settings button
+    - [x] manual calibration gui
+    - [ ] auto calibrate/zero button (& algorithm)
   - [ ] needs a PID loop with all the accoutrements
     - i want a mathematically sound PID tuning UI
-- UX Improvements
-  - [ ] make the touch target for the settings back button bigger
-  - [x] fix everything in the ui being scrollable
-  - [x] numeric display of load cell value & raw value
-  - [x] oops changed my mind about the load cell units. they're actually completely arbitrary.
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Create a front panel UI (assignee: wembly :)
-  - [ ] some kind of display for non-fatal errors. modal dialog box? little icon in the corner to tap on and expand? idk.
-  - [ ] fatal error handler to display the stack trace before crashing
-    - will require support from picolog. make sure picolog prevents the crashed task from proceeding, and has a watchdog or something to finish crashing the device if the fatal error handler doesn't finish in time.
+  - [ ] remove the "home" screen, just use that left sidebar for everything. but also hide/delete it when not in use: to free up horizontal space on the screen and to conserve RAM.
   - [ ] runtime stats / logging screen
   - [ ] (later) print status / job control / main screen ?
+  - [x] some kind of display for non-fatal errors. modal dialog box? little icon in the corner to tap on and expand? idk.
+    - went with a simple modal
   - [x] manual motor control screen
   - [x] I2C bus scan
   - [x] virtual class interface for callbacks 'n' stuff
@@ -56,7 +51,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] Mirror motor (PWM control; still needs a driver circuit)
   - [ ] Mirror optointerrupter
   - [ ] pinhole photodiode for self-calibration and/or self-test
-  - [ ] MicroSD card reader
+  - [x] MicroSD card reader
     - we may want two. the one in the display is very difficult to access, so it's more suited to being the internal storage.
     - alternatively, forget using SD cards to upload and go ahead with the wi-fi interface, haha
       - an embedded target and a command-line client tool, in the same project? time for bazel to shine ~
@@ -67,27 +62,34 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [x] Sharp LCD display + LVGL driver
 - [ ] Finish the electronics hardware
   - [ ] Power everything from the 12v bus
-    - remember to power pico thru VSYS, not VBUS, to avoid potentially sending power upstream to the usb host
+    - [x] remember to power pico thru VSYS, not VBUS, to avoid potentially sending power upstream to the usb host
   - [ ] Transfer from breadboard to permaproto, or ask wembly to whip up a pcb
-  - [ ] supply 5V to HX711
+  - [x] supply 5V to HX711
   - [x] Add bus capacitors
-- Nice-to-haves
-  - [ ] audit codebase for portMAX_DELAY, CHECK, etc. and make sure everything that can fail "gracefully", does.
-  - [ ] JTAG? is that a thing i can do?
-  - [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
-  - [ ] clear the display on boot. the random pixels look kinda cool but...
-    - actually, no 'clear' command exists. best we can do is turn off the pixels (command 22h, pp.139), do a full memory write, and turn them back on.
-  - [ ] TSC2007 lvgl driver should debounce, buffer, and interpolate
-  - [ ] I2cController needs nonblocking operations, coalescing commands, general TLC
-  - [ ] hook up tft backlight pin and add an adjustable brightness setting (PWM)
-  - [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
-    - this may also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
-  - [ ] generate & examine .map file for the firmware blob
-  - [ ] use bloaty to find things to trim off the firmware size
-  - [ ] Vendor all 3rd party libraries
-  - [ ] split out various things i'm proud of as their own librar(ies)
-  - [ ] write stress tests for SpiController/I2cController. lotsa tasks, lotsa devices, all hammering away
+
 - 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking where possible.
+  - update: yes indeed, i certainly have been getting sloppy about locking. will i regret it? time will tell.
+
+### Nice to have
+
+- [ ] fatal error handler to display the stack trace on the GUI before crashing
+  - will require support from picolog. make sure picolog prevents the crashed task from proceeding, and has a watchdog or something to finish crashing the device if the fatal error handler doesn't finish in time.
+- [ ] audit codebase for portMAX_DELAY, CHECK, etc. and make sure everything that can fail "gracefully", does.
+- [ ] JTAG? is that a thing i can do?
+- [ ] rename all the lvgl_driver.cc to have distinct module names for VLOG
+- [ ] clear the display on boot. the random pixels look kinda cool but...
+  - actually, no 'clear' command exists. best we can do is turn off the pixels (command 22h, pp.139), do a full memory write, and turn them back on.
+- [ ] TSC2007 lvgl driver should debounce, buffer, and interpolate
+- [ ] I2cController needs nonblocking operations, coalescing commands, general TLC
+- [ ] hook up tft backlight pin and add an adjustable brightness setting (PWM)
+- [ ] fix "bazel test //..." by adding target_compatible_with where appropriate
+  - this may also involve fixing up rules_pico to make correct use of the defines PICO_NO_HARDWARE and PICO_ON_DEVICE
+- [ ] generate & examine .map file for the firmware blob
+- [ ] use bloaty to find things to trim off the firmware size
+  - random forum post recommends copts "-ffunction-sections -fdata-sections" and ldopts "–gc-sections"
+- [ ] Vendor all 3rd party libraries
+- [ ] split out various things i'm proud of as their own librar(ies)
+- [ ] write stress tests for SpiController/I2cController. lotsa tasks, lotsa devices, all hammering away
 
 ## Board configuration/pins
 
@@ -95,12 +97,12 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 See `tplp/tplp_config.h` for pin and GPIO assignments.
 
-| Bus  | Devices |
-| ---- | ------- |
-| SPI0 | -       |
-| SPI1 | HX8357  |
-| I2C0 | TSC2007 |
-| I2C1 | -       |
+| Bus  | Devices         |
+| ---- | --------------- |
+| SPI0 | -               |
+| SPI1 | HX8357; SD Card |
+| I2C0 | TSC2007         |
+| I2C1 | -               |
 
 ### Stepper driver ribbon cable layout
 
@@ -111,12 +113,12 @@ See `tplp/tplp_config.h` for pin and GPIO assignments.
 - Pin 5 - IN4
 - Pin 6 - ENB
 
-### Load cell wires
+### Load cell connector
 
-- Red - E+
-- Black - E-
-- Green - A-
-- White - A+
+- Pin 1 - Red - E+
+- Pin 2 - Black - E-
+- Pin 3 - Green - A-
+- Pin 4 - White - A+
 
 ## Debugging
 
@@ -171,6 +173,12 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] UX Improvements
+  - [x] fix everything in the ui being scrollable
+  - [x] numeric display of load cell value & raw value
+  - [x] oops changed my mind about the load cell units. they're actually completely arbitrary.
+- [x] need a thingy for persistently saving global parameters / preferences / whatever you wanna call em.
+- [x] alright fine let's get StrCat in here sheeeeesh
 - [x] SpiController could use improvement - we're not getting full utilization of the bus
   - verdict: use the new DmaController with nonblocking operations where possible, and that's gonna be good enough.
 - [x] Load cell time!

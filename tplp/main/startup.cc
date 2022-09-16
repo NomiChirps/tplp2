@@ -138,8 +138,10 @@ void StartupTask(void*) {
                                         .b1 = Pins::MOTOR_B_B1,
                                         .b2 = Pins::MOTOR_B_B2}));
 
-  PaperController* paper_controller =
-      CHECK_NOTNULL(new PaperController(loadcell));
+  PaperController* paper_controller = CHECK_NOTNULL(new PaperController(
+      loadcell, /*motor_src=*/motor_b, /*motor_dst=*/motor_a));
+  paper_controller->Init(TaskPriorities::kPaperController,
+                         TaskStacks::kPaperController);
 
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(

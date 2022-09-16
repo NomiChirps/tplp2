@@ -4,6 +4,7 @@
 #include "tplp/ui/screen_home.h"
 #include "tplp/ui/settings_i2c_devices.h"
 #include "tplp/ui/settings_load_cell.h"
+#include "tplp/ui/settings_params.h"
 #include "tplp/ui/settings_steppers.h"
 
 static void menu_page_changed_cb(lv_event_t* e);
@@ -21,14 +22,16 @@ typedef struct {
   void (*const on_load)() = NULL;
   void (*const on_unload)() = NULL;
 
-  // Set at runtime
+  // Set at construction time
   lv_obj_t* menu_page;
 } settings_section;
 
 static settings_section sections[] = {
-    {.icon = LV_SYMBOL_USB,
-     .txt = "I2C",
-     .create_section = ui_settings_i2c_devices_create},
+    {.icon = LV_SYMBOL_KEYBOARD,
+     .txt = "Params",
+     .create_section = ui_settings_params_create,
+     .on_load = NULL,
+     .on_unload = NULL},
     {.icon = LV_SYMBOL_DOWNLOAD,
      .txt = "Load Cell",
      .create_section = ui_settings_load_cell_create,
@@ -38,7 +41,11 @@ static settings_section sections[] = {
      .txt = "Steppers",
      .create_section = ui_settings_steppers_create,
      .on_load = NULL,
-     .on_unload = NULL}};
+     .on_unload = NULL},
+    {.icon = LV_SYMBOL_USB,
+     .txt = "I2C",
+     .create_section = ui_settings_i2c_devices_create},
+};
 
 static char root_page_title[] = "Settings";
 
@@ -64,7 +71,6 @@ lv_obj_t* ui_screen_settings_create(lv_obj_t* parent) {
         section_contents,
         lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
     lv_menu_separator_create(section_contents);
-    sections[i].create_section(section_contents);
     sections[i].menu_page = section_contents;
 
     lv_obj_t* section_title = lv_menu_section_create(root_page);
@@ -113,31 +119,45 @@ static settings_section* find_section_by_menu_page(lv_obj_t* menu_page) {
   return NULL;
 }
 
-static void call_current_section_on_load() {
+static void load_current_section() {
   if (global_current_menu_page) {
     settings_section* section =
         find_section_by_menu_page(global_current_menu_page);
-    if (section && section->on_load) {
-      section->on_load();
+    if (section) {
+      if (section->create_section) {
+        section->create_section(global_current_menu_page);
+      }
+      if (section->on_load) {
+        section->on_load();
+      }
     }
   }
 }
 
-static void call_current_section_on_unload() {
+static void delete_children(lv_obj_t* obj) {
+  lv_obj_t* child;
+  while ((child = lv_obj_get_child(obj, -1))) {
+    lv_obj_del(child);
+  }
+}
+
+static void unload_current_section() {
   if (global_current_menu_page) {
     settings_section* section =
         find_section_by_menu_page(global_current_menu_page);
     if (section && section->on_unload) {
       section->on_unload();
     }
+    delete_children(global_current_menu_page);
+    global_current_menu_page = nullptr;
   }
 }
 
 static void menu_page_changed_cb(lv_event_t* e) {
-  call_current_section_on_unload();
+  unload_current_section();
   global_current_menu_page =
       lv_menu_get_cur_main_page(lv_event_get_current_target(e));
-  call_current_section_on_load();
+  load_current_section();
 }
 
 static void back_clicked(lv_event_t* e) {
@@ -145,8 +165,7 @@ static void back_clicked(lv_event_t* e) {
   lv_obj_t* menu = static_cast<lv_obj_t*>(lv_event_get_user_data(e));
 
   if (lv_menu_back_btn_is_root(menu, obj)) {
-    // make sure to call the unload callback if we're in a section that has one
-    call_current_section_on_unload();
+    unload_current_section();
 
     lv_obj_t* scr = lv_obj_create(NULL);
     ui_screen_home_create(scr);

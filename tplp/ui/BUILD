@@ -15,6 +15,8 @@ cc_library(
         "settings_i2c_devices.h",
         "settings_load_cell.cc",
         "settings_load_cell.h",
+        "settings_params.cc",
+        "settings_params.h",
         "settings_steppers.cc",
         "settings_steppers.h",
     ],
@@ -25,7 +27,11 @@ cc_library(
     deps = [
         ":TplpInterface",
         ":globals",
+        ":popups",
+        "//absl/strings",
         "//tplp/config:constants",
+        "//tplp/config:params",
+        "//tplp/config:public_params",
         "@lvgl",
     ],
 )
@@ -46,6 +52,17 @@ cc_library(
     hdrs = ["globals.h"],
     deps = [
         ":TplpInterface",
+        "@lvgl",
+    ],
+)
+
+cc_library(
+    name = "popups",
+    srcs = ["popups.cc"],
+    hdrs = ["popups.h"],
+    deps = [
+        "//absl/strings",
+        "//picolog:status",
         "@lvgl",
     ],
 )

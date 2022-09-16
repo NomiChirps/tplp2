@@ -5,6 +5,7 @@
 #include "lvgl/lvgl.h"
 #include "tplp/config/constants.h"
 #include "tplp/ui/globals.h"
+#include "tplp/ui/popups.h"
 
 // 5 digits in the spinbox
 static constexpr int kMaxSpeed = 99'999;
@@ -30,14 +31,14 @@ void start_button_pressed_cb(lv_event_t* e) {
   status = global_tplp_->StepperMotorSetSpeed(
       lv_spinbox_get_value(motor_a_speed), lv_spinbox_get_value(motor_b_speed));
   if (!status.ok()) {
-    // TODO: display error
+    show_popup_error(std::move(status));
     return;
   }
   status =
       global_tplp_->StepperMotorMove(lv_spinbox_get_value(motor_a_step_count),
                                      lv_spinbox_get_value(motor_b_step_count));
   if (!status.ok()) {
-    // TODO: display error
+    show_popup_error(std::move(status));
     return;
   }
   set_motor_a_led(true);
@@ -45,9 +46,11 @@ void start_button_pressed_cb(lv_event_t* e) {
 }
 
 void stop_button_pressed_cb(lv_event_t* e) {
-  // TODO: display error if not ok
-  global_tplp_->StepperMotorStopAll(
+  util::Status status = global_tplp_->StepperMotorStopAll(
       tplp::ui::TplpInterface::StopType::SHORT_BRAKE);
+  if (!status.ok()) {
+    show_popup_error(std::move(status));
+  }
   set_motor_a_led(false);
   set_motor_b_led(false);
 }

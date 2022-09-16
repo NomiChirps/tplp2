@@ -27,13 +27,13 @@ class TplpInterfaceImpl : public ui::TplpInterface {
 
   int32_t GetLoadCellValue() override;
   int32_t GetRawLoadCellValue() override;
-  void SetLoadCellParams(const LoadCellParams& params) override;
-  LoadCellParams GetLoadCellParams() override;
 
   util::Status StepperMotorSetSpeed(int microstep_hz_a,
                                     int microstep_hz_b) override;
   util::Status StepperMotorMove(int microsteps_a, int microsteps_b) override;
   util::Status StepperMotorStopAll(StopType type) override;
+
+  util::Status SaveAllParameters() override;
 
   void RunDevTest() override;
 

@@ -7,6 +7,7 @@ cc_binary(
         ":console",
         ":hooks",
         ":mouse_cursor_icon",
+        "//tplp/config:params",
         "//tplp/ui:main",
         "@FreeRTOS",
         "@SDL2",

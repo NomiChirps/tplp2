@@ -4,6 +4,7 @@
 
 #include "lvgl/lvgl.h"
 #include "tplp/config/constants.h"
+#include "tplp/config/public_params.h"
 #include "tplp/ui/globals.h"
 
 static lv_obj_t* meter;
@@ -26,9 +27,8 @@ static lv_timer_t* update_meter_timer;
 
 void ui_settings_load_cell_on_load_cb() {
   lv_timer_resume(update_meter_timer);
-  auto params = global_tplp_->GetLoadCellParams();
-  lv_spinbox_set_value(offset_spinbox, params.offset);
-  lv_spinbox_set_value(scale_spinbox, params.scale);
+  lv_spinbox_set_value(offset_spinbox, PARAM_loadcell_offset.Get());
+  lv_spinbox_set_value(scale_spinbox, PARAM_loadcell_scale.Get());
 }
 
 void ui_settings_load_cell_on_unload_cb() {
@@ -44,12 +44,13 @@ static void update_meter_cb(lv_timer_t* timer) {
 }
 
 static void spinbox_changed_cb(lv_event_t* e) {
-  tplp::ui::LoadCellParams params = {
-      .offset = lv_spinbox_get_value(offset_spinbox),
-      .scale = lv_spinbox_get_value(scale_spinbox),
-  };
-  if (params.scale != 0) {
-    global_tplp_->SetLoadCellParams(params);
+  int offset = lv_spinbox_get_value(offset_spinbox);
+  int scale = lv_spinbox_get_value(scale_spinbox);
+  if (offset != PARAM_loadcell_offset.Get()) {
+    PARAM_loadcell_offset.Set(offset);
+  }
+  if (scale != 0 && scale != PARAM_loadcell_scale.Get()) {
+    PARAM_loadcell_scale.Set(scale);
   }
 }
 

@@ -56,6 +56,13 @@ cc_library(
 )
 
 cc_library(
+    name = "public_params",
+    hdrs = ["public_params.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//tplp/config:params"],
+)
+
+cc_library(
     name = "params_storage",
     srcs = ["params_storage.cc"],
     hdrs = ["params_storage.h"],
@@ -65,8 +72,8 @@ cc_library(
         "//absl/strings",
         "//picolog",
         "//picolog:status",
-        "//picolog:statusor",
         "//picolog:status_macros",
+        "//picolog:statusor",
         "//tplp/fs",
     ],
 )

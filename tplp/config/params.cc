@@ -11,8 +11,6 @@ namespace tplp {
 namespace config {
 namespace {
 
-static constexpr int kMaxNumParams = 32;
-
 ABSL_CONST_INIT static int num_params = 0;
 ABSL_CONST_INIT static ParameterBase* params[kMaxNumParams];
 ABSL_CONST_INIT static util::Status deferred_init_error;
@@ -52,7 +50,9 @@ template Parameter<int32_t>::Parameter(const char*, const int32_t&,
 // TODO: extend to any numeric type
 template <>
 util::Status Parameter<uint32_t>::Parse(std::string_view str) {
-  if (absl::SimpleAtoi(str, &value_)) {
+  uint32_t new_value;
+  if (absl::SimpleAtoi(str, &new_value)) {
+    Set(new_value);
     return util::OkStatus();
   } else {
     return util::InvalidArgumentError("parse error");
@@ -61,7 +61,9 @@ util::Status Parameter<uint32_t>::Parse(std::string_view str) {
 
 template <>
 util::Status Parameter<int32_t>::Parse(std::string_view str) {
-  if (absl::SimpleAtoi(str, &value_)) {
+  int32_t new_value;
+  if (absl::SimpleAtoi(str, &new_value)) {
+    Set(new_value);
     return util::OkStatus();
   } else {
     return util::InvalidArgumentError("parse error");
@@ -72,7 +74,7 @@ util::Status Parameter<int32_t>::Parse(std::string_view str) {
 template <>
 util::StatusOr<size_t> Parameter<uint32_t>::Serialize(char* buf,
                                                       size_t n) const {
-  auto str = absl::StrCat(value_);
+  auto str = absl::StrCat(Get());
   if (str.size() > n) {
     return util::ResourceExhaustedError("serialized value too large");
   }
@@ -82,7 +84,7 @@ util::StatusOr<size_t> Parameter<uint32_t>::Serialize(char* buf,
 template <>
 util::StatusOr<size_t> Parameter<int32_t>::Serialize(char* buf,
                                                      size_t n) const {
-  auto str = absl::StrCat(value_);
+  auto str = absl::StrCat(Get());
   if (str.size() > n) {
     return util::ResourceExhaustedError("serialized value too large");
   }
@@ -92,12 +94,12 @@ util::StatusOr<size_t> Parameter<int32_t>::Serialize(char* buf,
 // TODO: extend to any numeric type
 template <>
 std::string Parameter<uint32_t>::DebugString() const {
-  return absl::StrCat(value_);
+  return absl::StrCat(Get());
 }
 
 template <>
 std::string Parameter<int32_t>::DebugString() const {
-  return absl::StrCat(value_);
+  return absl::StrCat(Get());
 }
 
 }  // namespace config

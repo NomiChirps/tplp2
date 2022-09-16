@@ -16,7 +16,20 @@
 #include "lv_drivers/sdl/sdl.h"
 #include "lvgl/lvgl.h"
 #include "simulator/console.h"
+#include "tplp/config/params.h"
 #include "simulator/hooks.h"
+
+// Some dummy parameters for testing that part of the UI.
+#define ADD_TEST_TPLP_PARAM(n) TPLP_PARAM(int32_t, test_numeric_param_##n, n, "Blah, blah, blah: " #n)
+ADD_TEST_TPLP_PARAM(1);
+ADD_TEST_TPLP_PARAM(2);
+ADD_TEST_TPLP_PARAM(3);
+ADD_TEST_TPLP_PARAM(4);
+ADD_TEST_TPLP_PARAM(5);
+ADD_TEST_TPLP_PARAM(6);
+ADD_TEST_TPLP_PARAM(7);
+ADD_TEST_TPLP_PARAM(8);
+ADD_TEST_TPLP_PARAM(99999999);
 
 // Initialize the Hardware Abstraction Layer (HAL) for LVGL
 static void hal_init(void) {

@@ -9,6 +9,7 @@
 #include "picolog/picolog.h"
 #include "tplp/clkdiv.h"
 #include "tplp/config/params.h"
+#include "tplp/config/params_storage.h"
 #include "tplp/fs/fs.h"
 #include "tplp/graphics/lvgl_mutex.h"
 
@@ -97,16 +98,6 @@ int32_t TplpInterfaceImpl::GetLoadCellValue() {
 int32_t TplpInterfaceImpl::GetRawLoadCellValue() {
   return paper_->GetRawLoadCellValue();
 }
-void TplpInterfaceImpl::SetLoadCellParams(const LoadCellParams& params) {
-  LOG(INFO) << "Load cell parameters updated: offset = " << params.offset
-            << ", scale = " << params.scale;
-  PARAM_loadcell_offset.Set(params.offset);
-  PARAM_loadcell_scale.Set(params.scale);
-}
-LoadCellParams TplpInterfaceImpl::GetLoadCellParams() {
-  return {.offset = PARAM_loadcell_offset.Get(),
-          .scale = PARAM_loadcell_scale.Get()};
-}
 
 util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,
                                                      int microstep_hz_b) {
@@ -164,23 +155,11 @@ util::Status TplpInterfaceImpl::StepperMotorStopAll(StopType type) {
   return util::OkStatus();
 }
 
-void TplpInterfaceImpl::RunDevTest() {
-  static const char* const kFilename = "devtest.txt";
-  LOG(INFO) << "RunDevTest()";
-  char buf[16];
-  auto bytes_read = fs::GetContents(kFilename, buf, sizeof(buf));
-  LOG(INFO) << "ReadContents: " << bytes_read.status();
-  int x = 0;
-  if (bytes_read.ok()) {
-    LOG(INFO) << "Read " << *bytes_read
-              << " bytes: " << std::string_view(buf, *bytes_read);
-    std::sscanf(buf, "%d", &x);
-  }
-  x++;
-  LOG(INFO) << "SetContents: "
-            << fs::SetContents(kFilename, buf,
-                               std::snprintf(buf, sizeof(buf), "%d", x));
+util::Status TplpInterfaceImpl::SaveAllParameters() {
+  return ::tplp::config::SaveAllParameters();
 }
+
+void TplpInterfaceImpl::RunDevTest() { LOG(INFO) << "RunDevTest()"; }
 
 }  // namespace ui
 }  // namespace tplp

@@ -16,8 +16,29 @@ cc_library(
     srcs = ["paper_controller.cc"],
     hdrs = ["paper_controller.h"],
     deps = [
+        "//picolog",
         "//tplp/config:params",
         "//tplp/hx711",
+        "//tplp/motor:stepper",
+        "@FreeRTOS",
+    ],
+)
+
+cc_library(
+    name = "events",
+    hdrs = ["events.h"],
+)
+
+cc_test(
+    name = "events_test",
+    srcs = ["events_test.cc"],
+    target_compatible_with = select({
+        "@platforms//os:none": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":events",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -101,6 +122,8 @@ cc_library(
         ":paper_controller",
         "//picolog",
         "//tplp/bus:i2c",
+        "//tplp/config:params",
+        "//tplp/config:params_storage",
         "//tplp/fs",
         "//tplp/graphics:lvgl_mutex",
         "//tplp/hx8357",

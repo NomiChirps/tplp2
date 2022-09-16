@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include "picolog/picolog.h"
 #include "picolog/status.h"
 #include "picolog/statusor.h"
 
@@ -20,6 +21,8 @@
 namespace tplp {
 namespace config {
 
+static constexpr int kMaxNumParams = 32;
+
 // If non-OK, there was an error during static initialization.
 const util::Status& DeferredInitError();
 
@@ -35,6 +38,7 @@ class ParameterBase {
 
   // Writes a string representation of this parameter's value into the given
   // buffer. Returns the number of bytes written, which shall be at most `n`.
+  // No trailing NULL is appended.
   virtual util::StatusOr<size_t> Serialize(char* buf, size_t n) const = 0;
 
   const char* name() const { return name_; }
@@ -56,13 +60,17 @@ class Parameter : public ParameterBase {
                      const char* help);
 
   inline const T& Get() const { return value_; }
-  void Set(const T& new_value) { value_ = new_value; }
+  void Set(const T& new_value) {
+    value_ = new_value;
+    VLOG(1) << "Parameter value updated: " << name_ << " = " << new_value;
+  }
 
   util::Status Parse(std::string_view str) override;
   util::StatusOr<size_t> Serialize(char* buf, size_t n) const override;
   std::string DebugString() const override;
 
  private:
+  // Do not access except through Get() and Set().
   T value_;
 };
 

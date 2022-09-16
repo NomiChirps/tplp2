@@ -20,6 +20,9 @@ struct TaskPriorities {
   // Except logging, of course.
   static constexpr int kStartup = 13;
 
+  // Printer logic.
+  static constexpr int kPaperController = 12;
+
   static constexpr int kRuntimeStats = 8;  // don't care
 
   // User-interface peripherals are low priority, but not the lowest.
@@ -45,6 +48,7 @@ struct TaskStacks {
   static constexpr int kRuntimeStats = 512;
   static constexpr int kStartup = 1024;
   static constexpr int kUiWorker = 1024;
+  static constexpr int kPaperController = 1024;
 
   // don't reduce further unless you enjoy heisenbugs
   static constexpr int kPicolog = 1024;

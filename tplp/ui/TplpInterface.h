@@ -14,11 +14,6 @@ struct I2cScanResult {
   std::vector<uint8_t> addresses;
 };
 
-struct LoadCellParams {
-  int32_t offset;
-  int32_t scale;
-};
-
 // Provides a generic interface into whatever bits of the program the UI needs
 // to work with. This serves as a dependency injection mechanism, allowing the
 // same UI code to run both under the simulator and on the actual hardware.
@@ -40,11 +35,8 @@ class TplpInterface {
   virtual void ScanI2cBus(
       const std::function<void(const I2cScanResult&)>& callback);
 
-  // See also params::kLoadCellExpectedRangeAfterScaling.
   virtual int32_t GetLoadCellValue();
   virtual int32_t GetRawLoadCellValue();
-  virtual void SetLoadCellParams(const LoadCellParams& params);
-  virtual LoadCellParams GetLoadCellParams();
 
   // Direct motor control for manual moves from the UI.
   virtual util::Status StepperMotorSetSpeed(int microstep_hz_a,
@@ -52,6 +44,9 @@ class TplpInterface {
   virtual util::Status StepperMotorMove(int microsteps_a, int microsteps_b);
   enum class StopType { HOLD, SHORT_BRAKE, FREEWHEEL };
   virtual util::Status StepperMotorStopAll(StopType type);
+
+  // Saves all runtime-tweakable parameters to disk.
+  virtual util::Status SaveAllParameters();
 
   // Does a test of whatever it is I'm currently working on.
   virtual void RunDevTest();
