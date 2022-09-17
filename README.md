@@ -14,10 +14,6 @@ bazel build //tplp:firmware.uf2 -c opt
 ls -lh bazel-bin/tplp/firmware.uf2
 ```
 
-## Shopping list
-
-- 2 more TB6612 drivers (1 for the other steppie, 1 for DC motors)
-
 ## TODO / Notes
 
 - [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
