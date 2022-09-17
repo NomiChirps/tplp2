@@ -193,7 +193,7 @@ SharpLCD::SharpLCD(SpiController* spi) : spi_(spi) {
   CHECK_LE(spi_->GetActualFrequency(), 2'000'000);
 }
 
-void SharpLCD::Begin(gpio_pin_t cs, int toggle_vcom_task_priority,
+void SharpLCD::Init(gpio_pin_t cs, int toggle_vcom_task_priority,
                      int toggle_vcom_task_stack_depth) {
   spi_device_ = spi_->AddDevice(cs, "SharpLCD");
   CHECK(xTaskCreate(&SharpLCD::ToggleVcomTask, "SharpLCD::ToggleVCOM",

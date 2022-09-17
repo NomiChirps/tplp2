@@ -84,7 +84,7 @@ class ScopedDisablePenIrq {
 TSC2007::TSC2007(I2cDeviceHandle device)
     : i2c_(device), callback_(nullptr) {}
 
-util::Status TSC2007::Setup() {
+util::Status TSC2007::Init() {
   I2cTransaction txn = i2c_.StartTransaction();
   return Command(txn, MEASURE_TEMP0, POWERDOWN_IRQON, ADC_12BIT, true);
 }

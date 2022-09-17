@@ -82,7 +82,7 @@ class SharpLCD {
   // `cs`: Chip select pin. `SpiController` will expect this to be active LOW,
   // but the Sharp LCD chip expects active HIGH. Make sure you've got an
   // inverter in the circuit.
-  void Begin(gpio_pin_t cs, int toggle_vcom_task_priority,
+  void Init(gpio_pin_t cs, int toggle_vcom_task_priority,
              int toggle_vcom_task_stack_depth);
 
   // Clear the LCD's display to all-white. More efficient than writing a

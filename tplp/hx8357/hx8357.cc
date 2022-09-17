@@ -279,7 +279,7 @@ HX8357B::HX8357B(SpiDevice* spi, gpio_pin_t dc)
 HX8357D::HX8357D(SpiDevice* spi, gpio_pin_t dc)
     : HX8357(DisplayType::HX8357D, spi, dc) {}
 
-void HX8357::Begin() {
+void HX8357::Init() {
   // Screen dimensions for default rotation (1,1,0)
   width_ = HX8357_TFTWIDTH;
   height_ = HX8357_TFTHEIGHT;

@@ -18,8 +18,8 @@ class TSC2007 {
 
   using TouchCallback = std::function<void(const TouchInfo&)>;
 
-  // Call Setup() at least once before any other methods.
-  util::Status Setup();
+  // Call Init() at least once before any other methods.
+  util::Status Init();
 
   // Starts a task and sets up an IRQ handler to process touch interrupts on the
   // `penirq` pin specified in the constructor.

@@ -72,7 +72,7 @@ void StartupTask(void*) {
   LOG_IF(ERROR, !status.ok()) << "Error loading flags: " << status;
 
   HX8357* display = new HX8357D(spi_hx8357, Pins::HX8357_DC);
-  display->Begin();
+  display->Init();
   while (!display->SelfTest()) {
     // TODO: flash out an error code on something? board LED?
     LOG(ERROR) << "HX8357 self test failed";
@@ -106,7 +106,7 @@ void StartupTask(void*) {
   // Touchscreen reader.
   TSC2007* touchscreen = CHECK_NOTNULL(new TSC2007(
       I2cDeviceHandle(i2c0_controller, I2cPeripheralAddress::kTSC2007)));
-  status = touchscreen->Setup();
+  status = touchscreen->Init();
   // TODO: if we bring the lvgl display up first, we can fail more gracefully
   // by displaying a message
   LOG_IF(FATAL, !status.ok()) << "TSC2007 setup failed: " << status;

@@ -12,8 +12,8 @@ class HX8357 {
 
  public:
   // Initializes the hardware. It is an error to use any other methods before
-  // calling Begin(), or to call Begin() more than once.
-  void Begin();
+  // calling Init(), or to call Init() more than once.
+  void Init();
 
   // Executes a self-diagnostic and prints the results to the INFO log.
   // Returns true if everything looked okay.
