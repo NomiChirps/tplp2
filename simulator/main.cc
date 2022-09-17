@@ -16,20 +16,20 @@
 #include "lv_drivers/sdl/sdl.h"
 #include "lvgl/lvgl.h"
 #include "simulator/console.h"
-#include "tplp/config/params.h"
 #include "simulator/hooks.h"
+#include "tplp/config/params.h"
 
 // Some dummy parameters for testing that part of the UI.
-#define ADD_TEST_TPLP_PARAM(n) TPLP_PARAM(int32_t, test_numeric_param_##n, n, "Blah, blah, blah: " #n)
+#define ADD_TEST_TPLP_PARAM(n) \
+  TPLP_PARAM(int32_t, test_numeric_param_##n, n, "Blah, blah, blah: " #n)
 ADD_TEST_TPLP_PARAM(1);
 ADD_TEST_TPLP_PARAM(2);
 ADD_TEST_TPLP_PARAM(3);
-ADD_TEST_TPLP_PARAM(4);
-ADD_TEST_TPLP_PARAM(5);
-ADD_TEST_TPLP_PARAM(6);
-ADD_TEST_TPLP_PARAM(7);
-ADD_TEST_TPLP_PARAM(8);
 ADD_TEST_TPLP_PARAM(99999999);
+
+// Define params the UI has a hard dependency on.
+TPLP_PARAM(int32_t, loadcell_offset, 100000, "Loadcell offset");
+TPLP_PARAM(int32_t, loadcell_scale, 200, "Loadcell scale");
 
 // Initialize the Hardware Abstraction Layer (HAL) for LVGL
 static void hal_init(void) {
@@ -105,7 +105,7 @@ static void tick_task(void* unused) {
 
     vTaskDelay(pdMS_TO_TICKS(5));
     if (++n % 500 == 0) {
-      //console_print("lvgl tick %ld\n", n);
+      // console_print("lvgl tick %ld\n", n);
     }
   }
 }
@@ -159,7 +159,7 @@ int main() {
 
     usleep(5000);
     if (++n % 500 == 0) {
-      //console_print("lvgl timer handler call count %ld\n", n);
+      // console_print("lvgl timer handler call count %ld\n", n);
     }
   }
 
