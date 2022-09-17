@@ -32,9 +32,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
     - i want a mathematically sound PID tuning UI
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Create a front panel UI (assignee: wembly :)
-  - [ ] remove the "home" screen, just use that left sidebar for everything. but also hide/delete it when not in use: to free up horizontal space on the screen and to conserve RAM.
   - [ ] runtime stats / logging screen
   - [ ] (later) print status / job control / main screen ?
+  - [x] remove the "home" screen, just use that left sidebar for everything. but also hide/delete it when not in use: to free up horizontal space on the screen and to conserve RAM.
   - [x] some kind of display for non-fatal errors. modal dialog box? little icon in the corner to tap on and expand? idk.
     - went with a simple modal
   - [x] manual motor control screen
