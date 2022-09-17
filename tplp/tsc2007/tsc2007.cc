@@ -81,8 +81,7 @@ class ScopedDisablePenIrq {
 
 }  // namespace
 
-TSC2007::TSC2007(I2cDeviceHandle device)
-    : i2c_(device), callback_(nullptr) {}
+TSC2007::TSC2007(I2cDeviceHandle device) : i2c_(device), callback_(nullptr) {}
 
 util::Status TSC2007::Init() {
   I2cTransaction txn = i2c_.StartTransaction();
@@ -107,36 +106,37 @@ util::Status TSC2007::ReadPosition(int16_t* x, int16_t* y, int16_t* z1,
     RETURN_IF_ERROR(Command(txn, MEASURE_X, ADON_IRQOFF, ADC_12BIT));
     busy_wait_us(10);
     RETURN_IF_ERROR(txn.Read(buf, 2));
-    VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "X = [0x"
-            << (int)buf[0] << ", 0x" << (int)buf[1] << "]";
+    VLOG(1) << std::hex << std::setfill('0') << "X = [0x" << std::setw(2)
+            << (int)buf[0] << ", 0x" << std::setw(2) << (int)buf[1] << "]";
     *x = Convert12BitValue(buf);
   }
   if (y) {
     RETURN_IF_ERROR(Command(txn, MEASURE_Y, ADON_IRQOFF, ADC_12BIT));
     busy_wait_us(10);
     RETURN_IF_ERROR(txn.Read(buf, 2));
-    VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "Y = [0x"
-            << (int)buf[0] << ", 0x" << (int)buf[1] << "]";
+    VLOG(1) << std::hex << std::setfill('0') << "Y = [0x" << std::setw(2)
+            << (int)buf[0] << ", 0x" << std::setw(2) << (int)buf[1] << "]";
     *y = Convert12BitValue(buf);
   }
   if (z1) {
     RETURN_IF_ERROR(Command(txn, MEASURE_Z1, ADON_IRQOFF, ADC_8BIT));
     RETURN_IF_ERROR(txn.Read(buf, 1));
-    VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "Z1 = 0x"
+    VLOG(1) << std::hex << std::setfill('0') << "Z1 = 0x" << std::setw(2)
             << (int)buf[0];
     *z1 = buf[0];
   }
   if (z2) {
     RETURN_IF_ERROR(Command(txn, MEASURE_Z1, ADON_IRQOFF, ADC_8BIT));
     RETURN_IF_ERROR(txn.Read(buf, 1));
-    VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "Z2 = 0x"
+    VLOG(1) << std::hex << std::setfill('0') << "Z2 = 0x" << std::setw(2)
             << (int)buf[0];
     *z2 = buf[0];
   }
   return Command(txn, MEASURE_TEMP0, POWERDOWN_IRQON, ADC_12BIT, true);
 }
 
-void TSC2007::ReceiveTouchEvents(gpio_pin_t penirq, int priority, int stack_depth,
+void TSC2007::ReceiveTouchEvents(gpio_pin_t penirq, int priority,
+                                 int stack_depth,
                                  const TouchCallback& callback) {
   CHECK(!callback_) << "Callback already set";
   CHECK(!global_task)

@@ -350,8 +350,8 @@ uint8_t HX8357::RDDSDR() {
       .write_addr = buf1,
       .trans_count = 2,
   });
-  VLOG(1) << std::hex << std::setw(2) << std::setfill('0')
-          << "RDDSDR response 0x" << (int)buf1[1];
+  VLOG(1) << std::hex << std::setfill('0') << "RDDSDR response 0x"
+          << std::setw(2) << (int)buf1[1];
   return buf1[1];
 }
 

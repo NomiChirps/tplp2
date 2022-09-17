@@ -94,8 +94,9 @@ util::Status SdSpi::Init() {
     });
     if (r7[3] != 0xaa) {
       LOG(ERROR) << "Expected 0xaa echoed but got response: " << std::hex
-                 << std::setw(2) << std::setfill('0') << (int)r7[0] << " "
-                 << (int)r7[1] << " " << (int)r7[2] << " " << (int)r7[3];
+                 << std::setfill('0') << std::setw(2) << (int)r7[0] << " "
+                 << std::setw(2) << (int)r7[1] << " " << std::setw(2)
+                 << (int)r7[2] << " " << std::setw(2) << (int)r7[3];
       return util::UnknownError("device failed to echo check pattern");
     }
     // actually it might be SDHC, we'll check in a sec.
@@ -211,10 +212,12 @@ util::StatusOr<SdSpi::R1> SdSpi::CardCommandNoWait(SpiTransaction& txn,
                               });
                               return !(r1 & 0x80);
                             }));
-  VLOG(1) << std::hex << std::setw(2) << std::setfill('0') << "CardCommand(0x"
-          << (int)cmd << ", 0x" << arg << "): " << (int)buf[0] << " "
-          << (int)buf[1] << " " << (int)buf[2] << " " << (int)buf[3] << " "
-          << (int)buf[4] << " " << (int)buf[5] << " -> " << (int)r1;
+  VLOG(1) << std::hex << std::setfill('0') << "CardCommand(0x" << std::setw(2)
+          << (int)cmd << ", 0x" << arg << "): " << std::setw(2) << (int)buf[0]
+          << " " << std::setw(2) << (int)buf[1] << " " << std::setw(2)
+          << (int)buf[2] << " " << std::setw(2) << (int)buf[3] << " "
+          << std::setw(2) << (int)buf[4] << " " << std::setw(2) << (int)buf[5]
+          << " -> " << std::setw(2) << (int)r1;
   return r1;
 }
 

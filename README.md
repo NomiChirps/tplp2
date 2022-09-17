@@ -20,7 +20,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] fix all instances of std::setw(). it only sticks for one output field...
 - [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
@@ -171,6 +170,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] fix all instances of std::setw(). it only sticks for one output field...
 - [x] Begin() Setup() Init(), **PICK ONE**
 - [x] UX Improvements
   - [x] fix everything in the ui being scrollable

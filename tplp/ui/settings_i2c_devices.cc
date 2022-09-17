@@ -48,9 +48,9 @@ static void update_i2c_list(const I2cScanResult& result) {
   std::ostringstream txt;
   txt << "Status: " << result.status << "\n"
       << "Detected " << result.addresses.size() << " device(s)\n"
-      << std::hex << std::setw(2) << std::setfill('0');
+      << std::hex << std::setfill('0');
   for (uint8_t addr : result.addresses) {
-    txt << "    0x" << (int)addr << "\n";
+    txt << "    0x" << std::setw(2) << (int)addr << "\n";
   }
 
   lv_label_set_text(i2c_devices_label, txt.str().c_str());
