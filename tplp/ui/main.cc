@@ -4,10 +4,10 @@
 #include "picolog/picolog.h"
 #include "tplp/ui/globals.h"
 #include "tplp/ui/screen_home.h"
-#include "tplp/ui/settings_i2c_devices.h"
-#include "tplp/ui/settings_load_cell.h"
-#include "tplp/ui/settings_params.h"
-#include "tplp/ui/settings_steppers.h"
+#include "tplp/ui/screen_i2c_devices.h"
+#include "tplp/ui/screen_load_cell.h"
+#include "tplp/ui/screen_params.h"
+#include "tplp/ui/screen_steppers.h"
 
 namespace tplp {
 namespace ui {
@@ -29,15 +29,15 @@ struct ScreenInfo {
     {.label = LV_SYMBOL_HOME " Home",  //
      .create = ui_screen_home_create},
     {.label = LV_SYMBOL_KEYBOARD " Params",  //
-     .create = ui_settings_params_create},
+     .create = ui_screen_params_create},
     {.label = LV_SYMBOL_DOWNLOAD " Load Cell",  //
-     .create = ui_settings_load_cell_create,
-     .on_load = ui_settings_load_cell_on_load_cb,
-     .on_unload = ui_settings_load_cell_on_unload_cb},
+     .create = ui_screen_load_cell_create,
+     .on_load = ui_screen_load_cell_on_load_cb,
+     .on_unload = ui_screen_load_cell_on_unload_cb},
     {.label = LV_SYMBOL_REFRESH " Steppers",  //
-     .create = ui_settings_steppers_create},
+     .create = ui_screen_steppers_create},
     {.label = LV_SYMBOL_USB " I2C",  //
-     .create = ui_settings_i2c_devices_create},
+     .create = ui_screen_i2c_devices_create},
 };
 static constexpr int kNumScreens = sizeof(screens) / sizeof(screens[0]);
 

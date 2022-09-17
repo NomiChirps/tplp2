@@ -1,4 +1,4 @@
-#include "settings_steppers.h"
+#include "screen_steppers.h"
 
 #include <cstddef>
 
@@ -104,7 +104,7 @@ static void set_load_cell_data(lv_coord_t* data, uint32_t count) {
   lv_chart_set_ext_y_array(chart, ser, data);
 }
 
-lv_obj_t* ui_settings_steppers_create(lv_obj_t* parent) {
+lv_obj_t* ui_screen_steppers_create(lv_obj_t* parent) {
   static lv_coord_t col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_FR(1),
                                  LV_GRID_TEMPLATE_LAST};
   static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT,

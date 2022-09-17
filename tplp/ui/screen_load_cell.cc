@@ -1,4 +1,4 @@
-#include "settings_load_cell.h"
+#include "screen_load_cell.h"
 
 #include <limits>
 
@@ -25,13 +25,13 @@ static void scale_spinbox_decrement_event_cb(lv_event_t* e);
 
 static lv_timer_t* update_meter_timer;
 
-void ui_settings_load_cell_on_load_cb() {
+void ui_screen_load_cell_on_load_cb() {
   lv_timer_resume(update_meter_timer);
   lv_spinbox_set_value(offset_spinbox, PARAM_loadcell_offset.Get());
   lv_spinbox_set_value(scale_spinbox, PARAM_loadcell_scale.Get());
 }
 
-void ui_settings_load_cell_on_unload_cb() {
+void ui_screen_load_cell_on_unload_cb() {
   lv_timer_pause(update_meter_timer);
 }
 
@@ -60,7 +60,7 @@ static void set_meter_value(int32_t v) {
   lv_obj_set_style_text_align(numeric_display, LV_TEXT_ALIGN_CENTER, 0);
 }
 
-lv_obj_t* ui_settings_load_cell_create(lv_obj_t* parent) {
+lv_obj_t* ui_screen_load_cell_create(lv_obj_t* parent) {
   lv_obj_t* content = lv_obj_create(parent);
   lv_obj_remove_style_all(content);
   lv_obj_set_size(content, LV_PCT(100), LV_PCT(100));

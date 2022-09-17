@@ -1,4 +1,4 @@
-#include "settings_i2c_devices.h"
+#include "screen_i2c_devices.h"
 
 #include <iomanip>
 #include <sstream>
@@ -13,7 +13,7 @@ static void update_i2c_list(const I2cScanResult&);
 
 static lv_obj_t* i2c_devices_label = NULL;
 
-lv_obj_t* ui_settings_i2c_devices_create(lv_obj_t* parent) {
+lv_obj_t* ui_screen_i2c_devices_create(lv_obj_t* parent) {
   lv_obj_t* content = lv_obj_create(parent);
   lv_obj_remove_style_all(content);
   lv_obj_set_style_pad_all(content, 10, 0);

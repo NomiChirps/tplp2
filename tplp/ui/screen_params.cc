@@ -1,4 +1,4 @@
-#include "tplp/ui/settings_params.h"
+#include "tplp/ui/screen_params.h"
 
 #include <algorithm>
 
@@ -159,7 +159,7 @@ static void textarea_cb(lv_event_t* e) {
   reset_value(textarea, userdata->edit_button);
 }
 
-lv_obj_t* ui_settings_params_create(lv_obj_t* parent) {
+lv_obj_t* ui_screen_params_create(lv_obj_t* parent) {
   lv_obj_t* grid = lv_obj_create(parent);
   lv_obj_remove_style_all(grid);
   lv_obj_set_style_pad_ver(grid, 10, 0);
