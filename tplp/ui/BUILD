@@ -7,23 +7,36 @@ cc_library(
     name = "main",
     srcs = [
         "main.cc",
-        "screen_home.cc",
-        "screen_home.h",
-        "screen_settings.cc",
-        "screen_settings.h",
-        "settings_i2c_devices.cc",
-        "settings_i2c_devices.h",
-        "settings_load_cell.cc",
-        "settings_load_cell.h",
-        "settings_params.cc",
-        "settings_params.h",
-        "settings_steppers.cc",
-        "settings_steppers.h",
     ],
     hdrs = [
         "main.h",
     ],
     visibility = ["//visibility:public"],
+    deps = [
+        ":TplpInterface",
+        ":all_screens",
+        ":globals",
+        "//picolog",
+        "@lvgl",
+    ],
+)
+
+cc_library(
+    name = "all_screens",
+    srcs = [
+        "screen_home.cc",
+        "settings_i2c_devices.cc",
+        "settings_load_cell.cc",
+        "settings_params.cc",
+        "settings_steppers.cc",
+    ],
+    hdrs = [
+        "screen_home.h",
+        "settings_i2c_devices.h",
+        "settings_load_cell.h",
+        "settings_params.h",
+        "settings_steppers.h",
+    ],
     deps = [
         ":TplpInterface",
         ":globals",
