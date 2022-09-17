@@ -57,12 +57,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [x] Shiny new front panel display + LVGL driver
   - [x] touchscreen input (SPI breakout)
   - [x] Sharp LCD display + LVGL driver
-- [ ] Finish the electronics hardware
-  - [ ] Power everything from the 12v bus
-    - [x] remember to power pico thru VSYS, not VBUS, to avoid potentially sending power upstream to the usb host
-  - [ ] Transfer from breadboard to permaproto, or ask wembly to whip up a pcb
-  - [x] supply 5V to HX711
-  - [x] Add bus capacitors
+- [ ] Transfer electronics to a PCB with 12v supply when finalized.
 
 - 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking where possible.
   - update: yes indeed, i certainly have been getting sloppy about locking. will i regret it? time will tell.
@@ -170,6 +165,10 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] Clean up the prototype electronics
+  - [x] remember to power pico thru VSYS, not VBUS, to avoid potentially sending power upstream to the usb host
+  - [x] supply 5V to HX711
+  - [x] Add bus capacitors
 - [x] fix all instances of std::setw(). it only sticks for one output field...
 - [x] Begin() Setup() Init(), **PICK ONE**
 - [x] UX Improvements
