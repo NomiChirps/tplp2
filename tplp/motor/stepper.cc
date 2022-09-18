@@ -61,19 +61,20 @@ template void StepperMotor::timer_isr<0>();
 template void StepperMotor::timer_isr<1>();
 
 template <int M>
-void StepperMotor::InitTimer() {
+void StepperMotor::InitTimer(int irq_priority) {
   static_assert(M < 4);
   CHECK(!hardware_alarm_is_claimed(M));
   hardware_alarm_claim(M);
   timer_alarm_num_ = M;
   timer_irq_ = TIMER_IRQ_0 + M;
   irq_set_exclusive_handler(timer_irq_, timer_isr<M>);
+  irq_set_priority(timer_irq_, irq_priority);
   irq_set_enabled(timer_irq_, true);
   hw_set_bits(&timer_hw->inte, 1u << timer_alarm_num_);
 }
 
-template void StepperMotor::InitTimer<0>();
-template void StepperMotor::InitTimer<1>();
+template void StepperMotor::InitTimer<0>(int);
+template void StepperMotor::InitTimer<1>(int);
 
 bool StepperMotor::static_init_done_ = false;
 uint16_t StepperMotor::pwm_period_ = 0;
@@ -85,7 +86,7 @@ uint32_t StepperMotor::fwd_commands_[kCommandBufLen] = {};
 uint32_t StepperMotor::rev_commands_[kCommandBufLen] = {};
 
 StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
-                                 const Hardware& hw) {
+                                 const Hardware& hw, int timer_irq_priority) {
   LOG_IF(FATAL, !static_init_done_) << "must call StaticInit() before Init()";
   CHECK_EQ(hw.a1 + 1, hw.a2) << "StepperMotor pins must be consecutive";
   CHECK_EQ(hw.a2 + 1, hw.b1) << "StepperMotor pins must be consecutive";
@@ -155,9 +156,9 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
 
   CHECK_LT(num_motors, kMaxNumMotors);
   if (num_motors == 0) {
-    self->InitTimer<0>();
+    self->InitTimer<0>(timer_irq_priority);
   } else if (num_motors == 1) {
-    self->InitTimer<1>();
+    self->InitTimer<1>(timer_irq_priority);
   } else {
     LOG(FATAL) << "unexpected num motors";
   }

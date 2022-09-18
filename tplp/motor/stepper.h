@@ -33,7 +33,8 @@ class StepperMotor {
   static constexpr size_t kMicrostepsPerStep = kCommandBufLen;
 
   static void StaticInit(int pwm_freq_hz);
-  static StepperMotor* Init(DmaController* dma, PIO pio, const Hardware& hw);
+  static StepperMotor* Init(DmaController* dma, PIO pio, const Hardware& hw,
+                            int timer_irq_priority);
 
   // Step forward or backward by a certain number of microsteps. This triggers a
   // DMA transfer to send commands to the motor and returns immediately, without
@@ -100,7 +101,7 @@ class StepperMotor {
   template <int M>
   static void __not_in_flash_func(timer_isr());
   template <int M>
-  void InitTimer();
+  void InitTimer(int irq_priority);
 
   // Don't call this while the motor is moving,
   // otherwise it fights against the DMA.

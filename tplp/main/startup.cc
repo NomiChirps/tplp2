@@ -130,13 +130,15 @@ void StartupTask(void*) {
                                        {.a1 = Pins::MOTOR_A_A1,
                                         .a2 = Pins::MOTOR_A_A2,
                                         .b1 = Pins::MOTOR_A_B1,
-                                        .b2 = Pins::MOTOR_A_B2}));
+                                        .b2 = Pins::MOTOR_A_B2},
+                                       IrqPriorities::kStepperTimer));
   StepperMotor* motor_b =
       CHECK_NOTNULL(StepperMotor::Init(dma_stepper_b, pio1,
                                        {.a1 = Pins::MOTOR_B_A1,
                                         .a2 = Pins::MOTOR_B_A2,
                                         .b1 = Pins::MOTOR_B_B1,
-                                        .b2 = Pins::MOTOR_B_B2}));
+                                        .b2 = Pins::MOTOR_B_B2},
+                                       IrqPriorities::kStepperTimer));
 
   PaperController* paper_controller = CHECK_NOTNULL(new PaperController(
       loadcell, /*motor_src=*/motor_b, /*motor_dst=*/motor_a));

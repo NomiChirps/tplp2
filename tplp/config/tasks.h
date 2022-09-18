@@ -1,9 +1,21 @@
 #ifndef TPLP_CONFIG_TASKS_H_
 #define TPLP_CONFIG_TASKS_H_
 
+#include <cstdint>
+
 #include "FreeRTOSConfig.h"
 
 namespace tplp {
+
+// Numerically-lower values indicate a higher priority. Hardware priorities
+// range from 0 (highest priority) to 255 (lowest priority) though only the
+// top 2 bits are significant on ARM Cortex-M0+.
+struct IrqPriorities {
+  // TODO: specify all of our irq priorities explicitly
+  static constexpr uint8_t kDefault = 0x80;  // == PICO_DEFAULT_IRQ_PRIORITY
+  // Higher priority than default:
+  static constexpr uint8_t kStepperTimer = 0x40;
+};
 
 struct TaskPriorities {
   // Just so we don't change it in one place and not update the other.
