@@ -27,7 +27,11 @@ ls -lh bazel-bin/tplp/firmware.uf2
     - [x] manual calibration gui
     - [x] auto calibrate/zero button (& algorithm)
   - [ ] needs a PID loop with all the accoutrements
-    - i want a mathematically sound PID tuning UI
+    - one loop watches printer roller encoder and controls CENTER of motor target positions
+    - one loop watches load cell and controls DIFFERENCE between motor target positions
+    - and two MORE loops watch motor target positions and controls motor speeds & directions
+    - this also means we need to actually install the encoder sooner rather than later.
+    - i still want a mathematically sound PID tuning UI. or i guess procedure, if i expose everything in the new params ui.
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Create a front panel UI (assignee: wembly :)
   - [ ] runtime stats / logging screen
