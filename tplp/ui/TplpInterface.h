@@ -45,6 +45,13 @@ class TplpInterface {
   enum class StopType { HOLD, SHORT_BRAKE, FREEWHEEL };
   virtual util::Status StepperMotorStopAll(StopType type);
 
+  // Paper feed control.
+  virtual std::string GetPaperState();
+  virtual util::Status TensionPaper();
+  virtual util::Status StartFeed();
+  virtual util::Status StopFeed();
+  virtual util::Status ReleasePaper();
+
   // Saves all runtime-tweakable parameters to disk.
   virtual util::Status SaveAllParameters();
 

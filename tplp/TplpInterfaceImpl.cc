@@ -161,5 +161,23 @@ util::Status TplpInterfaceImpl::SaveAllParameters() {
 
 void TplpInterfaceImpl::RunDevTest() { LOG(INFO) << "RunDevTest()"; }
 
+std::string TplpInterfaceImpl::GetPaperState() {
+  switch (paper_->state()) {
+    case PaperController::State::NOT_TENSIONED:
+      return "NOT_TENSIONED";
+    case PaperController::State::TENSIONING:
+      return "TENSIONING";
+    case PaperController::State::TENSIONED_IDLE:
+      return "TENSIONED_IDLE";
+    case PaperController::State::FEEDING:
+      return "FEEDING";
+  }
+  return "UNKNOWN";
+}
+util::Status TplpInterfaceImpl::TensionPaper() { return paper_->Cmd_Tension(); }
+util::Status TplpInterfaceImpl::StartFeed() { return paper_->Cmd_StartFeed(); }
+util::Status TplpInterfaceImpl::StopFeed() { return paper_->Cmd_StopFeed(); }
+util::Status TplpInterfaceImpl::ReleasePaper() { return paper_->Cmd_Release(); }
+
 }  // namespace ui
 }  // namespace tplp

@@ -35,6 +35,12 @@ class TplpInterfaceImpl : public ui::TplpInterface {
 
   util::Status SaveAllParameters() override;
 
+  std::string GetPaperState() override;
+  util::Status TensionPaper() override;
+  util::Status StartFeed() override;
+  util::Status StopFeed() override;
+  util::Status ReleasePaper() override;
+
   void RunDevTest() override;
 
  private:

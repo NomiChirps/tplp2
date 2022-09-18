@@ -12,6 +12,7 @@ cc_library(
         ":sin_table",
         "//picolog",
         "//tplp:clkdiv",
+        "//tplp:rtos_util",
         "//tplp/bus:dma",
         "//tplp/bus:types",
         "@rules_pico//pico:hardware_clocks",

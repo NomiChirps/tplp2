@@ -12,6 +12,7 @@
 #include "picolog/picolog.h"
 #include "tplp/motor/sin_table.h"
 #include "tplp/motor/stepper.pio.h"
+#include "tplp/rtos_util.h"
 
 namespace tplp {
 namespace {
@@ -34,7 +35,8 @@ int StepperMotor::pio_clkdiv_int_ = 0;
 int StepperMotor::pio_clkdiv_frac_ = 0;
 int StepperMotor::pio_hz_ = 0;
 uint32_t StepperMotor::shortbrake_command_ = 0;
-uint32_t StepperMotor::commands_[kCommandBufLen] = {};
+uint32_t StepperMotor::fwd_commands_[kCommandBufLen] = {};
+uint32_t StepperMotor::rev_commands_[kCommandBufLen] = {};
 
 StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
                                  const Hardware& hw) {
@@ -102,7 +104,7 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
 
   ClockDivider clkdiv;
   CHECK(ComputeClockDivider(clock_get_hz(clk_sys), self->microstep_hz_min(),
-                              &clkdiv));
+                            &clkdiv));
   self->SetSpeed(clkdiv);
 
   LOG(INFO) << "StepperMotor microstep_hz_min = " << self->microstep_hz_min()
@@ -137,7 +139,8 @@ uint32_t StepperMotor::microstep_hz_max() {
 inline void StepperMotor::SendImmediateCommand(uint32_t cmd) { *txf_ = cmd; }
 
 StepperMotor::StepperMotor(DmaController* dma)
-    : dma_(dma),
+    : commands_(fwd_commands_),
+      dma_(dma),
       // Initialize with an arbitrary dummy transfer.
       current_move_handle_(dma->Transfer({
           .c0_enable = true,
@@ -152,10 +155,6 @@ StepperMotor::StepperMotor(DmaController* dma)
 void StepperMotor::Move(int32_t microsteps) {
   VLOG(1) << "StepperMotor::Move(" << microsteps << ")";
   if (microsteps == 0) return;
-  if (microsteps < 0) {
-    LOG(ERROR) << "Reverse moves not implemented yet";
-    return;
-  }
   if (!current_move_handle_.finished()) {
     LOG(ERROR) << "Move(" << microsteps
                << ") failed: a move is already in progress";
@@ -166,6 +165,22 @@ void StepperMotor::Move(int32_t microsteps) {
     pio_->fdebug = 1 << (16 + sm_);
   }
 
+  if (microsteps >= 0) {
+    if (commands_ == rev_commands_) {
+      offset_after_move_ =
+          kCommandBufLen -
+          2 * (offset_after_move_ % (intdiv_ceil(kCommandBufLen, 2u)));
+    }
+    commands_ = fwd_commands_;
+  } else {
+    if (commands_ == fwd_commands_) {
+      offset_after_move_ =
+          kCommandBufLen -
+          2 * (offset_after_move_ % (intdiv_ceil(kCommandBufLen, 2u)));
+    }
+    commands_ = rev_commands_;
+  }
+
   current_move_handle_ = dma_->Transfer({
       .c0_enable = true,
       .c0_treq_sel = dma_timer_dreq_,
@@ -174,8 +189,7 @@ void StepperMotor::Move(int32_t microsteps) {
       .c0_write_addr = txf_,
       .c0_write_incr = false,
       .c0_data_size = DmaController::DataSize::k32,
-      // XXX: positive count?
-      .c0_trans_count = static_cast<uint32_t>(microsteps),
+      .c0_trans_count = static_cast<uint32_t>(std::abs(microsteps)),
       .c0_ring_size = kCommandBufRingSizeBits,
       .c0_ring_sel = false,
   });
@@ -197,6 +211,10 @@ void StepperMotor::SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
     LOG(ERROR) << "SimultaneousMove failed: a move is already in progress";
     return;
   }
+  if (microsteps_a < 0 || microsteps_b < 0) {
+    LOG(ERROR) << "SimultaneousMove: reverse moves not implemented";
+    return;
+  }
   if (microsteps_a != 0 && microsteps_b == 0) {
     a->Move(microsteps_a);
   }
@@ -214,7 +232,7 @@ void StepperMotor::SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
       dma_owner->dma_->Transfer({
           .c0_enable = true,
           .c0_treq_sel = a->dma_timer_dreq_,
-          .c0_read_addr = &commands_[a->command_index_after_move()],
+          .c0_read_addr = &a->commands_[a->command_index_after_move()],
           .c0_read_incr = true,
           .c0_write_addr = a->txf_,
           .c0_write_incr = false,
@@ -226,7 +244,7 @@ void StepperMotor::SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
 
           .c1_enable = true,
           .c1_treq_sel = b->dma_timer_dreq_,
-          .c1_read_addr = &commands_[b->command_index_after_move()],
+          .c1_read_addr = &b->commands_[b->command_index_after_move()],
           .c1_read_incr = true,
           .c1_write_addr = b->txf_,
           .c1_write_incr = false,
@@ -317,9 +335,9 @@ void StepperMotor::StaticInit_Clocks(int pwm_freq_hz) {
 
 void StepperMotor::StaticInit_Commands() {
   // Make sure command buffer is aligned.
-  CHECK(!(reinterpret_cast<uint32_t>(&commands_[0]) &
+  CHECK(!(reinterpret_cast<uint32_t>(&fwd_commands_[0]) &
           ((1 << kCommandBufRingSizeBits) - 1)))
-      << "Command buffer array not aligned; address = " << &commands_[0]
+      << "Command buffer array not aligned; address = " << &fwd_commands_[0]
       << ". Check compiler settings.";
 
   // Construct the command buffer.
@@ -341,7 +359,7 @@ void StepperMotor::StaticInit_Commands() {
             << " pins_t2_t3=0x" << std::hex << (int)pins_t2_t3 << " pins_t4=0x"
             << (int)pins_t4 << " command=0x" << command;
     CHECK_LT(command_index, (int)kCommandBufLen);
-    commands_[command_index++] = command;
+    fwd_commands_[command_index++] = command;
   };
   const uint16_t kSinMax = 65535;
   const auto sine = [](uint8_t command_index) -> uint16_t {
@@ -414,6 +432,10 @@ void StepperMotor::StaticInit_Commands() {
 
   // Auxiliary commands.
   shortbrake_command_ = make_command(pwm_period_, pwm_period_, 0, 0b1111, 0);
+
+  // Reverse commands.
+  std::reverse_copy(fwd_commands_, fwd_commands_ + kCommandBufLen,
+                    rev_commands_);
 }
 
 }  // namespace tplp

@@ -9,17 +9,25 @@
 TPLP_PARAM(int32_t, loadcell_offset, 100'000, "Load cell zeroing offset");
 TPLP_PARAM(int32_t, loadcell_scale, 200, "Load cell scaling divider");
 
-TPLP_PARAM(int32_t, pc_tension_speed, 1'000,
+TPLP_PARAM(int32_t, tension_speed, 1'000,
            "Motor speed to use during paper tensioning");
-TPLP_PARAM(int32_t, pc_tension_timeout_ms, 2'000,
+TPLP_PARAM(int32_t, tension_timeout_ms, 2'000,
            "Timeout if paper tension can't be established");
 // TODO: make these polarity params bools instead of ints?
 TPLP_PARAM(
-    int32_t, pc_motor_polarity_src, 1,
+    int32_t, motor_polarity_src, 1,
     "Which feed direction (forward or reverse) is positive for the motor");
 TPLP_PARAM(
-    int32_t, pc_motor_polarity_dst, -1,
+    int32_t, motor_polarity_dst, -1,
     "Which feed direction (forward or reverse) is positive for the motor");
+
+TPLP_PARAM(int32_t, max_load_noise, 10, "????");  // XXX what?
+
+TPLP_PARAM(int32_t, target_tension, 100,
+           "Target loadcell value to maintain by tensioning the paper");
+TPLP_PARAM(int32_t, panic_stop_tension, 200,
+           "Abort print and stop feeding if tension reaches this level, to "
+           "avoid tearing the paper");
 
 namespace tplp {
 namespace {
@@ -35,7 +43,8 @@ enum TaskNotificationBits : uint32_t {
 
 PaperController::PaperController(HX711* loadcell, StepperMotor* motor_a,
                                  StepperMotor* motor_b)
-    : sys_hz_(clock_get_hz(clk_sys)),
+    : state_(State::NOT_TENSIONED),
+      sys_hz_(clock_get_hz(clk_sys)),
       loadcell_(loadcell),
       motor_src_(motor_a),
       motor_dst_(motor_b) {}
@@ -88,11 +97,6 @@ util::Status PaperController::Cmd_Release() {
   return util::OkStatus();
 }
 
-void PostError(util::Status err) {
-  // TODO: maybe other tasks are interested in this
-  LOG(ERROR) << "PaperController error: " << err;
-}
-
 void PaperController::TaskFn() {
   util::Status status;
   for (;;) {
@@ -108,6 +112,7 @@ void PaperController::TaskFn() {
 }
 
 util::Status PaperController::Tension() {
+  LOG(INFO) << "Executing Tension command";
   if (state_ != State::NOT_TENSIONED) {
     return util::FailedPreconditionError("Invalid state for CMD_TENSION");
   }
@@ -115,23 +120,45 @@ util::Status PaperController::Tension() {
   motor_dst_->Stop(StepperMotor::StopType::SHORT_BRAKE);
 
   ClockDivider clkdiv;
-  ComputeClockDivider(sys_hz_, PARAM_pc_tension_speed.Get(), &clkdiv);
+  if (!ComputeClockDivider(sys_hz_, PARAM_tension_speed.Get(), &clkdiv)) {
+    return util::InvalidArgumentError("tension_speed out of range");
+  }
   motor_dst_->SetSpeed(clkdiv);
+
+  if (std::abs(GetLoadCellValue()) > PARAM_max_load_noise.Get()) {
+    return util::FailedPreconditionError(
+        "Unexpected load. Clear obstruction or recalibrate load cell");
+  }
 
   // Feed the DST motor forward while holding SRC fixed, stretching out the
   // paper between them.
   motor_src_->Stop(StepperMotor::StopType::HOLD);
   motor_dst_->Move(
-      PARAM_pc_motor_polarity_dst.Get() *
-      (PARAM_pc_tension_speed.Get() * PARAM_pc_tension_timeout_ms.Get()) /
-      1000);
+      PARAM_motor_polarity_dst.Get() *
+      (PARAM_tension_speed.Get() * PARAM_tension_timeout_ms.Get()) / 1000);
 
-  // FIXME: watch the load cell!
-  // XXX
-  return util::UnimplementedError("Tension");
+  // TODO: use a timer interrupt or something instead
+  bool timed_out = true;
+  while (motor_dst_->moving()) {
+    if (GetLoadCellValue() >= PARAM_target_tension.Get()) {
+      motor_dst_->Stop(StepperMotor::StopType::HOLD);
+      timed_out = false;
+      break;
+    }
+  }
+  if (timed_out) {
+    motor_dst_->Stop(StepperMotor::StopType::SHORT_BRAKE);
+    return util::FailedPreconditionError(
+        "Cannot establish tension; is the paper properly loaded?");
+  }
+
+  state_ = State::TENSIONED_IDLE;
+  return util::OkStatus();
+  // TODO: launch the PID loop
 }
+
 void PaperController::PostError(util::Status status) {
-  // TODO
+  LOG(ERROR) << "Paper controller error: " << status;
 }
 
 }  // namespace tplp

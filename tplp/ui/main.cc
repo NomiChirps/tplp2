@@ -8,6 +8,7 @@
 #include "tplp/ui/screen_load_cell.h"
 #include "tplp/ui/screen_params.h"
 #include "tplp/ui/screen_steppers.h"
+#include "tplp/ui/screen_paper.h"
 
 namespace tplp {
 namespace ui {
@@ -26,6 +27,8 @@ struct ScreenInfo {
 } static screens[] = {
     {.label = LV_SYMBOL_HOME " Home",  //
      .create = ui_screen_home_create},
+     {.label = LV_SYMBOL_SHUFFLE " Paper", //
+     .create = ui_screen_paper_create},
     {.label = LV_SYMBOL_KEYBOARD " Params",  //
      .create = ui_screen_params_create},
     {.label = LV_SYMBOL_DOWNLOAD " Load Cell",  //

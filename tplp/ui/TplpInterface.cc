@@ -28,7 +28,12 @@ util::Status TplpInterface::StepperMotorMove(int microsteps_a,
 util::Status TplpInterface::StepperMotorStopAll(StopType type) {
   return util::OkStatus();
 }
+std::string TplpInterface::GetPaperState() { return "<paper status>"; }
 util::Status TplpInterface::SaveAllParameters() { return util::OkStatus(); }
+util::Status TplpInterface::TensionPaper() { return util::OkStatus(); }
+util::Status TplpInterface::StartFeed() { return util::OkStatus(); }
+util::Status TplpInterface::StopFeed() { return util::OkStatus(); }
+util::Status TplpInterface::ReleasePaper() { return util::OkStatus(); }
 
 }  // namespace ui
 }  // namespace tplp

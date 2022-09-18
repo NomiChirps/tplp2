@@ -14,6 +14,8 @@ class StepperMotor {
   // We need the size of the table to be a power of 2 for ring DMA.
   // kCommandBufSize > 256 isn't very useful because the PIO program only has
   // 8-bit resolution for the PWM period anyway.
+  // Well, okay, it's useful if you want to slow the motors way down.
+  // TODO: there has to be a better way to slow the motors way down
   static constexpr size_t kCommandBufLen = 128;
   static constexpr size_t kCommandBufNumBytes =
       kCommandBufLen * sizeof(uint32_t);
@@ -86,7 +88,9 @@ class StepperMotor {
   // Command buffer MUST be aligned to its power-of-2 size in order for ring DMA
   // to function.
   [[gnu::aligned(
-      kCommandBufNumBytes)]] static uint32_t commands_[kCommandBufLen];
+      kCommandBufNumBytes)]] static uint32_t fwd_commands_[kCommandBufLen];
+  [[gnu::aligned(
+      kCommandBufNumBytes)]] static uint32_t rev_commands_[kCommandBufLen];
 
   // Don't call this while the motor is moving,
   // otherwise it fights against the DMA.
@@ -99,6 +103,7 @@ class StepperMotor {
  private:
   explicit StepperMotor(DmaController* dma);
 
+  const uint32_t* commands_;
   DmaController* const dma_;
   PIO pio_;
   int sm_;
