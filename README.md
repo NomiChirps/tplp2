@@ -16,9 +16,6 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] (!!!) steppers need to be able to go slower! a lot slower!
-  - When hz is below the threshold, switch from DMA timer + DREQ to a timer interrupt (high priority, probably?)
-- [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
   - [x] needs steppers working
@@ -66,6 +63,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ### Nice to have
 
+- [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
 - [ ] factory reset button (restoring all params to default, e.g. by deleting the config dir)
 - [ ] fatal error handler to display the stack trace on the GUI before crashing
   - will require support from picolog. make sure picolog prevents the crashed task from proceeding, and has a watchdog or something to finish crashing the device if the fatal error handler doesn't finish in time.
@@ -168,6 +166,8 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] (!!!) steppers need to be able to go slower! a lot slower!
+  - When hz is below the threshold, switch from DMA timer + DREQ to a timer interrupt (high priority, probably?)
 - [x] Clean up the prototype electronics
   - [x] remember to power pico thru VSYS, not VBUS, to avoid potentially sending power upstream to the usb host
   - [x] supply 5V to HX711

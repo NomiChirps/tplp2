@@ -8,6 +8,7 @@
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
+#include "hardware/timer.h"
 #include "pico/time.h"
 #include "picolog/picolog.h"
 #include "tplp/motor/sin_table.h"
@@ -27,7 +28,52 @@ uint32_t make_command(uint8_t pwm_period, uint8_t t1, uint8_t t2_t3,
 static std::optional<int> pio0_program_offset = std::nullopt;
 static std::optional<int> pio1_program_offset = std::nullopt;
 
+static constexpr int kMaxNumMotors = 2;
+static int num_motors = 0;
+static StepperMotor* motors[kMaxNumMotors] = {};
+
 }  // namespace
+
+// M is the motor id and also the hardware alarm number
+template <int M>
+[[gnu::hot]] void StepperMotor::timer_isr() {
+  timer_hw->intr = 1u << M;
+  StepperMotor* const motor = motors[M];
+  while (motor->timer_steps_remaining_) {
+    *motor->txf_ = motor->commands_[(motor->offset_after_move_ -
+                                     motor->timer_steps_remaining_) %
+                                    kCommandBufLen];
+    if (!--motor->timer_steps_remaining_) [[unlikely]]
+      break;
+    motor->timer_target_us_ =
+        delayed_by_us(motor->timer_target_us_, motor->timer_delay_us_);
+    if (hardware_alarm_set_target(M, motor->timer_target_us_)) {
+      // missed the next target; take another step immediately and try again
+      continue;
+    } else {
+      // next target is in the future & alarm is armed. let's go
+      break;
+    }
+  }
+}
+
+template void StepperMotor::timer_isr<0>();
+template void StepperMotor::timer_isr<1>();
+
+template <int M>
+void StepperMotor::InitTimer() {
+  static_assert(M < 4);
+  CHECK(!hardware_alarm_is_claimed(M));
+  hardware_alarm_claim(M);
+  timer_alarm_num_ = M;
+  timer_irq_ = TIMER_IRQ_0 + M;
+  irq_set_exclusive_handler(timer_irq_, timer_isr<M>);
+  irq_set_enabled(timer_irq_, true);
+  hw_set_bits(&timer_hw->inte, 1u << timer_alarm_num_);
+}
+
+template void StepperMotor::InitTimer<0>();
+template void StepperMotor::InitTimer<1>();
 
 bool StepperMotor::static_init_done_ = false;
 uint16_t StepperMotor::pwm_period_ = 0;
@@ -99,16 +145,32 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   self->txf_ = &pio->txf[sm];
   self->sm_ = sm;
   self->program_offset_ = program_offset;
+  self->dma_mode_ = true;
   self->dma_timer_num_ = dma_timer_num;
   self->dma_timer_dreq_ = dma_get_timer_dreq(dma_timer_num);
+  // timer values don't matter in DMA mode
+  self->timer_delay_us_ = 0;
+  self->timer_steps_remaining_ = 0;
+  self->timer_target_us_ = get_absolute_time();
+
+  CHECK_LT(num_motors, kMaxNumMotors);
+  if (num_motors == 0) {
+    self->InitTimer<0>();
+  } else if (num_motors == 1) {
+    self->InitTimer<1>();
+  } else {
+    LOG(FATAL) << "unexpected num motors";
+  }
+  motors[num_motors++] = self;
 
   ClockDivider clkdiv;
-  CHECK(ComputeClockDivider(clock_get_hz(clk_sys), self->microstep_hz_min(),
+  CHECK(ComputeClockDivider(clock_get_hz(clk_sys), self->microstep_hz_dma_min(),
                             &clkdiv));
-  self->SetSpeed(clkdiv);
+  self->SetDmaSpeed(clkdiv);
 
-  LOG(INFO) << "StepperMotor microstep_hz_min = " << self->microstep_hz_min()
-            << ", microstep_hz_max = " << self->microstep_hz_max();
+  LOG(INFO) << "StepperMotor microstep_hz_min = "
+            << self->microstep_hz_dma_min()
+            << ", microstep_hz_max = " << self->microstep_hz_dma_max();
 
   // Put a safe initial command into the FIFO before starting the state machine.
   self->SendImmediateCommand(self->shortbrake_command_);
@@ -117,19 +179,53 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   return self;
 }
 
-void StepperMotor::SetSpeed(ClockDivider clkdiv) {
-  VLOG(1) << "SetSpeed( " << clkdiv.num << " / " << clkdiv.den << " ) ~ "
-          << clkdiv.num * (clock_get_hz(clk_sys) / clkdiv.den);
-  dma_timer_set_fraction(dma_timer_num_, clkdiv.num, clkdiv.den);
+void StepperMotor::SetSpeedSlow(uint32_t microstep_hz) {
+  VLOG(1) << "SetSpeedSlow( " << microstep_hz << " )";
+  static const uint32_t sys_hz = clock_get_hz(clk_sys);
+  if (microstep_hz < microstep_hz_dma_min()) {
+    SetTimerSpeed(1'000'000 / microstep_hz);
+  } else {
+    ClockDivider clkdiv;
+    CHECK(ComputeClockDivider(sys_hz, microstep_hz, &clkdiv));
+    SetDmaSpeed(clkdiv);
+  }
 }
 
-uint32_t StepperMotor::microstep_hz_min() {
-  const uint32_t sys_hz = clock_get_hz(clk_sys);
+void StepperMotor::SetDmaSpeed(ClockDivider clkdiv) {
+  VLOG(1) << "SetDmaSpeed( " << clkdiv.num << " / " << clkdiv.den << " ) ~ "
+          << clkdiv.num * (clock_get_hz(clk_sys) / clkdiv.den);
+  dma_timer_set_fraction(dma_timer_num_, clkdiv.num, clkdiv.den);
+  if (!dma_mode_) {
+    uint32_t n = AbortTimer();
+    dma_mode_ = true;
+    if (n) {
+      // Start DMA to handle the remaining steps.
+      StartDma(n);
+    }
+  }
+}
+
+void StepperMotor::SetTimerSpeed(uint32_t us_per_microstep) {
+  VLOG(1) << "SetTimerSpeed( " << us_per_microstep << " )";
+  CHECK_GT(us_per_microstep, 0u);
+  timer_delay_us_ = us_per_microstep;
+  if (dma_mode_) {
+    uint32_t n = AbortDma();
+    dma_mode_ = false;
+    if (n) {
+      // Start timer to handle the remaining steps.
+      StartTimer(n);
+    }
+  }
+}
+
+uint32_t StepperMotor::microstep_hz_dma_min() {
+  static const uint32_t sys_hz = clock_get_hz(clk_sys);
   // Clock divider on the DMA timer is 16 bits.
   return sys_hz / 65535 + (sys_hz / 65535 ? 1 : 0);
 }
 
-uint32_t StepperMotor::microstep_hz_max() {
+uint32_t StepperMotor::microstep_hz_dma_max() {
   // DMA can send commands as fast as 1 per system clock cycle,
   // but the PIO program is much slower and only checks for new
   // commands between PWM periods.
@@ -142,20 +238,45 @@ StepperMotor::StepperMotor(DmaController* dma)
     : commands_(fwd_commands_),
       dma_(dma),
       // Initialize with an arbitrary dummy transfer.
-      current_move_handle_(dma->Transfer({
+      current_dma_handle_(dma->Transfer({
           .c0_enable = true,
           .c0_read_addr = &offset_after_move_,
           .c0_write_addr = &offset_after_move_,
           .c0_trans_count = 1,
       })) {
-  while (!current_move_handle_.finished()) tight_loop_contents();
+  while (!current_dma_handle_.finished()) tight_loop_contents();
   offset_after_move_ = 0;
+}
+
+void StepperMotor::StartDma(uint32_t microsteps) {
+  CHECK(current_dma_handle_.finished());
+  current_dma_handle_ = dma_->Transfer({
+      .c0_enable = true,
+      .c0_treq_sel = dma_timer_dreq_,
+      .c0_read_addr = &commands_[command_index_after_move()],
+      .c0_read_incr = true,
+      .c0_write_addr = txf_,
+      .c0_write_incr = false,
+      .c0_data_size = DmaController::DataSize::k32,
+      .c0_trans_count = microsteps,
+      .c0_ring_size = kCommandBufRingSizeBits,
+      .c0_ring_sel = false,
+  });
+}
+
+void StepperMotor::StartTimer(uint32_t microsteps) {
+  CHECK_EQ(timer_steps_remaining_, 0u);
+  timer_steps_remaining_ = microsteps;
+  // keep trying to start the timer (in case we're preempted)
+  do {
+    timer_target_us_ = make_timeout_time_us(timer_delay_us_);
+  } while (hardware_alarm_set_target(timer_alarm_num_, timer_target_us_));
 }
 
 void StepperMotor::Move(int32_t microsteps) {
   VLOG(1) << "StepperMotor::Move(" << microsteps << ")";
   if (microsteps == 0) return;
-  if (!current_move_handle_.finished()) {
+  if (moving()) {
     LOG(ERROR) << "Move(" << microsteps
                << ") failed: a move is already in progress";
     return;
@@ -181,19 +302,13 @@ void StepperMotor::Move(int32_t microsteps) {
     commands_ = rev_commands_;
   }
 
-  current_move_handle_ = dma_->Transfer({
-      .c0_enable = true,
-      .c0_treq_sel = dma_timer_dreq_,
-      .c0_read_addr = &commands_[command_index_after_move()],
-      .c0_read_incr = true,
-      .c0_write_addr = txf_,
-      .c0_write_incr = false,
-      .c0_data_size = DmaController::DataSize::k32,
-      .c0_trans_count = static_cast<uint32_t>(std::abs(microsteps)),
-      .c0_ring_size = kCommandBufRingSizeBits,
-      .c0_ring_sel = false,
-  });
-  offset_after_move_ += microsteps;
+  if (dma_mode_) {
+    StartDma(std::abs(microsteps));
+  } else {
+    StartTimer(std::abs(microsteps));
+  }
+
+  offset_after_move_ += std::abs(microsteps);
 
   if (VLOG_IS_ON(1)) {
     LOG_IF(ERROR, pio_->fdebug & (1 << (16 + sm_)))
@@ -202,75 +317,27 @@ void StepperMotor::Move(int32_t microsteps) {
   VLOG(1) << "Move done";
 }
 
-void StepperMotor::SimultaneousMove(StepperMotor* a, int32_t microsteps_a,
-                                    StepperMotor* b, int32_t microsteps_b) {
-  VLOG(1) << "StepperMotor::SimultaneousMove(" << microsteps_a << ", "
-          << microsteps_b << ")";
-  if (!a->current_move_handle_.finished() ||
-      !b->current_move_handle_.finished()) {
-    LOG(ERROR) << "SimultaneousMove failed: a move is already in progress";
-    return;
-  }
-  if (microsteps_a < 0 || microsteps_b < 0) {
-    LOG(ERROR) << "SimultaneousMove: reverse moves not implemented";
-    return;
-  }
-  if (microsteps_a != 0 && microsteps_b == 0) {
-    a->Move(microsteps_a);
-  }
-  if (microsteps_a == 0 && microsteps_b != 0) {
-    b->Move(microsteps_b);
-  }
-  if (VLOG_IS_ON(1)) {
-    // clear TXOVER debug registers
-    a->pio_->fdebug = 1 << (16 + a->sm_);
-    b->pio_->fdebug = 1 << (16 + b->sm_);
-  }
-  // Choose an arbitrary DMA controller.
-  StepperMotor* dma_owner = a;
-  a->current_move_handle_ = b->current_move_handle_ =
-      dma_owner->dma_->Transfer({
-          .c0_enable = true,
-          .c0_treq_sel = a->dma_timer_dreq_,
-          .c0_read_addr = &a->commands_[a->command_index_after_move()],
-          .c0_read_incr = true,
-          .c0_write_addr = a->txf_,
-          .c0_write_incr = false,
-          .c0_data_size = DmaController::DataSize::k32,
-          // XXX: positive count?
-          .c0_trans_count = static_cast<uint32_t>(microsteps_a),
-          .c0_ring_size = kCommandBufRingSizeBits,
-          .c0_ring_sel = false,
+uint32_t StepperMotor::AbortDma() {
+  uint32_t usteps_remaining = current_dma_handle_.Abort()[0];
+  offset_after_move_ -= usteps_remaining;
+  return usteps_remaining;
+}
 
-          .c1_enable = true,
-          .c1_treq_sel = b->dma_timer_dreq_,
-          .c1_read_addr = &b->commands_[b->command_index_after_move()],
-          .c1_read_incr = true,
-          .c1_write_addr = b->txf_,
-          .c1_write_incr = false,
-          .c1_data_size = DmaController::DataSize::k32,
-          // XXX: positive count?
-          .c1_trans_count = static_cast<uint32_t>(microsteps_b),
-          .c1_ring_size = kCommandBufRingSizeBits,
-          .c1_ring_sel = false,
-      });
-  a->offset_after_move_ += microsteps_a;
-  b->offset_after_move_ += microsteps_b;
-
-  if (VLOG_IS_ON(1)) {
-    LOG_IF(ERROR, a->pio_->fdebug & (1 << (16 + a->sm_)))
-        << "TX FIFO overflow on during move (arg a)";
-    LOG_IF(ERROR, b->pio_->fdebug & (1 << (16 + b->sm_)))
-        << "TX FIFO overflow on during move (arg b)";
-  }
-  VLOG(1) << "SimultaneousMove done";
+uint32_t StepperMotor::AbortTimer() {
+  irq_set_enabled(timer_irq_, false);
+  hardware_alarm_cancel(timer_alarm_num_);
+  uint32_t n = timer_steps_remaining_;
+  offset_after_move_ -= n;
+  timer_steps_remaining_ = 0;
+  irq_set_enabled(timer_irq_, true);
+  return n;
 }
 
 void StepperMotor::Stop(StopType type) {
-  if (current_move_handle_.started()) {
-    // Abort DMA and get the remaining step count.
-    uint32_t usteps_remaining = current_move_handle_.Abort()[0];
-    offset_after_move_ -= usteps_remaining;
+  if (dma_mode_) {
+    AbortDma();
+  } else {
+    AbortTimer();
   }
   switch (type) {
     case StopType::HOLD:

@@ -118,12 +118,7 @@ util::Status PaperController::Tension() {
   }
   motor_src_->Stop(StepperMotor::StopType::SHORT_BRAKE);
   motor_dst_->Stop(StepperMotor::StopType::SHORT_BRAKE);
-
-  ClockDivider clkdiv;
-  if (!ComputeClockDivider(sys_hz_, PARAM_tension_speed.Get(), &clkdiv)) {
-    return util::InvalidArgumentError("tension_speed out of range");
-  }
-  motor_dst_->SetSpeed(clkdiv);
+  motor_dst_->SetSpeedSlow(PARAM_tension_speed.Get());
 
   if (std::abs(GetLoadCellValue()) > PARAM_max_load_noise.Get()) {
     return util::FailedPreconditionError(

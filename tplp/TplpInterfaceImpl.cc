@@ -101,32 +101,24 @@ int32_t TplpInterfaceImpl::GetRawLoadCellValue() {
 
 util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,
                                                      int microstep_hz_b) {
-  const int sys_hz = clock_get_hz(clk_sys);
-  ClockDivider clkdiv_a;
-  ClockDivider clkdiv_b;
-  if (motor_a_ && !ComputeClockDivider(sys_hz, microstep_hz_a, &clkdiv_a)) {
-    return util::InvalidArgumentError("microstep_hz_a out of range");
-  }
-  if (motor_b_ && !ComputeClockDivider(sys_hz, microstep_hz_b, &clkdiv_b)) {
-    return util::InvalidArgumentError("microstep_hz_b out of range");
-  }
-  if (motor_a_) motor_a_->SetSpeed(clkdiv_a);
-  if (motor_b_) motor_b_->SetSpeed(clkdiv_b);
+  motor_a_->SetSpeedSlow(microstep_hz_a);
+  motor_b_->SetSpeedSlow(microstep_hz_b);
   return util::OkStatus();
 }
 
 util::Status TplpInterfaceImpl::StepperMotorMove(int microsteps_a,
                                                  int microsteps_b) {
-  if ((motor_a_ && motor_a_->moving()) || (motor_b_ && motor_b_->moving())) {
-    return util::UnavailableError("motor is already moving");
-  }
-  if (!microsteps_b || !motor_b_) {
+  if (motor_a_ && microsteps_a) {
+    if (motor_a_->moving()) {
+      return util::UnavailableError("motor is already moving");
+    }
     motor_a_->Move(microsteps_a);
-  } else if (!microsteps_a || !motor_a_) {
+  }
+  if (motor_b_ && microsteps_b) {
+    if (motor_b_->moving()) {
+      return util::UnavailableError("motor is already moving");
+    }
     motor_b_->Move(microsteps_b);
-  } else {
-    StepperMotor::SimultaneousMove(motor_a_, microsteps_a, motor_b_,
-                                   microsteps_b);
   }
   return util::OkStatus();
 }
