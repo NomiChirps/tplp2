@@ -18,8 +18,6 @@ struct ScreenInfo {
   // Set at configuration time
   const char* const label;
   lv_obj_t* (*const create)(lv_obj_t* parent);
-  // TODO: screens could just do this in create()
-  void (*const on_load)() = nullptr;
   // TODO: screens could just listen for LV_EVENT_DELETED
   void (*const on_unload)() = nullptr;
 
@@ -32,7 +30,6 @@ struct ScreenInfo {
      .create = ui_screen_params_create},
     {.label = LV_SYMBOL_DOWNLOAD " Load Cell",  //
      .create = ui_screen_load_cell_create,
-     .on_load = ui_screen_load_cell_on_load_cb,
      .on_unload = ui_screen_load_cell_on_unload_cb},
     {.label = LV_SYMBOL_REFRESH " Steppers",  //
      .create = ui_screen_steppers_create},
@@ -56,7 +53,8 @@ static void go_to_screen(int index) {
   CHECK_GE(index, 0);
   CHECK_LT(index, kNumScreens);
   lv_obj_add_flag(screens_menu, LV_OBJ_FLAG_HIDDEN);
-  if (current_screen == &screens[index]) {
+  ScreenInfo* new_screen = &screens[index];
+  if (current_screen == new_screen) {
     return;
   }
 
@@ -68,14 +66,11 @@ static void go_to_screen(int index) {
       lv_obj_del(current_screen->contents);
       current_screen->contents = nullptr;
     }
-    current_screen = nullptr;
   }
 
-  current_screen = &screens[index];
-  current_screen->contents = current_screen->create(screen_contents_container);
-  if (current_screen->on_load) {
-    current_screen->on_load();
-  }
+  new_screen->contents = new_screen->create(screen_contents_container);
+
+  current_screen = new_screen;
 }
 
 static void screens_menu_button_clicked(lv_event_t* e) {

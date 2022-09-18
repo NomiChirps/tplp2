@@ -23,7 +23,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [x] needs load cell persistently calibrated & installed
     - [x] save settings button
     - [x] manual calibration gui
-    - [ ] auto calibrate/zero button (& algorithm)
+    - [x] auto calibrate/zero button (& algorithm)
   - [ ] needs a PID loop with all the accoutrements
     - i want a mathematically sound PID tuning UI
 - [ ] I2cController doesn't fail gracefully when a read times out!

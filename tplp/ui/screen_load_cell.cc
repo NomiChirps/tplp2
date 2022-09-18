@@ -23,23 +23,16 @@ static lv_obj_t* scale_spinbox_create(lv_obj_t* parent);
 static void scale_spinbox_increment_event_cb(lv_event_t* e);
 static void scale_spinbox_decrement_event_cb(lv_event_t* e);
 
-static lv_timer_t* update_meter_timer;
+static lv_timer_t* update_meter_timer = nullptr;
 
-void ui_screen_load_cell_on_load_cb() {
-  lv_timer_resume(update_meter_timer);
-  lv_spinbox_set_value(offset_spinbox, PARAM_loadcell_offset.Get());
-  lv_spinbox_set_value(scale_spinbox, PARAM_loadcell_scale.Get());
-}
-
-void ui_screen_load_cell_on_unload_cb() {
-  lv_timer_pause(update_meter_timer);
-}
+void ui_screen_load_cell_on_unload_cb() { lv_timer_pause(update_meter_timer); }
 
 static void update_meter_cb(lv_timer_t* timer) {
   static int32_t last_value = 0;
   int32_t value = global_tplp_->GetLoadCellValue();
   if (value != last_value) {
     set_meter_value(value);
+    last_value = value;
   }
 }
 
@@ -73,10 +66,21 @@ lv_obj_t* ui_screen_load_cell_create(lv_obj_t* parent) {
   offset_spinbox_create(content);
   scale_spinbox_create(content);
 
-  update_meter_timer = lv_timer_create(update_meter_cb, 100, meter);
-  lv_timer_pause(update_meter_timer);
+  if (!update_meter_timer) {
+    update_meter_timer = lv_timer_create(update_meter_cb, 100, meter);
+  }
+
+  lv_timer_resume(update_meter_timer);
+  lv_spinbox_set_value(offset_spinbox, PARAM_loadcell_offset.Get());
+  lv_spinbox_set_value(scale_spinbox, PARAM_loadcell_scale.Get());
 
   return content;
+}
+
+static void zero_btn_pressed(lv_event_t* e) {
+  // TODO we can probably do better by averaging it for a while
+  PARAM_loadcell_offset.Set(-global_tplp_->GetRawLoadCellValue());
+  lv_spinbox_set_value(offset_spinbox, PARAM_loadcell_offset.Get());
 }
 
 static lv_obj_t* offset_spinbox_create(lv_obj_t* parent) {
@@ -93,6 +97,11 @@ static lv_obj_t* offset_spinbox_create(lv_obj_t* parent) {
   lv_obj_t* label = lv_label_create(content);
   lv_label_set_text(label, "Offset: ");
   lv_obj_set_flex_grow(label, 1);
+
+  lv_obj_t* zero_btn = lv_btn_create(content);
+  label = lv_label_create(zero_btn);
+  lv_label_set_text(label, "0");
+  lv_obj_add_event_cb(zero_btn, zero_btn_pressed, LV_EVENT_CLICKED, nullptr);
 
   lv_obj_t* dec_btn = lv_btn_create(content);
   lv_obj_set_style_bg_img_src(dec_btn, LV_SYMBOL_MINUS, 0);
