@@ -21,6 +21,13 @@ struct IrqPriorities {
   static constexpr uint8_t kPaperController = kHigher;
 };
 
+// Allocation of the 4 available hardware alarms on RP2040.
+struct HardwareAlarms {
+  static constexpr uint8_t kStepperA = 0;
+  static constexpr uint8_t kStepperB = 1;
+  static constexpr uint8_t kPaperController = 2;
+};
+
 struct TaskPriorities {
   // Just so we don't change it in one place and not update the other.
   static_assert(configMAX_PRIORITIES == 16);

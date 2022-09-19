@@ -21,6 +21,10 @@ namespace {
 struct WorkQueueItem {
   std::function<void()>* work = nullptr;
 };
+
+template <typename T> int signum(T val) {
+    return (T(0) < val) - (val < T(0));
+}
 }  // namespace
 
 TplpInterfaceImpl::TplpInterfaceImpl(HX8357* display,
@@ -101,48 +105,34 @@ int32_t TplpInterfaceImpl::GetRawLoadCellValue() {
 
 util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,
                                                      int microstep_hz_b) {
-  motor_a_->SetSpeedSlow(microstep_hz_a);
-  motor_b_->SetSpeedSlow(microstep_hz_b);
+  motor_a_->SetInterval(1'000'000 / microstep_hz_a);
+  motor_b_->SetInterval(1'000'000 / microstep_hz_b);
   return util::OkStatus();
 }
 
 util::Status TplpInterfaceImpl::StepperMotorMove(int microsteps_a,
                                                  int microsteps_b) {
-  if (motor_a_ && microsteps_a) {
-    if (motor_a_->moving()) {
-      return util::UnavailableError("motor is already moving");
-    }
-    motor_a_->Move(microsteps_a);
-  }
-  if (motor_b_ && microsteps_b) {
-    if (motor_b_->moving()) {
-      return util::UnavailableError("motor is already moving");
-    }
-    motor_b_->Move(microsteps_b);
-  }
+  // FIXME: number of steps is ignored except for direction... for now?
+  motor_a_->SetStride(signum(microsteps_a));
+  motor_b_->SetStride(signum(microsteps_b));
   return util::OkStatus();
 }
 
 util::Status TplpInterfaceImpl::StepperMotorStopAll(StopType type) {
-  StepperMotor::StopType impl_type;
   switch (type) {
     case TplpInterface::StopType::HOLD:
-      impl_type = StepperMotor::StopType::HOLD;
+      motor_a_->Stop();
+      motor_b_->Stop();
       break;
     case TplpInterface::StopType::SHORT_BRAKE:
-      impl_type = StepperMotor::StopType::SHORT_BRAKE;
+      motor_a_->Release();
+      motor_b_->Release();
       break;
     case TplpInterface::StopType::FREEWHEEL:
       return util::UnimplementedError("FREEWHEEL stop not implemented");
       break;
     default:
       return util::InvalidArgumentError("bad StopType");
-  }
-  if (motor_a_) {
-    motor_a_->Stop(impl_type);
-  }
-  if (motor_b_) {
-    motor_b_->Stop(impl_type);
   }
   return util::OkStatus();
 }

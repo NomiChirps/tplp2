@@ -14,8 +14,9 @@
 TPLP_PARAM(int32_t, loadcell_offset, 100'000, "Load cell zeroing offset");
 TPLP_PARAM(int32_t, loadcell_scale, 200, "Load cell scaling divider");
 
-TPLP_PARAM(int32_t, tension_speed, 1'000,
-           "Motor speed to use during paper tensioning");
+TPLP_PARAM(
+    int32_t, tension_speed, 1'000,
+    "Motor speed to use during paper tensioning (microsteps per second)");
 TPLP_PARAM(int32_t, tension_timeout_ms, 2'000,
            "Timeout if paper tension can't be established");
 // TODO: make these polarity params bools instead of ints?
@@ -30,9 +31,6 @@ TPLP_PARAM(int32_t, max_load_noise, 10, "????");  // XXX what?
 
 TPLP_PARAM(int32_t, target_tension, 100,
            "Target loadcell value to maintain by tensioning the paper");
-TPLP_PARAM(int32_t, panic_stop_tension, 200,
-           "Abort print and stop feeding if tension reaches this level, to "
-           "avoid tearing the paper");
 TPLP_PARAM(int32_t, paper_timer_delay_us, 1000,
            "How often to run the PaperController interrupt, in microseconds");
 
@@ -165,9 +163,11 @@ util::Status PaperController::Tension() {
   if (state_ != State::NOT_TENSIONED) {
     return util::FailedPreconditionError("Invalid state for CMD_TENSION");
   }
-  motor_src_->Stop(StepperMotor::StopType::SHORT_BRAKE);
-  motor_dst_->Stop(StepperMotor::StopType::SHORT_BRAKE);
-  motor_dst_->SetSpeedSlow(PARAM_tension_speed.Get());
+
+  // Release the motors and wait a moment for the paper to go slack.
+  motor_src_->Release();
+  motor_dst_->Release();
+  vTaskDelay(500);
 
   if (std::abs(GetLoadCellValue()) > PARAM_max_load_noise.Get()) {
     return util::FailedPreconditionError(
@@ -176,22 +176,22 @@ util::Status PaperController::Tension() {
 
   // Feed the DST motor forward while holding SRC fixed, stretching out the
   // paper between them.
-  motor_src_->Stop(StepperMotor::StopType::HOLD);
-  motor_dst_->Move(
-      PARAM_motor_polarity_dst.Get() *
-      (PARAM_tension_speed.Get() * PARAM_tension_timeout_ms.Get()) / 1000);
+  motor_src_->Stop();
+  motor_dst_->SetSpeed(PARAM_motor_polarity_dst.Get(),
+                       1'000'000 / PARAM_tension_speed.Get());
 
   // TODO: use the timer interrupt instead
+  uint64_t end_time = time_us_64() + 1000 * PARAM_tension_timeout_ms.Get();
   bool timed_out = true;
-  while (motor_dst_->moving()) {
+  while (time_us_64() < end_time) {
     if (GetLoadCellValue() >= PARAM_target_tension.Get()) {
-      motor_dst_->Stop(StepperMotor::StopType::HOLD);
+      motor_dst_->Stop();
       timed_out = false;
       break;
     }
   }
   if (timed_out) {
-    motor_dst_->Stop(StepperMotor::StopType::SHORT_BRAKE);
+    motor_dst_->Release();
     return util::FailedPreconditionError(
         "Cannot establish tension; is the paper properly loaded?");
   }
@@ -206,8 +206,8 @@ util::Status PaperController::Release() {
     return util::FailedPreconditionError("Invalid state for CMD_RELEASE");
   }
   state_ = State::NOT_TENSIONED;
-  motor_src_->Stop(StepperMotor::StopType::SHORT_BRAKE);
-  motor_dst_->Stop(StepperMotor::StopType::SHORT_BRAKE);
+  motor_src_->Release();
+  motor_dst_->Release();
   return util::OkStatus();
 }
 

@@ -3,6 +3,8 @@
 
 #include <variant>
 
+#include "FreeRTOS/FreeRTOS.h"
+#include "FreeRTOS/task.h"
 #include "picolog/status.h"
 #include "tplp/hx711/hx711.h"
 #include "tplp/motor/stepper.h"

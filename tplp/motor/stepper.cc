@@ -1,11 +1,11 @@
 #include "tplp/motor/stepper.h"
 
 #include <numeric>
+#include <optional>
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "hardware/clocks.h"
-#include "hardware/dma.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/timer.h"
@@ -28,63 +28,72 @@ uint32_t make_command(uint8_t pwm_period, uint8_t t1, uint8_t t2_t3,
 static std::optional<int> pio0_program_offset = std::nullopt;
 static std::optional<int> pio1_program_offset = std::nullopt;
 
-static constexpr int kMaxNumMotors = 2;
-static int num_motors = 0;
+// motors[] is indexed by rp2040 hardware alarm number
+static constexpr int kMaxNumMotors = NUM_TIMERS;
 static StepperMotor* motors[kMaxNumMotors] = {};
 
 }  // namespace
 
 // M is the motor id and also the hardware alarm number
-template <int M>
+template <int AlarmNum>
 [[gnu::hot]] __not_in_flash("StepperMotor") void StepperMotor::timer_isr() {
-  timer_hw->intr = 1u << M;
-  StepperMotor* const motor = motors[M];
-  while (motor->timer_steps_remaining_) {
-    *motor->txf_ = motor->commands_[(motor->offset_after_move_ -
-                                     motor->timer_steps_remaining_) %
-                                    kCommandBufLen];
-    if (!--motor->timer_steps_remaining_) [[unlikely]]
-      break;
+  static uint64_t target_time = time_us_64();
+  timer_hw->intr = 1u << AlarmNum;
+  StepperMotor* const motor = motors[AlarmNum];
+  for (;;) {
+    // Take a copy of stride_ in case it changes.
+    int32_t stride = motor->stride_;
+    if (stride) {
+      *motor->txf_ = motor->commands_[motor->command_index_];
+      // Advance command index by the stride.
+      motor->command_index_ = (motor->command_index_ + stride) % kCommandBufLen;
+    }
 
-    // Advance the target time by one step interval.
-    motor->timer_target_us_ += motor->timer_delay_us_;
+    // Advance target time by one interval.
+    target_time += motor->timer_interval_us_;
     // Reset the alarm to fire at the new target time.
-    timer_hw->armed = 1u << M;
-    timer_hw->alarm[M] = motor->timer_target_us_;
+    timer_hw->armed = 1u << AlarmNum;
+    timer_hw->alarm[AlarmNum] = target_time;
 
-    // read current time
+    // Make sure new target time is in the future:
+    // Read current time.
     uint32_t hi = timer_hw->timerawh;
     uint32_t lo = timer_hw->timerawl;
-    // reread if low bits rolled over
+    // Reread if low bits rolled over.
     if (timer_hw->timerawh != hi) {
       hi = timer_hw->timerawh;
       lo = timer_hw->timerawl;
     }
-
-    // Make sure new target time is in the future.
-    if ((((uint64_t)hi << 32) | lo) <= motor->timer_target_us_) {
+    if ((((uint64_t)hi << 32) | lo) <= target_time) {
       // Alarm successfuly set to the future; done.
       break;
     }
-    // Missed this interval, because the alarm time is in the past.
-    // Take another step immediately (continue looping).
+    // The new target time is in the past, meaning we missed an interval.
+    // Keep trying to reset it, taking more strides if requested.
+    continue;
   }
 }
 
 template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<0>();
 template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<1>();
 
-template <int M>
+template <int AlarmNum>
 void StepperMotor::InitTimer(int irq_priority) {
-  static_assert(M < 4);
-  CHECK(!hardware_alarm_is_claimed(M));
-  hardware_alarm_claim(M);
-  timer_alarm_num_ = M;
-  timer_irq_ = TIMER_IRQ_0 + M;
-  irq_set_exclusive_handler(timer_irq_, timer_isr<M>);
+  static_assert(AlarmNum < NUM_TIMERS);
+  CHECK(!hardware_alarm_is_claimed(AlarmNum));
+  hardware_alarm_claim(AlarmNum);
+  motors[AlarmNum] = this;
+  timer_alarm_num_ = AlarmNum;
+  timer_irq_ = TIMER_IRQ_0 + AlarmNum;
+  irq_set_exclusive_handler(timer_irq_, timer_isr<AlarmNum>);
   irq_set_priority(timer_irq_, irq_priority);
   irq_set_enabled(timer_irq_, true);
   hw_set_bits(&timer_hw->inte, 1u << timer_alarm_num_);
+  // keep trying to start the timer (in case we're preempted)
+  uint64_t target_time;
+  do {
+    target_time = time_us_64() + timer_interval_us_;
+  } while (hardware_alarm_set_target(timer_alarm_num_, {target_time}));
 }
 
 template void StepperMotor::InitTimer<0>(int);
@@ -96,11 +105,10 @@ int StepperMotor::pio_clkdiv_int_ = 0;
 int StepperMotor::pio_clkdiv_frac_ = 0;
 int StepperMotor::pio_hz_ = 0;
 uint32_t StepperMotor::shortbrake_command_ = 0;
-uint32_t StepperMotor::fwd_commands_[kCommandBufLen] = {};
-uint32_t StepperMotor::rev_commands_[kCommandBufLen] = {};
+uint32_t StepperMotor::commands_[kCommandBufLen] = {};
 
-StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
-                                 const Hardware& hw, int timer_irq_priority) {
+StepperMotor* StepperMotor::Init(PIO pio, const Hardware& hw, int alarm_num,
+                                 int timer_irq_priority) {
   LOG_IF(FATAL, !static_init_done_) << "must call StaticInit() before Init()";
   CHECK_EQ(hw.a1 + 1, hw.a2) << "StepperMotor pins must be consecutive";
   CHECK_EQ(hw.a2 + 1, hw.b1) << "StepperMotor pins must be consecutive";
@@ -150,217 +158,68 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   pio_sm_init(pio, sm, program_offset, &c);
   pio_sm_set_consecutive_pindirs(pio, sm, hw.a1, 4, /*is_out=*/true);
 
-  int dma_timer_num = dma_claim_unused_timer(false);
-  CHECK_GE(dma_timer_num, 0) << "No free DMA timer available";
-  LOG(INFO) << "Claimed DMA timer " << dma_timer_num;
-
-  StepperMotor* self = CHECK_NOTNULL(new StepperMotor(dma));
+  StepperMotor* self = CHECK_NOTNULL(new StepperMotor());
   self->pio_ = pio;
   self->hw_ = hw;
   self->txf_ = &pio->txf[sm];
   self->sm_ = sm;
   self->program_offset_ = program_offset;
-  self->dma_mode_ = true;
-  self->dma_timer_num_ = dma_timer_num;
-  self->dma_timer_dreq_ = dma_get_timer_dreq(dma_timer_num);
-  // timer values don't matter in DMA mode
-  self->timer_delay_us_ = 0;
-  self->timer_steps_remaining_ = 0;
-  self->timer_target_us_ = time_us_64();
+  self->command_index_ = 0;
+  self->stride_ = 0;
+  self->timer_interval_us_ = 1'000;
 
-  CHECK_LT(num_motors, kMaxNumMotors);
-  if (num_motors == 0) {
+  CHECK_LT(alarm_num, kMaxNumMotors);
+  if (alarm_num == 0) {
     self->InitTimer<0>(timer_irq_priority);
-  } else if (num_motors == 1) {
+  } else if (alarm_num == 1) {
     self->InitTimer<1>(timer_irq_priority);
   } else {
     LOG(FATAL) << "unexpected num motors";
   }
-  motors[num_motors++] = self;
-
-  ClockDivider clkdiv;
-  CHECK(ComputeClockDivider(clock_get_hz(clk_sys), self->microstep_hz_dma_min(),
-                            &clkdiv));
-  self->SetDmaSpeed(clkdiv);
-
-  LOG(INFO) << "StepperMotor microstep_hz_min = "
-            << self->microstep_hz_dma_min()
-            << ", microstep_hz_max = " << self->microstep_hz_dma_max();
 
   // Put a safe initial command into the FIFO before starting the state machine.
-  self->SendImmediateCommand(self->shortbrake_command_);
+  *self->txf_ = self->shortbrake_command_;
   pio_sm_set_enabled(pio, sm, true);
 
   return self;
 }
 
-void StepperMotor::SetSpeedSlow(uint32_t microstep_hz) {
-  VLOG(1) << "SetSpeedSlow( " << microstep_hz << " )";
-  static const uint32_t sys_hz = clock_get_hz(clk_sys);
-  if (microstep_hz < microstep_hz_dma_min()) {
-    SetTimerSpeed(1'000'000 / microstep_hz);
-  } else {
-    ClockDivider clkdiv;
-    CHECK(ComputeClockDivider(sys_hz, microstep_hz, &clkdiv));
-    SetDmaSpeed(clkdiv);
+void StepperMotor::SetSpeed(int32_t stride, int32_t interval_us) {
+  VLOG(1) << "SetSpeed(" << stride << ", " << interval_us << ")";
+  if (interval_us < min_interval_us()) {
+    LOG(ERROR) << "interval_us too small " << interval_us;
+    interval_us = min_interval_us();
   }
+  taskENTER_CRITICAL();
+  stride_ = stride;
+  timer_interval_us_ = interval_us;
+  taskEXIT_CRITICAL();
 }
 
-void StepperMotor::SetDmaSpeed(ClockDivider clkdiv) {
-  VLOG(1) << "SetDmaSpeed( " << clkdiv.num << " / " << clkdiv.den << " ) ~ "
-          << clkdiv.num * (clock_get_hz(clk_sys) / clkdiv.den);
-  dma_timer_set_fraction(dma_timer_num_, clkdiv.num, clkdiv.den);
-  if (!dma_mode_) {
-    uint32_t n = AbortTimer();
-    dma_mode_ = true;
-    if (n) {
-      // Start DMA to handle the remaining steps.
-      StartDma(n);
-    }
+void StepperMotor::SetStride(int32_t stride) {
+  VLOG(1) << "SetStride(" << stride << ")";
+  SetStrideFromISR(stride);
+}
+
+void StepperMotor::SetInterval(int32_t interval_us) {
+  VLOG(1) << "SetInterval(" << interval_us << ")";
+  if (interval_us < min_interval_us()) {
+    LOG(ERROR) << "interval_us too small";
+    interval_us = min_interval_us();
   }
+  SetIntervalFromISR(interval_us);
 }
 
-void StepperMotor::SetTimerSpeed(uint32_t us_per_microstep) {
-  VLOG(1) << "SetTimerSpeed( " << us_per_microstep << " )";
-  CHECK_GT(us_per_microstep, 1u);
-  timer_delay_us_ = us_per_microstep;
-  if (dma_mode_) {
-    uint32_t n = AbortDma();
-    dma_mode_ = false;
-    if (n) {
-      // Start timer to handle the remaining steps.
-      StartTimer(n);
-    }
-  }
+StepperMotor::StepperMotor() {}
+
+void StepperMotor::Stop() {
+  stride_ = 0;
+  *txf_ = commands_[command_index_];
 }
 
-uint32_t StepperMotor::microstep_hz_dma_min() {
-  static const uint32_t sys_hz = clock_get_hz(clk_sys);
-  // Clock divider on the DMA timer is 16 bits.
-  return sys_hz / 65535 + (sys_hz / 65535 ? 1 : 0);
-}
-
-uint32_t StepperMotor::microstep_hz_dma_max() {
-  // DMA can send commands as fast as 1 per system clock cycle,
-  // but the PIO program is much slower and only checks for new
-  // commands between PWM periods.
-  return pio_hz_ / (stepper_instructions_per_count * pwm_period_);
-}
-
-inline void StepperMotor::SendImmediateCommand(uint32_t cmd) { *txf_ = cmd; }
-
-StepperMotor::StepperMotor(DmaController* dma)
-    : commands_(fwd_commands_),
-      dma_(dma),
-      // Initialize with an arbitrary dummy transfer.
-      current_dma_handle_(dma->Transfer({
-          .c0_enable = true,
-          .c0_read_addr = &offset_after_move_,
-          .c0_write_addr = &offset_after_move_,
-          .c0_trans_count = 1,
-      })) {
-  while (!current_dma_handle_.finished()) tight_loop_contents();
-  offset_after_move_ = 0;
-}
-
-void StepperMotor::StartDma(uint32_t microsteps) {
-  CHECK(current_dma_handle_.finished());
-  current_dma_handle_ = dma_->Transfer({
-      .c0_enable = true,
-      .c0_treq_sel = dma_timer_dreq_,
-      .c0_read_addr = &commands_[command_index_after_move()],
-      .c0_read_incr = true,
-      .c0_write_addr = txf_,
-      .c0_write_incr = false,
-      .c0_data_size = DmaController::DataSize::k32,
-      .c0_trans_count = microsteps,
-      .c0_ring_size = kCommandBufRingSizeBits,
-      .c0_ring_sel = false,
-  });
-}
-
-void StepperMotor::StartTimer(uint32_t microsteps) {
-  CHECK_EQ(timer_steps_remaining_, 0u);
-  timer_steps_remaining_ = microsteps;
-  // keep trying to start the timer (in case we're preempted)
-  do {
-    timer_target_us_ = time_us_64() + timer_delay_us_;
-  } while (hardware_alarm_set_target(timer_alarm_num_, {timer_target_us_}));
-}
-
-void StepperMotor::Move(int32_t microsteps) {
-  VLOG(1) << "StepperMotor::Move(" << microsteps << ")";
-  if (microsteps == 0) return;
-  if (moving()) {
-    LOG(ERROR) << "Move(" << microsteps
-               << ") failed: a move is already in progress";
-    return;
-  }
-  if (VLOG_IS_ON(1)) {
-    // clear TXOVER debug register
-    pio_->fdebug = 1 << (16 + sm_);
-  }
-
-  if (microsteps >= 0) {
-    if (commands_ == rev_commands_) {
-      offset_after_move_ =
-          kCommandBufLen -
-          2 * (offset_after_move_ % (intdiv_ceil(kCommandBufLen, 2u)));
-    }
-    commands_ = fwd_commands_;
-  } else {
-    if (commands_ == fwd_commands_) {
-      offset_after_move_ =
-          kCommandBufLen -
-          2 * (offset_after_move_ % (intdiv_ceil(kCommandBufLen, 2u)));
-    }
-    commands_ = rev_commands_;
-  }
-
-  if (dma_mode_) {
-    StartDma(std::abs(microsteps));
-  } else {
-    StartTimer(std::abs(microsteps));
-  }
-
-  offset_after_move_ += std::abs(microsteps);
-
-  if (VLOG_IS_ON(1)) {
-    LOG_IF(ERROR, pio_->fdebug & (1 << (16 + sm_)))
-        << "TX FIFO overflow during move";
-  }
-}
-
-uint32_t StepperMotor::AbortDma() {
-  uint32_t usteps_remaining = current_dma_handle_.Abort()[0];
-  offset_after_move_ -= usteps_remaining;
-  return usteps_remaining;
-}
-
-uint32_t StepperMotor::AbortTimer() {
-  irq_set_enabled(timer_irq_, false);
-  hardware_alarm_cancel(timer_alarm_num_);
-  uint32_t n = timer_steps_remaining_;
-  offset_after_move_ -= n;
-  timer_steps_remaining_ = 0;
-  irq_set_enabled(timer_irq_, true);
-  return n;
-}
-
-void StepperMotor::Stop(StopType type) {
-  if (dma_mode_) {
-    AbortDma();
-  } else {
-    AbortTimer();
-  }
-  switch (type) {
-    case StopType::HOLD:
-      SendImmediateCommand(commands_[command_index_after_move()]);
-      break;
-    case StopType::SHORT_BRAKE:
-      SendImmediateCommand(shortbrake_command_);
-      break;
-  }
+void StepperMotor::Release() {
+  stride_ = 0;
+  *txf_ = shortbrake_command_;
 }
 
 void StepperMotor::StaticInit(int pwm_freq_hz) {
@@ -416,9 +275,8 @@ void StepperMotor::StaticInit_Clocks(int pwm_freq_hz) {
 
 void StepperMotor::StaticInit_Commands() {
   // Make sure command buffer is aligned.
-  CHECK(!(reinterpret_cast<uint32_t>(&fwd_commands_[0]) &
-          ((1 << kCommandBufRingSizeBits) - 1)))
-      << "Command buffer array not aligned; address = " << &fwd_commands_[0]
+  CHECK(!(reinterpret_cast<uint32_t>(&commands_[0]) & (kCommandBufLen - 1)))
+      << "Command buffer array not aligned; address = " << &commands_[0]
       << ". Check compiler settings.";
 
   // Construct the command buffer.
@@ -440,7 +298,7 @@ void StepperMotor::StaticInit_Commands() {
             << " pins_t2_t3=0x" << std::hex << (int)pins_t2_t3 << " pins_t4=0x"
             << (int)pins_t4 << " command=0x" << command;
     CHECK_LT(command_index, (int)kCommandBufLen);
-    fwd_commands_[command_index++] = command;
+    commands_[command_index++] = command;
   };
   const uint16_t kSinMax = 65535;
   const auto sine = [](uint8_t command_index) -> uint16_t {
@@ -513,10 +371,6 @@ void StepperMotor::StaticInit_Commands() {
 
   // Auxiliary commands.
   shortbrake_command_ = make_command(pwm_period_, pwm_period_, 0, 0b1111, 0);
-
-  // Reverse commands.
-  std::reverse_copy(fwd_commands_, fwd_commands_ + kCommandBufLen,
-                    rev_commands_);
 }
 
 }  // namespace tplp

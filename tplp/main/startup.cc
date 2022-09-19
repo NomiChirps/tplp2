@@ -47,8 +47,6 @@ void StartupTask(void*) {
   // FIXME: I2cController is incredibly fragile and requires its own DMA IRQ.
   DmaController* dma_i2c0 = DmaController::Init(kDma1);
   DmaController* dma_spi1 = DmaController::Init(kDma0);
-  DmaController* dma_stepper_a = DmaController::Init(kDma0);
-  DmaController* dma_stepper_b = DmaController::Init(kDma0);
 
   SpiController* spi1_manager =
       SpiController::Init(spi1, Frequencies::kSpi1, Pins::SPI1_SCLK,
@@ -125,27 +123,26 @@ void StartupTask(void*) {
 
   // Steppies!
   StepperMotor::StaticInit(Frequencies::kStepperPwm);
-  StepperMotor* motor_a =
-      CHECK_NOTNULL(StepperMotor::Init(dma_stepper_a, pio1,
-                                       {.a1 = Pins::MOTOR_A_A1,
-                                        .a2 = Pins::MOTOR_A_A2,
-                                        .b1 = Pins::MOTOR_A_B1,
-                                        .b2 = Pins::MOTOR_A_B2},
-                                       IrqPriorities::kStepperTimer));
-  StepperMotor* motor_b =
-      CHECK_NOTNULL(StepperMotor::Init(dma_stepper_b, pio1,
-                                       {.a1 = Pins::MOTOR_B_A1,
-                                        .a2 = Pins::MOTOR_B_A2,
-                                        .b1 = Pins::MOTOR_B_B1,
-                                        .b2 = Pins::MOTOR_B_B2},
-                                       IrqPriorities::kStepperTimer));
+  StepperMotor* motor_a = CHECK_NOTNULL(StepperMotor::Init(
+      pio1,
+      {.a1 = Pins::MOTOR_A_A1,
+       .a2 = Pins::MOTOR_A_A2,
+       .b1 = Pins::MOTOR_A_B1,
+       .b2 = Pins::MOTOR_A_B2},
+      HardwareAlarms::kStepperA, IrqPriorities::kStepperTimer));
+  StepperMotor* motor_b = CHECK_NOTNULL(StepperMotor::Init(
+      pio1,
+      {.a1 = Pins::MOTOR_B_A1,
+       .a2 = Pins::MOTOR_B_A2,
+       .b1 = Pins::MOTOR_B_B1,
+       .b2 = Pins::MOTOR_B_B2},
+      HardwareAlarms::kStepperB, IrqPriorities::kStepperTimer));
 
   PaperController* paper_controller = CHECK_NOTNULL(new PaperController(
       loadcell, /*motor_src=*/motor_b, /*motor_dst=*/motor_a));
-  paper_controller->Init(TaskPriorities::kPaperController,
-                         TaskStacks::kPaperController,
-                         // alarms 0 and 1 are used by the steppers
-                         /*alarm_num=*/2, IrqPriorities::kPaperController);
+  paper_controller->Init(
+      TaskPriorities::kPaperController, TaskStacks::kPaperController,
+      HardwareAlarms::kPaperController, IrqPriorities::kPaperController);
 
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(

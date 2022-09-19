@@ -13,7 +13,6 @@ cc_library(
         "//picolog",
         "//tplp:clkdiv",
         "//tplp:rtos_util",
-        "//tplp/bus:dma",
         "//tplp/bus:types",
         "@rules_pico//pico:hardware_clocks",
         "@rules_pico//pico:hardware_gpio",

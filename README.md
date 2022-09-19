@@ -16,6 +16,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] loadcell probably needs its own shielded cable with really good clean connectors that don't jiggle.
+- [ ] redesign manual stepper control UI to match the new API and to be easier to use
 - [ ] FIXME: go through all my uses of __not_in_flash and add asserts to make sure they're actually doing that thing (addr < 0x1000000)
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
