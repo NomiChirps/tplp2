@@ -143,7 +143,9 @@ void StartupTask(void*) {
   PaperController* paper_controller = CHECK_NOTNULL(new PaperController(
       loadcell, /*motor_src=*/motor_b, /*motor_dst=*/motor_a));
   paper_controller->Init(TaskPriorities::kPaperController,
-                         TaskStacks::kPaperController);
+                         TaskStacks::kPaperController,
+                         // alarms 0 and 1 are used by the steppers
+                         /*alarm_num=*/2, IrqPriorities::kPaperController);
 
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(

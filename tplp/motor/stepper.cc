@@ -47,6 +47,7 @@ template <int M>
       break;
     motor->timer_target_us_ =
         delayed_by_us(motor->timer_target_us_, motor->timer_delay_us_);
+    // FIXME: this is not correct procedure for arming the timer from an ISR
     if (hardware_alarm_set_target(M, motor->timer_target_us_)) {
       // missed the next target; take another step immediately and try again
       continue;

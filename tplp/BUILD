@@ -21,6 +21,7 @@ cc_library(
         "//tplp/hx711",
         "//tplp/motor:stepper",
         "@FreeRTOS",
+        "@rules_pico//pico:hardware_timer",
     ],
 )
 

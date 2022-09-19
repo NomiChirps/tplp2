@@ -12,9 +12,13 @@ namespace tplp {
 // top 2 bits are significant on ARM Cortex-M0+.
 struct IrqPriorities {
   // TODO: specify all of our irq priorities explicitly
+  static constexpr uint8_t kHighest = 0x00;
+  static constexpr uint8_t kHigher = 0x40;
   static constexpr uint8_t kDefault = 0x80;  // == PICO_DEFAULT_IRQ_PRIORITY
-  // Higher priority than default:
-  static constexpr uint8_t kStepperTimer = 0x40;
+  static constexpr uint8_t kLowest = 0xc0;
+
+  static constexpr uint8_t kStepperTimer = kHigher;
+  static constexpr uint8_t kPaperController = kHigher;
 };
 
 struct TaskPriorities {

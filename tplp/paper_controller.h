@@ -26,9 +26,11 @@ class PaperController {
   // output roller.
   PaperController(HX711* loadcell, StepperMotor* motor_src,
                   StepperMotor* motor_dst);
-  void Init(int task_priority, int stack_size);
+  // alarm_num: rp2040 hardware alarm number, 0-3.
+  void Init(int task_priority, int stack_size, int alarm_num,
+            uint8_t irq_priority);
 
-  State state() const { return state_; }
+  inline State state() const { return state_; }
 
   // Sets the target paper feed rate. This can be adjusted at any time,
   // including during feeding. The value may be positive (forward) or negative
@@ -69,11 +71,17 @@ class PaperController {
   static void TaskFn(void* task_param);
   void TaskFn();
   void PostError(util::Status status);
+  static void __time_critical_func(timer_isr)();
+  static void __time_critical_func(timer_isr_body)();
 
   // PRE: NOT_TENSIONED
   // POST if OK: TENSIONED_IDLE
   // POST if error: NOT_TENSIONED
   util::Status Tension();
+
+  // PRE: TENSIONED_IDLE
+  // POST: NOT_TENSIONED
+  util::Status Release();
 
  private:
   TaskHandle_t task_;

@@ -1,8 +1,12 @@
 #include "tplp/paper_controller.h"
 
+#include <iomanip>
+
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
 #include "hardware/clocks.h"
+#include "hardware/timer.h"
+#include "pico/time.h"
 #include "picolog/picolog.h"
 #include "tplp/config/params.h"
 
@@ -28,6 +32,8 @@ TPLP_PARAM(int32_t, target_tension, 100,
 TPLP_PARAM(int32_t, panic_stop_tension, 200,
            "Abort print and stop feeding if tension reaches this level, to "
            "avoid tearing the paper");
+TPLP_PARAM(int32_t, paper_timer_delay_us, 1000,
+           "How often to run the PaperController interrupt, in microseconds");
 
 namespace tplp {
 namespace {
@@ -39,7 +45,48 @@ enum TaskNotificationBits : uint32_t {
   CMD_RELEASE = 0x8,
 };
 
+static PaperController* instance = nullptr;
+static constexpr int kAlarmNum = 2;
+
 }  // namespace
+
+void PaperController::timer_isr_body() {
+  // TODO: do stuff based on instance->state_.
+  instance->state();
+}
+
+void PaperController::timer_isr() {
+  static uint64_t timer_target_us = time_us_64();
+
+  gpio_put(PICO_DEFAULT_LED_PIN, !gpio_get(PICO_DEFAULT_LED_PIN));
+  timer_hw->intr = 1u << kAlarmNum;
+
+  instance->timer_isr_body();
+
+  // Reset the alarm to fire at the next future delay interval.
+  const int delay = PARAM_paper_timer_delay_us.Get();
+  for (;;) {
+    timer_target_us += delay;
+    timer_hw->armed = 1u << kAlarmNum;
+    timer_hw->alarm[kAlarmNum] = timer_target_us;
+
+    // read current time
+    uint32_t hi = timer_hw->timerawh;
+    uint32_t lo = timer_hw->timerawl;
+    // reread if low bits rolled over
+    if (timer_hw->timerawh != hi) {
+      hi = timer_hw->timerawh;
+      lo = timer_hw->timerawl;
+    }
+
+    if ((((uint64_t)hi << 32) | lo) <= timer_target_us) {
+      break;
+    }
+  }
+
+  gpio_put(PICO_DEFAULT_LED_PIN, !gpio_get(PICO_DEFAULT_LED_PIN));
+}
+
 
 PaperController::PaperController(HX711* loadcell, StepperMotor* motor_a,
                                  StepperMotor* motor_b)
@@ -47,11 +94,33 @@ PaperController::PaperController(HX711* loadcell, StepperMotor* motor_a,
       sys_hz_(clock_get_hz(clk_sys)),
       loadcell_(loadcell),
       motor_src_(motor_a),
-      motor_dst_(motor_b) {}
+      motor_dst_(motor_b) {
+  CHECK(!instance);
+  instance = this;
+}
 
-void PaperController::Init(int task_priority, int stack_size) {
+void PaperController::Init(int task_priority, int stack_size, int alarm_num,
+                           uint8_t irq_priority) {
   CHECK(xTaskCreate(&PaperController::TaskFn, "PaperController", stack_size,
                     this, task_priority, &task_));
+  CHECK(!(reinterpret_cast<intptr_t>(timer_isr) & 0x1000000))
+      << "Timer ISR was placed in XIP/Flash memory, but must be in SRAM";
+  CHECK(!(reinterpret_cast<intptr_t>(timer_isr_body) & 0x1000000))
+      << "Timer ISR was placed in XIP/Flash memory, but must be in SRAM";
+  CHECK_EQ(alarm_num, kAlarmNum);
+  CHECK(!hardware_alarm_is_claimed(alarm_num));
+  hardware_alarm_claim(alarm_num);
+  int timer_irq = TIMER_IRQ_0 + alarm_num;
+  irq_set_exclusive_handler(timer_irq, timer_isr);
+  irq_set_priority(timer_irq, irq_priority);
+  irq_set_enabled(timer_irq, true);
+  hw_set_bits(&timer_hw->inte, 1u << alarm_num);
+  // Start the timer; it will keep running forever.
+  hardware_alarm_set_target(
+      alarm_num, make_timeout_time_us(PARAM_paper_timer_delay_us.Get()));
+  /// XXX Delete me
+  gpio_init(PICO_DEFAULT_LED_PIN);
+  gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 }
 
 void PaperController::TaskFn(void* task_param) {
@@ -108,6 +177,13 @@ void PaperController::TaskFn() {
       if (!status.ok()) PostError(std::move(status));
       continue;
     }
+    if (notify & CMD_RELEASE) {
+      status = Release();
+      if (!status.ok()) PostError(std::move(status));
+      continue;
+    }
+    LOG(ERROR) << "Unhandled notification bits: 0x" << std::hex
+               << std::setfill('0') << std::setw(8) << (int)notify;
   }
 }
 
@@ -132,7 +208,7 @@ util::Status PaperController::Tension() {
       PARAM_motor_polarity_dst.Get() *
       (PARAM_tension_speed.Get() * PARAM_tension_timeout_ms.Get()) / 1000);
 
-  // TODO: use a timer interrupt or something instead
+  // TODO: use the timer interrupt instead
   bool timed_out = true;
   while (motor_dst_->moving()) {
     if (GetLoadCellValue() >= PARAM_target_tension.Get()) {
@@ -148,8 +224,18 @@ util::Status PaperController::Tension() {
   }
 
   state_ = State::TENSIONED_IDLE;
+
   return util::OkStatus();
-  // TODO: launch the PID loop
+}
+
+util::Status PaperController::Release() {
+  if (state_ != State::TENSIONED_IDLE) {
+    return util::FailedPreconditionError("Invalid state for CMD_RELEASE");
+  }
+  state_ = State::NOT_TENSIONED;
+  motor_src_->Stop(StepperMotor::StopType::SHORT_BRAKE);
+  motor_dst_->Stop(StepperMotor::StopType::SHORT_BRAKE);
+  return util::OkStatus();
 }
 
 void PaperController::PostError(util::Status status) {

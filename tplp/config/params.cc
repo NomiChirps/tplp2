@@ -24,6 +24,11 @@ ParameterBase::ParameterBase(const char* name, const char* help)
         "Too many parameters; increase kMaxNumParams");
     return;
   }
+  if (reinterpret_cast<intptr_t>(this) & 0x10000000) {
+    deferred_init_error = util::InternalError(
+        "Parameter was placed in Flash memory instead of SRAM");
+  return;
+  }
   params[num_params++] = this;
 }
 

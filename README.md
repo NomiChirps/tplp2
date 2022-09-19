@@ -16,6 +16,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] FIXME: stepper timer interrupt isn't doing the right thing w.r.t. rearming the alarm. fix that. maybe make a template from the impl in paper_controller.
+- [ ] FIXME: go through all my uses of __not_in_flash and add asserts to make sure they're actually doing that thing (addr < 0x1000000)
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
   - [x] needs steppers working
