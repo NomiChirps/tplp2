@@ -45,22 +45,20 @@ enum TaskNotificationBits : uint32_t {
 };
 
 static PaperController* instance = nullptr;
-static constexpr int kAlarmNum = 2;
+}  // namespace
 
-int __not_in_flash_func(GetDelayFn)() {
+int __not_in_flash("PaperController") PaperController::GetTimerDelay() {
   return PARAM_paper_timer_delay_us.Get();
 }
 
-void __not_in_flash_func(IsrBodyFn)() {
-  // TODO: do stuff based on instance->state_.
+void __not_in_flash("PaperController") PaperController::IsrBody() {
+  const PaperController* self = instance;
+  if (self->state_ == PaperController::State::TENSIONED_IDLE) {
+    // TODO: uhhhhhhhhhhhhhhhhhhh
+  }
 }
 
-using MyTimer = PeriodicAlarm<kAlarmNum, IsrBodyFn, GetDelayFn>;
-
-}  // namespace
-
-template __not_in_flash("PeriodicAlarm") void PeriodicAlarm<
-    kAlarmNum, IsrBodyFn, GetDelayFn>::ISR();
+template __not_in_flash("PeriodicAlarm") void PaperController::MyTimer::ISR();
 
 PaperController::PaperController(HX711* loadcell, StepperMotor* motor_a,
                                  StepperMotor* motor_b)
@@ -77,9 +75,6 @@ void PaperController::Init(int task_priority, int stack_size, int alarm_num,
                            uint8_t irq_priority) {
   CHECK(xTaskCreate(&PaperController::TaskFn, "PaperController", stack_size,
                     this, task_priority, &task_));
-  LOG(INFO) << (void*)IsrBodyFn;
-  LOG(INFO) << (void*)&IsrBodyFn;
-  LOG(INFO) << reinterpret_cast<intptr_t>(IsrBodyFn);
   MyTimer::Check();
   CHECK_EQ(alarm_num, kAlarmNum);
   CHECK(!hardware_alarm_is_claimed(alarm_num));
@@ -167,7 +162,7 @@ util::Status PaperController::Tension() {
   // Release the motors and wait a moment for the paper to go slack.
   motor_src_->Release();
   motor_dst_->Release();
-  vTaskDelay(500);
+  vTaskDelay(pdMS_TO_TICKS(500));
 
   if (std::abs(GetLoadCellValue()) > PARAM_max_load_noise.Get()) {
     return util::FailedPreconditionError(

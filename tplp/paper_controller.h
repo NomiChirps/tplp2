@@ -5,6 +5,7 @@
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
+#include "alarm_irq.h"
 #include "picolog/status.h"
 #include "tplp/hx711/hx711.h"
 #include "tplp/motor/stepper.h"
@@ -73,6 +74,12 @@ class PaperController {
   static void TaskFn(void* task_param);
   void TaskFnBody();
   void PostError(util::Status status);
+
+  static int __not_in_flash("PaperController") GetTimerDelay();
+  static void __not_in_flash("PaperController") IsrBody();
+  static constexpr int kAlarmNum = 2;
+  using MyTimer = PeriodicAlarm<kAlarmNum, IsrBody, GetTimerDelay>;
+  friend MyTimer;
 
   // PRE: NOT_TENSIONED
   // POST if OK: TENSIONED_IDLE
