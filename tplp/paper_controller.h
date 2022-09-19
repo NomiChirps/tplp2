@@ -69,10 +69,8 @@ class PaperController {
 
  private:
   static void TaskFn(void* task_param);
-  void TaskFn();
+  void TaskFnBody();
   void PostError(util::Status status);
-  static void __time_critical_func(timer_isr)();
-  static void __time_critical_func(timer_isr_body)();
 
   // PRE: NOT_TENSIONED
   // POST if OK: TENSIONED_IDLE

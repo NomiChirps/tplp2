@@ -12,10 +12,19 @@ pico_binary(
 )
 
 cc_library(
+    name = "alarm_irq",
+    hdrs = ["alarm_irq.h"],
+    deps = [
+        "@rules_pico//pico:hardware_timer",
+    ],
+)
+
+cc_library(
     name = "paper_controller",
     srcs = ["paper_controller.cc"],
     hdrs = ["paper_controller.h"],
     deps = [
+        ":alarm_irq",
         "//picolog",
         "//tplp/config:params",
         "//tplp/hx711",

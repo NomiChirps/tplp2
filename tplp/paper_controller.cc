@@ -8,6 +8,7 @@
 #include "hardware/timer.h"
 #include "pico/time.h"
 #include "picolog/picolog.h"
+#include "tplp/alarm_irq.h"
 #include "tplp/config/params.h"
 
 TPLP_PARAM(int32_t, loadcell_offset, 100'000, "Load cell zeroing offset");
@@ -48,45 +49,20 @@ enum TaskNotificationBits : uint32_t {
 static PaperController* instance = nullptr;
 static constexpr int kAlarmNum = 2;
 
+int __not_in_flash_func(GetDelayFn)() {
+  return PARAM_paper_timer_delay_us.Get();
+}
+
+void __not_in_flash_func(IsrBodyFn)() {
+  // TODO: do stuff based on instance->state_.
+}
+
+using MyTimer = PeriodicAlarm<kAlarmNum, IsrBodyFn, GetDelayFn>;
+
 }  // namespace
 
-void PaperController::timer_isr_body() {
-  // TODO: do stuff based on instance->state_.
-  instance->state();
-}
-
-void PaperController::timer_isr() {
-  static uint64_t timer_target_us = time_us_64();
-
-  gpio_put(PICO_DEFAULT_LED_PIN, !gpio_get(PICO_DEFAULT_LED_PIN));
-  timer_hw->intr = 1u << kAlarmNum;
-
-  instance->timer_isr_body();
-
-  // Reset the alarm to fire at the next future delay interval.
-  const int delay = PARAM_paper_timer_delay_us.Get();
-  for (;;) {
-    timer_target_us += delay;
-    timer_hw->armed = 1u << kAlarmNum;
-    timer_hw->alarm[kAlarmNum] = timer_target_us;
-
-    // read current time
-    uint32_t hi = timer_hw->timerawh;
-    uint32_t lo = timer_hw->timerawl;
-    // reread if low bits rolled over
-    if (timer_hw->timerawh != hi) {
-      hi = timer_hw->timerawh;
-      lo = timer_hw->timerawl;
-    }
-
-    if ((((uint64_t)hi << 32) | lo) <= timer_target_us) {
-      break;
-    }
-  }
-
-  gpio_put(PICO_DEFAULT_LED_PIN, !gpio_get(PICO_DEFAULT_LED_PIN));
-}
-
+template __not_in_flash("PeriodicAlarm") void PeriodicAlarm<
+    kAlarmNum, IsrBodyFn, GetDelayFn>::ISR();
 
 PaperController::PaperController(HX711* loadcell, StepperMotor* motor_a,
                                  StepperMotor* motor_b)
@@ -103,15 +79,15 @@ void PaperController::Init(int task_priority, int stack_size, int alarm_num,
                            uint8_t irq_priority) {
   CHECK(xTaskCreate(&PaperController::TaskFn, "PaperController", stack_size,
                     this, task_priority, &task_));
-  CHECK(!(reinterpret_cast<intptr_t>(timer_isr) & 0x1000000))
-      << "Timer ISR was placed in XIP/Flash memory, but must be in SRAM";
-  CHECK(!(reinterpret_cast<intptr_t>(timer_isr_body) & 0x1000000))
-      << "Timer ISR was placed in XIP/Flash memory, but must be in SRAM";
+  LOG(INFO) << (void*)IsrBodyFn;
+  LOG(INFO) << (void*)&IsrBodyFn;
+  LOG(INFO) << reinterpret_cast<intptr_t>(IsrBodyFn);
+  MyTimer::Check();
   CHECK_EQ(alarm_num, kAlarmNum);
   CHECK(!hardware_alarm_is_claimed(alarm_num));
   hardware_alarm_claim(alarm_num);
   int timer_irq = TIMER_IRQ_0 + alarm_num;
-  irq_set_exclusive_handler(timer_irq, timer_isr);
+  irq_set_exclusive_handler(timer_irq, MyTimer::ISR);
   irq_set_priority(timer_irq, irq_priority);
   irq_set_enabled(timer_irq, true);
   hw_set_bits(&timer_hw->inte, 1u << alarm_num);
@@ -124,7 +100,7 @@ void PaperController::Init(int task_priority, int stack_size, int alarm_num,
 }
 
 void PaperController::TaskFn(void* task_param) {
-  static_cast<PaperController*>(task_param)->TaskFn();
+  static_cast<PaperController*>(task_param)->TaskFnBody();
 }
 
 int32_t PaperController::GetLoadCellValue() const {
@@ -166,7 +142,7 @@ util::Status PaperController::Cmd_Release() {
   return util::OkStatus();
 }
 
-void PaperController::TaskFn() {
+void PaperController::TaskFnBody() {
   util::Status status;
   for (;;) {
     TaskNotificationBits notify;
