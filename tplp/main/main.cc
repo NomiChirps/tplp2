@@ -10,9 +10,9 @@
 #include "pico/stdio_usb.h"
 #endif
 #if LIB_PICO_STDIO_UART
-#include "pico/stdio_uart.h"
 #include "hardware/gpio.h"
 #include "hardware/timer.h"
+#include "pico/stdio_uart.h"
 #endif
 
 int main() {
