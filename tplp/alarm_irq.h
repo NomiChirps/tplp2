@@ -12,6 +12,7 @@ using PeriodicAlarm_get_delay_fn_t = int (*)();
 
 // Encapsulates the use of a hardware alarm to trigger an interrupt handler
 // at predictable intervals. Good all the way down to a 2us period.
+// Missed intervals are not caught up in any way.
 template <int AlarmNum, PeriodicAlarm_isr_body_fn_t IsrBody,
           PeriodicAlarm_get_delay_fn_t GetDelay>
 struct PeriodicAlarm {
@@ -31,7 +32,6 @@ struct PeriodicAlarm {
   //    kMyAlarmNum, MyIsrBodyFn, MyGetDelayFn>::ISR();
   __not_in_flash("PeriodicAlarm") static void ISR() {
     static uint64_t timer_target_us = time_us_64();
-    gpio_put(PICO_DEFAULT_LED_PIN, !gpio_get(PICO_DEFAULT_LED_PIN));
 
     timer_hw->intr = 1u << AlarmNum;
 
@@ -57,7 +57,6 @@ struct PeriodicAlarm {
         break;
       }
     }
-    gpio_put(PICO_DEFAULT_LED_PIN, !gpio_get(PICO_DEFAULT_LED_PIN));
   }
 };
 

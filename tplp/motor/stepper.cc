@@ -36,7 +36,7 @@ static StepperMotor* motors[kMaxNumMotors] = {};
 
 // M is the motor id and also the hardware alarm number
 template <int M>
-[[gnu::hot]] void StepperMotor::timer_isr() {
+[[gnu::hot]] __not_in_flash("StepperMotor") void StepperMotor::timer_isr() {
   timer_hw->intr = 1u << M;
   StepperMotor* const motor = motors[M];
   while (motor->timer_steps_remaining_) {
@@ -45,21 +45,34 @@ template <int M>
                                     kCommandBufLen];
     if (!--motor->timer_steps_remaining_) [[unlikely]]
       break;
-    motor->timer_target_us_ =
-        delayed_by_us(motor->timer_target_us_, motor->timer_delay_us_);
-    // FIXME: this is not correct procedure for arming the timer from an ISR
-    if (hardware_alarm_set_target(M, motor->timer_target_us_)) {
-      // missed the next target; take another step immediately and try again
-      continue;
-    } else {
-      // next target is in the future & alarm is armed. let's go
+
+    // Advance the target time by one step interval.
+    motor->timer_target_us_ += motor->timer_delay_us_;
+    // Reset the alarm to fire at the new target time.
+    timer_hw->armed = 1u << M;
+    timer_hw->alarm[M] = motor->timer_target_us_;
+
+    // read current time
+    uint32_t hi = timer_hw->timerawh;
+    uint32_t lo = timer_hw->timerawl;
+    // reread if low bits rolled over
+    if (timer_hw->timerawh != hi) {
+      hi = timer_hw->timerawh;
+      lo = timer_hw->timerawl;
+    }
+
+    // Make sure new target time is in the future.
+    if ((((uint64_t)hi << 32) | lo) <= motor->timer_target_us_) {
+      // Alarm successfuly set to the future; done.
       break;
     }
+    // Missed this interval, because the alarm time is in the past.
+    // Take another step immediately (continue looping).
   }
 }
 
-template void StepperMotor::timer_isr<0>();
-template void StepperMotor::timer_isr<1>();
+template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<0>();
+template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<1>();
 
 template <int M>
 void StepperMotor::InitTimer(int irq_priority) {
@@ -153,7 +166,7 @@ StepperMotor* StepperMotor::Init(DmaController* dma, PIO pio,
   // timer values don't matter in DMA mode
   self->timer_delay_us_ = 0;
   self->timer_steps_remaining_ = 0;
-  self->timer_target_us_ = get_absolute_time();
+  self->timer_target_us_ = time_us_64();
 
   CHECK_LT(num_motors, kMaxNumMotors);
   if (num_motors == 0) {
@@ -209,7 +222,7 @@ void StepperMotor::SetDmaSpeed(ClockDivider clkdiv) {
 
 void StepperMotor::SetTimerSpeed(uint32_t us_per_microstep) {
   VLOG(1) << "SetTimerSpeed( " << us_per_microstep << " )";
-  CHECK_GT(us_per_microstep, 0u);
+  CHECK_GT(us_per_microstep, 1u);
   timer_delay_us_ = us_per_microstep;
   if (dma_mode_) {
     uint32_t n = AbortDma();
@@ -271,8 +284,8 @@ void StepperMotor::StartTimer(uint32_t microsteps) {
   timer_steps_remaining_ = microsteps;
   // keep trying to start the timer (in case we're preempted)
   do {
-    timer_target_us_ = make_timeout_time_us(timer_delay_us_);
-  } while (hardware_alarm_set_target(timer_alarm_num_, timer_target_us_));
+    timer_target_us_ = time_us_64() + timer_delay_us_;
+  } while (hardware_alarm_set_target(timer_alarm_num_, {timer_target_us_}));
 }
 
 void StepperMotor::Move(int32_t microsteps) {
@@ -316,7 +329,6 @@ void StepperMotor::Move(int32_t microsteps) {
     LOG_IF(ERROR, pio_->fdebug & (1 << (16 + sm_)))
         << "TX FIFO overflow during move";
   }
-  VLOG(1) << "Move done";
 }
 
 uint32_t StepperMotor::AbortDma() {

@@ -99,7 +99,7 @@ class StepperMotor {
 
   // templated on the motor id, which is also the hardware alarm number
   template <int M>
-  static void __not_in_flash_func(timer_isr());
+  static void __not_in_flash("StepperMotor") timer_isr();
   template <int M>
   void InitTimer(int irq_priority);
 
@@ -146,7 +146,7 @@ class StepperMotor {
   int timer_irq_;
   uint32_t timer_steps_remaining_;
   uint32_t timer_delay_us_;
-  absolute_time_t timer_target_us_;
+  uint64_t timer_target_us_;
 
   // unbounded; see command_index_after_move()
   uint32_t offset_after_move_;

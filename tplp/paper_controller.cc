@@ -94,9 +94,6 @@ void PaperController::Init(int task_priority, int stack_size, int alarm_num,
   // Start the timer; it will keep running forever.
   hardware_alarm_set_target(
       alarm_num, make_timeout_time_us(PARAM_paper_timer_delay_us.Get()));
-  /// XXX Delete me
-  gpio_init(PICO_DEFAULT_LED_PIN);
-  gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 }
 
 void PaperController::TaskFn(void* task_param) {
