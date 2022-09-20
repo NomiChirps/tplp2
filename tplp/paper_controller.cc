@@ -53,7 +53,6 @@ int __not_in_flash("PaperController") PaperController::GetTimerDelay() {
 }
 
 void __not_in_flash("PaperController") PaperController::IsrBody() {
-  static uint64_t last_update_time = time_us_64();
   PaperController* const self = instance;
 
   if (self->state_ == State::TENSIONING ||
