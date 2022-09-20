@@ -22,6 +22,8 @@ struct IrqPriorities {
 };
 
 // Allocation of the 4 available hardware alarms on RP2040.
+// Recall that for IRQs at the same priority, the lower numbered one
+// takes precedence.
 struct HardwareAlarms {
   static constexpr uint8_t kStepperA = 0;
   static constexpr uint8_t kStepperB = 1;

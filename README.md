@@ -16,6 +16,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] statically allocate all the instances of my hardware classes. we aren't going to be adding a third stepper motor at runtime, you dork.
 - [ ] P1: Okay we REALLY need to be able to dial the motor speed ALL the way down right next to zero. the pid loop is not happy otherwise.
 - [ ] redesign manual stepper control UI to match the new API and to be easier to use
   - or just get rid of it? we don't really need it at this point

@@ -106,6 +106,8 @@ class PaperController {
 
   static int __not_in_flash("PaperController") GetTimerDelay();
   static void __not_in_flash("PaperController") IsrBody();
+  // must match HardwareAlarms::kPaperController
+  // TODO: sort out this odd dependency by statically allocating everything
   static constexpr int kAlarmNum = 2;
   using MyTimer = PeriodicAlarm<kAlarmNum, IsrBody, GetTimerDelay>;
   friend MyTimer;

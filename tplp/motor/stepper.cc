@@ -74,6 +74,8 @@ template <int AlarmNum>
   }
 }
 
+// must match HardwareAlarms::kStepperA, HardwareAlarms::kStepperB
+// TODO: sort out this odd dependency by statically allocating everything
 template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<0>();
 template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<1>();
 
