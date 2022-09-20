@@ -5,10 +5,10 @@
 
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/task.h"
-#include "alarm_irq.h"
 #include "picolog/status.h"
 #include "tplp/config/constants.h"
 #include "tplp/hx711/hx711.h"
+#include "tplp/interrupts.h"
 #include "tplp/motor/stepper.h"
 #include "tplp/numbers.h"
 

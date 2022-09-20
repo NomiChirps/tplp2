@@ -12,9 +12,17 @@ pico_binary(
 )
 
 cc_library(
-    name = "alarm_irq",
-    hdrs = ["alarm_irq.h"],
+    name = "util",
+    hdrs = ["util.h"],
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
+cc_library(
+    name = "interrupts",
+    hdrs = ["interrupts.h"],
     deps = [
+        ":util",
         "@rules_pico//pico:hardware_timer",
     ],
 )
@@ -31,7 +39,7 @@ cc_library(
     srcs = ["paper_controller.cc"],
     hdrs = ["paper_controller.h"],
     deps = [
-        ":alarm_irq",
+        ":interrupts",
         ":numbers",
         "//picolog",
         "//tplp/config:constants",

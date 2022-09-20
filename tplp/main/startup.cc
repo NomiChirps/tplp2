@@ -28,6 +28,21 @@
 #include "tplp/ui/main.h"
 
 namespace tplp {
+
+StepperMotor motor_a;
+StepperMotor motor_b;
+
+// Explicit instantiation to make sure interrupt handlers don't get placed in
+// flash memory, due to GCC bug
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70435.
+template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<
+    HardwareAlarms::kStepperA, &motor_a>();
+template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<
+    HardwareAlarms::kStepperB, &motor_b>();
+
+}  // namespace tplp
+
+namespace tplp {
 void StartupTask(void*) {
   util::Status status;
 
@@ -122,31 +137,30 @@ void StartupTask(void*) {
   HX711* loadcell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
 
   // Steppies!
-  StepperMotor::StaticInit(Frequencies::kStepperPwm);
-  StepperMotor* motor_a = CHECK_NOTNULL(StepperMotor::Init(
+  StepperMotor::Init<HardwareAlarms::kStepperA, &motor_a>(
       pio1,
       {.a1 = Pins::MOTOR_A_A1,
        .a2 = Pins::MOTOR_A_A2,
        .b1 = Pins::MOTOR_A_B1,
        .b2 = Pins::MOTOR_A_B2},
-      HardwareAlarms::kStepperA, IrqPriorities::kStepperTimer));
-  StepperMotor* motor_b = CHECK_NOTNULL(StepperMotor::Init(
+      Frequencies::kStepperPwm, IrqPriorities::kStepperTimer);
+  StepperMotor::Init<HardwareAlarms::kStepperB, &motor_b>(
       pio1,
       {.a1 = Pins::MOTOR_B_A1,
        .a2 = Pins::MOTOR_B_A2,
        .b1 = Pins::MOTOR_B_B1,
        .b2 = Pins::MOTOR_B_B2},
-      HardwareAlarms::kStepperB, IrqPriorities::kStepperTimer));
+      Frequencies::kStepperPwm, IrqPriorities::kStepperTimer);
 
   PaperController* paper_controller = CHECK_NOTNULL(new PaperController(
-      loadcell, /*motor_src=*/motor_b, /*motor_dst=*/motor_a));
+      loadcell, /*motor_src=*/&motor_b, /*motor_dst=*/&motor_a));
   paper_controller->Init(
       TaskPriorities::kPaperController, TaskStacks::kPaperController,
       HardwareAlarms::kPaperController, IrqPriorities::kPaperController);
 
   // Create GUI screens.
   ui::TplpInterfaceImpl* ui_adapter = CHECK_NOTNULL(new ui::TplpInterfaceImpl(
-      display, i2c0_controller, paper_controller, motor_a, motor_b));
+      display, i2c0_controller, paper_controller, &motor_a, &motor_b));
   ui_adapter->StartTask(TaskPriorities::kUiWorker, TaskStacks::kUiWorker);
   {
     LvglMutex mutex;

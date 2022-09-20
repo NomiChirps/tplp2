@@ -25,166 +25,18 @@ uint32_t make_command(uint8_t pwm_period, uint8_t t1, uint8_t t2_t3,
          (pins_t4 << 28);
 }
 
-static std::optional<int> pio0_program_offset = std::nullopt;
-static std::optional<int> pio1_program_offset = std::nullopt;
-
-// motors[] is indexed by rp2040 hardware alarm number
-static constexpr int kMaxNumMotors = NUM_TIMERS;
-static StepperMotor* motors[kMaxNumMotors] = {};
-
 }  // namespace
 
-// M is the motor id and also the hardware alarm number
-template <int AlarmNum>
-[[gnu::hot]] __not_in_flash("StepperMotor") void StepperMotor::timer_isr() {
-  static uint64_t target_time = time_us_64();
-  timer_hw->intr = 1u << AlarmNum;
-  StepperMotor* const motor = motors[AlarmNum];
-  for (;;) {
-    // Take a copy of stride_ in case it changes.
-    int32_t stride = motor->stride_;
-    if (stride) {
-      *motor->txf_ = motor->commands_[motor->command_index_];
-      // Advance command index by the stride.
-      motor->command_index_ = (motor->command_index_ + stride) % kCommandBufLen;
-    }
-
-    // Advance target time by one interval.
-    target_time += motor->timer_interval_us_;
-    // Reset the alarm to fire at the new target time.
-    timer_hw->armed = 1u << AlarmNum;
-    timer_hw->alarm[AlarmNum] = target_time;
-
-    // Make sure new target time is in the future:
-    // Read current time.
-    uint32_t hi = timer_hw->timerawh;
-    uint32_t lo = timer_hw->timerawl;
-    // Reread if low bits rolled over.
-    if (timer_hw->timerawh != hi) {
-      hi = timer_hw->timerawh;
-      lo = timer_hw->timerawl;
-    }
-    if ((((uint64_t)hi << 32) | lo) <= target_time) {
-      // Alarm successfuly set to the future; done.
-      break;
-    }
-    // The new target time is in the past, meaning we missed an interval.
-    // Keep trying to reset it, taking more strides if requested.
-    continue;
-  }
-}
-
-// must match HardwareAlarms::kStepperA, HardwareAlarms::kStepperB
-// TODO: sort out this odd dependency by statically allocating everything
-template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<0>();
-template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<1>();
-
-template <int AlarmNum>
-void StepperMotor::InitTimer(int irq_priority) {
-  static_assert(AlarmNum < NUM_TIMERS);
-  CHECK(!hardware_alarm_is_claimed(AlarmNum));
-  hardware_alarm_claim(AlarmNum);
-  motors[AlarmNum] = this;
-  timer_alarm_num_ = AlarmNum;
-  timer_irq_ = TIMER_IRQ_0 + AlarmNum;
-  irq_set_exclusive_handler(timer_irq_, timer_isr<AlarmNum>);
-  irq_set_priority(timer_irq_, irq_priority);
-  irq_set_enabled(timer_irq_, true);
-  hw_set_bits(&timer_hw->inte, 1u << timer_alarm_num_);
-  // keep trying to start the timer (in case we're preempted)
-  uint64_t target_time;
-  do {
-    target_time = time_us_64() + timer_interval_us_;
-  } while (hardware_alarm_set_target(timer_alarm_num_, {target_time}));
-}
-
-template void StepperMotor::InitTimer<0>(int);
-template void StepperMotor::InitTimer<1>(int);
-
+std::optional<int> StepperMotor::pio0_program_offset_ = std::nullopt;
+std::optional<int> StepperMotor::pio1_program_offset_ = std::nullopt;
 bool StepperMotor::static_init_done_ = false;
+
 uint16_t StepperMotor::pwm_period_ = 0;
 int StepperMotor::pio_clkdiv_int_ = 0;
 int StepperMotor::pio_clkdiv_frac_ = 0;
 int StepperMotor::pio_hz_ = 0;
 uint32_t StepperMotor::shortbrake_command_ = 0;
 uint32_t StepperMotor::commands_[kCommandBufLen] = {};
-
-StepperMotor* StepperMotor::Init(PIO pio, const Hardware& hw, int alarm_num,
-                                 int timer_irq_priority) {
-  LOG_IF(FATAL, !static_init_done_) << "must call StaticInit() before Init()";
-  CHECK_EQ(hw.a1 + 1, hw.a2) << "StepperMotor pins must be consecutive";
-  CHECK_EQ(hw.a2 + 1, hw.b1) << "StepperMotor pins must be consecutive";
-  CHECK_EQ(hw.b1 + 1, hw.b2) << "StepperMotor pins must be consecutive";
-
-  int program_offset;
-  if (pio_get_index(pio) == 0) {
-    if (pio0_program_offset.has_value()) {
-      program_offset = *pio0_program_offset;
-    } else {
-      CHECK(pio_can_add_program(pio, &stepper_program))
-          << "Not enough free instruction space in PIO" << pio_get_index(pio);
-      pio0_program_offset = program_offset =
-          pio_add_program(pio, &stepper_program);
-    }
-  } else if (pio_get_index(pio) == 1) {
-    if (pio1_program_offset.has_value()) {
-      program_offset = *pio1_program_offset;
-    } else {
-      CHECK(pio_can_add_program(pio, &stepper_program))
-          << "Not enough free instruction space in PIO" << pio_get_index(pio);
-      pio1_program_offset = program_offset =
-          pio_add_program(pio, &stepper_program);
-    }
-  } else {
-    LOG(FATAL) << "bad pio index";
-  }
-
-  int sm = pio_claim_unused_sm(pio, false);
-  LOG_IF(FATAL, sm < 0) << "No free state machines in PIO"
-                        << pio_get_index(pio);
-  pio_sm_config c = stepper_program_get_default_config(program_offset);
-
-  pio_gpio_init(pio, hw.a1);
-  pio_gpio_init(pio, hw.a2);
-  pio_gpio_init(pio, hw.b1);
-  pio_gpio_init(pio, hw.b2);
-  sm_config_set_out_pins(&c, hw.a1, 4);
-  sm_config_set_out_shift(&c, /*shift_right=*/true, /*autopull=*/false,
-                          /*pull_threshold=*/32);
-  sm_config_set_clkdiv_int_frac(&c, pio_clkdiv_int_, pio_clkdiv_frac_);
-  // Although RX FIFO isn't used, we don't want to join the FIFOs together
-  // because (a) we're using DMA to fill them and a depth of 4 is plenty,
-  // and (b) the shorter the FIFO is, the quicker it'll respond to changes
-  // in what we're sending.
-
-  pio_sm_init(pio, sm, program_offset, &c);
-  pio_sm_set_consecutive_pindirs(pio, sm, hw.a1, 4, /*is_out=*/true);
-
-  StepperMotor* self = CHECK_NOTNULL(new StepperMotor());
-  self->pio_ = pio;
-  self->hw_ = hw;
-  self->txf_ = &pio->txf[sm];
-  self->sm_ = sm;
-  self->program_offset_ = program_offset;
-  self->command_index_ = 0;
-  self->stride_ = 0;
-  self->timer_interval_us_ = 1'000;
-
-  CHECK_LT(alarm_num, kMaxNumMotors);
-  if (alarm_num == 0) {
-    self->InitTimer<0>(timer_irq_priority);
-  } else if (alarm_num == 1) {
-    self->InitTimer<1>(timer_irq_priority);
-  } else {
-    LOG(FATAL) << "unexpected num motors";
-  }
-
-  // Put a safe initial command into the FIFO before starting the state machine.
-  *self->txf_ = self->shortbrake_command_;
-  pio_sm_set_enabled(pio, sm, true);
-
-  return self;
-}
 
 StepperMotor::StepperMotor() {}
 
@@ -196,13 +48,6 @@ void StepperMotor::Stop() {
 void StepperMotor::Release() {
   stride_ = 0;
   *txf_ = shortbrake_command_;
-}
-
-void StepperMotor::StaticInit(int pwm_freq_hz) {
-  if (static_init_done_) return;
-  StaticInit_Clocks(pwm_freq_hz);
-  StaticInit_Commands();
-  static_init_done_ = true;
 }
 
 void StepperMotor::StaticInit_Clocks(int pwm_freq_hz) {

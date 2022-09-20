@@ -1,9 +1,10 @@
-#ifndef TPLP_ALARM_IRQ_H_
-#define TPLP_ALARM_IRQ_H_
+#ifndef TPLP_INTERRUPTS_H_
+#define TPLP_INTERRUPTS_H_
 
 #include "hardware/gpio.h"
 #include "hardware/timer.h"
 #include "picolog/picolog.h"
+#include "tplp/util.h"
 
 namespace tplp {
 
@@ -17,11 +18,11 @@ template <int AlarmNum, PeriodicAlarm_isr_body_fn_t IsrBody,
           PeriodicAlarm_get_delay_fn_t GetDelay>
 struct PeriodicAlarm {
   static void Check() {
-    CHECK(!(reinterpret_cast<intptr_t>(IsrBody) & 0x10000000))
+    CHECK(!IsInFlash(IsrBody))
         << "IsrBodyFn was placed in XIP/Flash memory, but must be in SRAM";
-    CHECK(!(reinterpret_cast<intptr_t>(GetDelay) & 0x10000000))
+    CHECK(!IsInFlash(GetDelay))
         << "GetDelayFn was placed in XIP/Flash memory, but must be in SRAM";
-    CHECK(!(reinterpret_cast<intptr_t>(ISR) & 0x10000000))
+    CHECK(!IsInFlash(ISR))
         << "ISR was placed in XIP/Flash memory, but must be in SRAM";
   }
 
@@ -62,4 +63,4 @@ struct PeriodicAlarm {
 
 }  // namespace tplp
 
-#endif  // TPLP_ALARM_IRQ_H_
+#endif  // TPLP_INTERRUPTS_H_

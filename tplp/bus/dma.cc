@@ -7,6 +7,7 @@
 #include "hardware/irq.h"
 #include "hardware/sync.h"
 #include "picolog/picolog.h"
+#include "tplp/util.h"
 
 namespace tplp {
 namespace {
@@ -51,7 +52,8 @@ static inline void ConfigureAndLaunchImmediately(
 }  // namespace
 
 template <int irq_index>
-[[gnu::hot]] void __not_in_flash_func(DmaController::DmaFinishedISR()) {
+[[gnu::hot]] void __not_in_flash("DmaController")
+    DmaController::DmaFinishedISR() {
   static io_rw_32* const ints = irq_index ? &dma_hw->ints1 : &dma_hw->ints0;
   BaseType_t higher_priority_task_woken = 0;
   int ch;
@@ -92,8 +94,10 @@ template <int irq_index>
   portYIELD_FROM_ISR(higher_priority_task_woken);
 }
 
-template void DmaController::DmaFinishedISR<0>();
-template void DmaController::DmaFinishedISR<1>();
+template void __not_in_flash("DmaController")
+    DmaController::DmaFinishedISR<0>();
+template void __not_in_flash("DmaController")
+    DmaController::DmaFinishedISR<1>();
 
 DmaController* DmaController::Init(dma_irq_index_t irq_index) {
   CHECK(irq_index == 0 || irq_index == 1);
@@ -101,6 +105,7 @@ DmaController* DmaController::Init(dma_irq_index_t irq_index) {
   static bool irq1_initialized = false;
   if (irq_index == 0 && !irq0_initialized) {
     if (irq_get_exclusive_handler(DMA_IRQ_0) != &DmaFinishedISR<0>) {
+      CHECK(!IsInFlash(DmaFinishedISR<0>));
       CHECK_EQ(irq_get_exclusive_handler(DMA_IRQ_0), nullptr)
           << "Interrupt handler already set for DMA_IRQ_0";
       irq_set_exclusive_handler(DMA_IRQ_0, &DmaFinishedISR<0>);
@@ -111,6 +116,7 @@ DmaController* DmaController::Init(dma_irq_index_t irq_index) {
   }
   if (irq_index == 1 && !irq1_initialized) {
     if (irq_get_exclusive_handler(DMA_IRQ_0) != &DmaFinishedISR<1>) {
+      CHECK(!IsInFlash(DmaFinishedISR<1>));
       CHECK_EQ(irq_get_exclusive_handler(DMA_IRQ_1), nullptr)
           << "Interrupt handler already set for DMA_IRQ_1";
       irq_set_exclusive_handler(DMA_IRQ_1, &DmaFinishedISR<1>);

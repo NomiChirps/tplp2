@@ -16,11 +16,14 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- hah, interesting thought... should we use some kind of online state estimation (Kalman filter???) to keep track of the relative radius of the rolls? observe that when moving the rollers at equal but opposite angular velocities, the roll with the greater radius causes the print roller to turn slightly in its direction while tension increases. when the radii are equal, tension would increase while the print roller stays motionless
+  - if we can estimate this, would it be useful? hmmmmmmmmmmmmmmmmmmmmmm
+- [ ] bring parameter values back and save them in source control at some point. maybe do this automatically somehow (parse the startup log? simple, dirty, works)
 - [ ] statically allocate all the instances of my hardware classes. we aren't going to be adding a third stepper motor at runtime, you dork.
+  - [x] done for StepperMotor
 - [ ] P1: Okay we REALLY need to be able to dial the motor speed ALL the way down right next to zero. the pid loop is not happy otherwise.
 - [ ] redesign manual stepper control UI to match the new API and to be easier to use
   - or just get rid of it? we don't really need it at this point
-- [ ] FIXME: go through all my uses of __not_in_flash and add asserts to make sure they're actually doing that thing (addr < 0x1000000)
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
   - [x] needs steppers working
@@ -172,6 +175,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] FIXME: go through all my uses of __not_in_flash and add asserts to make sure they're actually doing that thing (addr < 0x1000000)
 - [x] stepper timer interrupt isn't doing the right thing w.r.t. rearming the alarm. fix that. maybe make a template from the impl in paper_controller.
 - [x] (!!!) steppers need to be able to go slower! a lot slower!
   - When hz is below the threshold, switch from DMA timer + DREQ to a timer interrupt (high priority, probably?)

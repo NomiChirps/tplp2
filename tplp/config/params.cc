@@ -6,6 +6,7 @@
 #include "absl/strings/str_cat.h"
 #include "picolog/picolog.h"
 #include "picolog/status_macros.h"
+#include "tplp/util.h"
 
 namespace tplp {
 namespace config {
@@ -24,10 +25,10 @@ ParameterBase::ParameterBase(const char* name, const char* help)
         "Too many parameters; increase kMaxNumParams");
     return;
   }
-  if (reinterpret_cast<intptr_t>(this) & 0x10000000) {
+  if (IsInFlash(this)) {
     deferred_init_error = util::InternalError(
         "Parameter was placed in Flash memory instead of SRAM");
-  return;
+    return;
   }
   params[num_params++] = this;
 }

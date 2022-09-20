@@ -53,6 +53,7 @@ cc_library(
         "//picolog:status_macros",
         "//picolog:statusor",
         "//tplp:numbers",
+        "//tplp:util",
     ],
 )
 

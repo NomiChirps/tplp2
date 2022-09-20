@@ -6,6 +6,7 @@ cc_library(
     deps = [
         ":types",
         "//picolog",
+        "//tplp:util",
         "@FreeRTOS",
         "@rules_pico//pico:hardware_dma",
     ],

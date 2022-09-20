@@ -8,9 +8,9 @@
 #include "hardware/timer.h"
 #include "pico/time.h"
 #include "picolog/picolog.h"
-#include "tplp/alarm_irq.h"
 #include "tplp/config/constants.h"
 #include "tplp/config/params.h"
+#include "tplp/interrupts.h"
 #include "tplp/numbers.h"
 
 TPLP_PARAM(int32_t, loadcell_offset, 100'000, "Load cell zeroing offset");
