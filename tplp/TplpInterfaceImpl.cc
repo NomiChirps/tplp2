@@ -12,6 +12,7 @@
 #include "tplp/config/params_storage.h"
 #include "tplp/fs/fs.h"
 #include "tplp/graphics/lvgl_mutex.h"
+#include "tplp/numbers.h"
 
 namespace tplp {
 namespace ui {
@@ -21,10 +22,6 @@ namespace {
 struct WorkQueueItem {
   std::function<void()>* work = nullptr;
 };
-
-template <typename T> int signum(T val) {
-    return (T(0) < val) - (val < T(0));
-}
 }  // namespace
 
 TplpInterfaceImpl::TplpInterfaceImpl(HX8357* display,
@@ -113,8 +110,8 @@ util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,
 util::Status TplpInterfaceImpl::StepperMotorMove(int microsteps_a,
                                                  int microsteps_b) {
   // FIXME: number of steps is ignored except for direction... for now?
-  motor_a_->SetStride(signum(microsteps_a));
-  motor_b_->SetStride(signum(microsteps_b));
+  motor_a_->SetStride(util::signum(microsteps_a));
+  motor_b_->SetStride(util::signum(microsteps_b));
   return util::OkStatus();
 }
 
@@ -145,8 +142,8 @@ void TplpInterfaceImpl::RunDevTest() { LOG(INFO) << "RunDevTest()"; }
 
 std::string TplpInterfaceImpl::GetPaperState() {
   switch (paper_->state()) {
-    case PaperController::State::NOT_TENSIONED:
-      return "NOT_TENSIONED";
+    case PaperController::State::IDLE:
+      return "IDLE";
     case PaperController::State::TENSIONING:
       return "TENSIONING";
     case PaperController::State::TENSIONED_IDLE:

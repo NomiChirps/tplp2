@@ -9,30 +9,31 @@
 #include "pico/time.h"
 #include "picolog/picolog.h"
 #include "tplp/alarm_irq.h"
+#include "tplp/config/constants.h"
 #include "tplp/config/params.h"
+#include "tplp/numbers.h"
 
 TPLP_PARAM(int32_t, loadcell_offset, 100'000, "Load cell zeroing offset");
 TPLP_PARAM(int32_t, loadcell_scale, 200, "Load cell scaling divider");
 
-TPLP_PARAM(
-    int32_t, tension_speed, 1'000,
-    "Motor speed to use during paper tensioning (microsteps per second)");
 TPLP_PARAM(int32_t, tension_timeout_ms, 2'000,
-           "Timeout if paper tension can't be established");
-// TODO: make these polarity params bools instead of ints?
-TPLP_PARAM(
-    int32_t, motor_polarity_src, 1,
-    "Which feed direction (forward or reverse) is positive for the motor");
-TPLP_PARAM(
-    int32_t, motor_polarity_dst, -1,
-    "Which feed direction (forward or reverse) is positive for the motor");
+           "Timeout if initial paper tension can't be established");
 
-TPLP_PARAM(int32_t, max_load_noise, 10, "????");  // XXX what?
-
-TPLP_PARAM(int32_t, target_tension, 100,
+TPLP_PARAM(int32_t, target_tension, 200,
            "Target loadcell value to maintain by tensioning the paper");
+TPLP_PARAM(int32_t, tension_tolerance, 50,
+           "Maximum allowable variation in tension before it's assumed that "
+           "something went wrong");
 TPLP_PARAM(int32_t, paper_timer_delay_us, 1000,
            "How often to run the PaperController interrupt, in microseconds");
+
+TPLP_PARAM(int32_t, initial_tension_loop_p, 1'000,
+           "P value of initial tensioning loop");
+TPLP_PARAM(int32_t, tension_loop_p, 50, "P value of tension control PID loop");
+// TPLP_PARAM(rational32_t, tension_loop_i, rational32_t(0),
+//            "I value of tension control PID loop");
+// TPLP_PARAM(rational32_t, tension_loop_d, rational32_t(0),
+//            "D value of tension control PID loop");
 
 namespace tplp {
 namespace {
@@ -52,9 +53,23 @@ int __not_in_flash("PaperController") PaperController::GetTimerDelay() {
 }
 
 void __not_in_flash("PaperController") PaperController::IsrBody() {
-  const PaperController* self = instance;
-  if (self->state_ == PaperController::State::TENSIONED_IDLE) {
-    // TODO: uhhhhhhhhhhhhhhhhhhh
+  static uint64_t last_update_time = time_us_64();
+  PaperController* const self = instance;
+
+  if (self->state_ == State::TENSIONING ||
+      self->state_ == State::TENSIONED_IDLE) {
+    int32_t tension_error =
+        self->GetLoadCellValue() - PARAM_target_tension.Get();
+    // just the P term for now
+    int32_t correction;
+    if (self->state_ == State::TENSIONING) {
+      correction = PARAM_initial_tension_loop_p.Get() * tension_error;
+    } else {
+      correction = PARAM_tension_loop_p.Get() * tension_error;
+    }
+
+    self->SetMotorSpeedSrc(-correction / 2);
+    self->SetMotorSpeedDst(correction / 2);
   }
 }
 
@@ -62,7 +77,7 @@ template __not_in_flash("PeriodicAlarm") void PaperController::MyTimer::ISR();
 
 PaperController::PaperController(HX711* loadcell, StepperMotor* motor_a,
                                  StepperMotor* motor_b)
-    : state_(State::NOT_TENSIONED),
+    : state_(State::IDLE),
       sys_hz_(clock_get_hz(clk_sys)),
       loadcell_(loadcell),
       motor_src_(motor_a),
@@ -107,9 +122,8 @@ util::Status PaperController::SetFeedRate(linear_velocity_t velocity) {
 }
 
 util::Status PaperController::Cmd_Tension() {
-  if (state() != State::NOT_TENSIONED) {
-    return util::FailedPreconditionError(
-        "Cannot tension unless state is NOT_TENSIONED");
+  if (state() != State::IDLE) {
+    return util::FailedPreconditionError("Cannot tension unless state is IDLE");
   }
   xTaskNotify(task_, TaskNotificationBits::CMD_TENSION, eSetBits);
   return util::OkStatus();
@@ -155,7 +169,7 @@ void PaperController::TaskFnBody() {
 
 util::Status PaperController::Tension() {
   LOG(INFO) << "Executing Tension command";
-  if (state_ != State::NOT_TENSIONED) {
+  if (state_ != State::IDLE) {
     return util::FailedPreconditionError("Invalid state for CMD_TENSION");
   }
 
@@ -164,28 +178,33 @@ util::Status PaperController::Tension() {
   motor_dst_->Release();
   vTaskDelay(pdMS_TO_TICKS(500));
 
-  if (std::abs(GetLoadCellValue()) > PARAM_max_load_noise.Get()) {
+  if (std::abs(GetLoadCellValue()) > PARAM_tension_tolerance.Get()) {
     return util::FailedPreconditionError(
         "Unexpected load. Clear obstruction or recalibrate load cell");
   }
 
-  // Feed the DST motor forward while holding SRC fixed, stretching out the
-  // paper between them.
+  // Reactivate the motors, holding current position.
   motor_src_->Stop();
-  motor_dst_->SetSpeed(PARAM_motor_polarity_dst.Get(),
-                       1'000'000 / PARAM_tension_speed.Get());
+  motor_dst_->Stop();
 
-  // TODO: use the timer interrupt instead
+  // Enable the tensioning PID loop in the timer handler.
+  state_ = State::TENSIONING;
+
   uint64_t end_time = time_us_64() + 1000 * PARAM_tension_timeout_ms.Get();
   bool timed_out = true;
   while (time_us_64() < end_time) {
-    if (GetLoadCellValue() >= PARAM_target_tension.Get()) {
-      motor_dst_->Stop();
+    if (std::abs(GetLoadCellValue() - PARAM_target_tension.Get()) <=
+        PARAM_tension_tolerance.Get()) {
       timed_out = false;
       break;
     }
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
+
   if (timed_out) {
+    // Abort tensioning.
+    state_ = State::IDLE;
+    motor_src_->Release();
     motor_dst_->Release();
     return util::FailedPreconditionError(
         "Cannot establish tension; is the paper properly loaded?");
@@ -200,7 +219,7 @@ util::Status PaperController::Release() {
   if (state_ != State::TENSIONED_IDLE) {
     return util::FailedPreconditionError("Invalid state for CMD_RELEASE");
   }
-  state_ = State::NOT_TENSIONED;
+  state_ = State::IDLE;
   motor_src_->Release();
   motor_dst_->Release();
   return util::OkStatus();

@@ -40,22 +40,26 @@ class StepperMotor {
   // min_microstep_interval(). The motor can be paused by setting `stride` to
   // zero, which is exactly what `Stop()` does.
   //
+  // Note that there's potential for a race condition here (though with only
+  // minor consequences). The motor control timer interrupt might occur after
+  // updating stride_ but before updating interval_us_, potentially causing a
+  // brief glitch. If that's unacceptable, wrap this call in a critical
+  // section.
+  //
+  // ISR-safe.
+  //
   // TODO: Shortening the interval currently does not cause an immediate step;
   //       you still have to wait for the previous interval to end. This can be
   //       a problem if quickly changing from a very long to a very short
   //       interval is required.
-  void SetSpeed(int32_t stride, int32_t interval_us);
-  // See SetSpeed(); this updates only one of the parameters.
-  void SetStride(int32_t stride);
-  // See SetSpeed(); this updates only one of the parameters.
-  void SetInterval(int32_t interval_us);
-
-  // As SetStride(), but with no checks or logging.
-  inline void SetStrideFromISR(int32_t stride) { stride_ = stride; }
-  // As SetInterval(), but with no checks or logging.
-  void SetIntervalFromISR(int32_t interval_us) {
+  void SetSpeed(int32_t stride, int32_t interval_us) {
+    stride_ = stride;
     timer_interval_us_ = interval_us;
   }
+  // See SetSpeed(); this updates only one of the parameters. ISR-safe.
+  void SetStride(int32_t stride) { stride_ = stride; }
+  // See SetSpeed(); this updates only one of the parameters. ISR-safe.
+  void SetInterval(int32_t interval_us) { timer_interval_us_ = interval_us; }
 
   // Returns the interval_us value corresponding to the fastest allowed
   // speed. This is the smallest valid nonzero argument to SetInterval().

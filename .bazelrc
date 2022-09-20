@@ -57,6 +57,7 @@ build --@rules_pico//pico/config:stdio_usb=False
 # TODO: can we put these defines in a header somewhere?
 # Disable CR/LF conversion on stdout. This is useless overhead.
 build --copt="-DPICO_STDIO_ENABLE_CRLF_SUPPORT=0"
+build --copt="-DPICO_INT64_OPS_IN_RAM=1"
 #build --copt="-DPICO_DEBUG_MALLOC=1"
 
 # lvgl config

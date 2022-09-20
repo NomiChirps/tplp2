@@ -20,12 +20,21 @@ cc_library(
 )
 
 cc_library(
+    name = "numbers",
+    hdrs = ["numbers.h"],
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
+cc_library(
     name = "paper_controller",
     srcs = ["paper_controller.cc"],
     hdrs = ["paper_controller.h"],
     deps = [
         ":alarm_irq",
+        ":numbers",
         "//picolog",
+        "//tplp/config:constants",
         "//tplp/config:params",
         "//tplp/hx711",
         "//tplp/motor:stepper",
@@ -129,6 +138,7 @@ cc_library(
     srcs = ["TplpInterfaceImpl.cc"],
     hdrs = ["TplpInterfaceImpl.h"],
     deps = [
+        ":numbers",
         ":paper_controller",
         "//picolog",
         "//tplp/bus:i2c",

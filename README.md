@@ -16,8 +16,9 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] loadcell probably needs its own shielded cable with really good clean connectors that don't jiggle.
+- [ ] P1: Okay we REALLY need to be able to dial the motor speed ALL the way down right next to zero. the pid loop is not happy otherwise.
 - [ ] redesign manual stepper control UI to match the new API and to be easier to use
+  - or just get rid of it? we don't really need it at this point
 - [ ] FIXME: go through all my uses of __not_in_flash and add asserts to make sure they're actually doing that thing (addr < 0x1000000)
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
@@ -29,7 +30,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [ ] needs a PID loop with all the accoutrements
     - one loop watches printer roller encoder and controls CENTER of motor target positions
     - one loop watches load cell and controls DIFFERENCE between motor target positions
-    - and two MORE loops watch motor target positions and controls motor speeds & directions
+    - and two MORE loops watch motor target positions and controls motor speeds & directions. maybe those aren't pid though - something about a minimum jerk trajectory? idk.
     - this also means we need to actually install the encoder sooner rather than later.
     - i still want a mathematically sound PID tuning UI. or i guess procedure, if i expose everything in the new params ui.
 - [ ] I2cController doesn't fail gracefully when a read times out!
@@ -60,6 +61,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
   - [x] touchscreen input (SPI breakout)
   - [x] Sharp LCD display + LVGL driver
 - [ ] Transfer electronics to a PCB with 12v supply when finalized.
+- [ ] loadcell needs its own (shielded?) cable with really good clean connectors that don't jiggle
 
 - 32-bit aligned reads and writes are atomic. It would be nice to take advantage of that and avoid some locking where possible.
   - update: yes indeed, i certainly have been getting sloppy about locking. will i regret it? time will tell.

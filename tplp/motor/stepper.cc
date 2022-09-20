@@ -184,32 +184,6 @@ StepperMotor* StepperMotor::Init(PIO pio, const Hardware& hw, int alarm_num,
   return self;
 }
 
-void StepperMotor::SetSpeed(int32_t stride, int32_t interval_us) {
-  VLOG(1) << "SetSpeed(" << stride << ", " << interval_us << ")";
-  if (interval_us < min_interval_us()) {
-    LOG(ERROR) << "interval_us too small " << interval_us;
-    interval_us = min_interval_us();
-  }
-  taskENTER_CRITICAL();
-  stride_ = stride;
-  timer_interval_us_ = interval_us;
-  taskEXIT_CRITICAL();
-}
-
-void StepperMotor::SetStride(int32_t stride) {
-  VLOG(1) << "SetStride(" << stride << ")";
-  SetStrideFromISR(stride);
-}
-
-void StepperMotor::SetInterval(int32_t interval_us) {
-  VLOG(1) << "SetInterval(" << interval_us << ")";
-  if (interval_us < min_interval_us()) {
-    LOG(ERROR) << "interval_us too small";
-    interval_us = min_interval_us();
-  }
-  SetIntervalFromISR(interval_us);
-}
-
 StepperMotor::StepperMotor() {}
 
 void StepperMotor::Stop() {

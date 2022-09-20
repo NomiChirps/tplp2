@@ -7,15 +7,17 @@
 #include "FreeRTOS/task.h"
 #include "alarm_irq.h"
 #include "picolog/status.h"
+#include "tplp/config/constants.h"
 #include "tplp/hx711/hx711.h"
 #include "tplp/motor/stepper.h"
+#include "tplp/numbers.h"
 
 namespace tplp {
 
 class PaperController {
  public:
   enum class State {
-    NOT_TENSIONED,
+    IDLE,
     TENSIONING,
     TENSIONED_IDLE,
     FEEDING,
@@ -43,7 +45,7 @@ class PaperController {
   // Begins attempting to tension the paper, which is assumed to have already
   // been loaded onto both rollers. Returns immediately.
   //
-  // Current state must be NOT_TENSIONED.
+  // Current state must be IDLE.
   // State will transition to TENSIONED_IDLE if successful.
   util::Status Cmd_Tension();
 
@@ -62,7 +64,7 @@ class PaperController {
   // Releases the paper tension.
   //
   // Current state must be TENSIONED_IDLE.
-  // State will transition to NOT_TENSIONED if successful.
+  // State will transition to IDLE if successful.
   util::Status Cmd_Release();
 
   // Returns the current load cell value after zeroing and scaling.
@@ -75,19 +77,46 @@ class PaperController {
   void TaskFnBody();
   void PostError(util::Status status);
 
+  // We don't allow setting a motor step interval longer than this.
+  // This is because of an unresolved TODO in stepper.cc which means
+  // that very long intervals cannot be interrupted.
+  static constexpr int kMaxIntervalUs = 100'000;
+  // ISR-safe.
+  inline void SetMotorSpeedSrc(int32_t microsteps_per_us) {
+    int interval_us = 1'000'000 / std::abs(microsteps_per_us);
+    if (interval_us <= kMaxIntervalUs) {
+      motor_src_->SetSpeed(
+          constants::kMotorPolaritySrc * util::signum(microsteps_per_us),
+          interval_us);
+    } else {
+      motor_src_->SetSpeed(0, 100);
+    }
+  }
+  // ISR-safe.
+  inline void SetMotorSpeedDst(int32_t microsteps_per_us) {
+    int interval_us = 1'000'000 / std::abs(microsteps_per_us);
+    if (interval_us <= kMaxIntervalUs) {
+      motor_dst_->SetSpeed(
+          constants::kMotorPolarityDst * util::signum(microsteps_per_us),
+          interval_us);
+    } else {
+      motor_src_->SetSpeed(0, 100);
+    }
+  }
+
   static int __not_in_flash("PaperController") GetTimerDelay();
   static void __not_in_flash("PaperController") IsrBody();
   static constexpr int kAlarmNum = 2;
   using MyTimer = PeriodicAlarm<kAlarmNum, IsrBody, GetTimerDelay>;
   friend MyTimer;
 
-  // PRE: NOT_TENSIONED
+  // PRE: IDLE
   // POST if OK: TENSIONED_IDLE
-  // POST if error: NOT_TENSIONED
+  // POST if error: IDLE
   util::Status Tension();
 
   // PRE: TENSIONED_IDLE
-  // POST: NOT_TENSIONED
+  // POST: IDLE
   util::Status Release();
 
  private:

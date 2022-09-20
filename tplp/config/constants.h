@@ -16,6 +16,10 @@ static constexpr int32_t kLoadCellExpectedRangeAfterScaling = 1000;
 static constexpr int kTouchscreenResistanceOhmsX = 300;
 static constexpr int kTouchscreenResistanceOhmsY = 300;
 
+// Which feed direction (forward or reverse) is positive for the motor
+static constexpr int kMotorPolaritySrc = -1;
+static constexpr int kMotorPolarityDst = 1;
+
 }  // namespace constants
 }  // namespace tplp
 
