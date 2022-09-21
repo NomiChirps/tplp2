@@ -29,8 +29,6 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/ascii.h"
-// XXX
-// #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
