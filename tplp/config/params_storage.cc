@@ -18,12 +18,7 @@ static const char* const kConfigDirectory = "params";
 
 // Generates an 8.3 file path loosely inspired by the given parameter name.
 static std::string GenerateFilePath(std::string_view param_name) {
-  if (param_name.size() <= 8) {
-    return absl::StrCat(kConfigDirectory, "/", param_name, ".prm");
-  } else {
-    return absl::StrCat(kConfigDirectory, "/", param_name.substr(0, 4), "~",
-                        param_name.substr(param_name.size() - 4, 3), ".prm");
-  }
+  return absl::StrCat(kConfigDirectory, "/", param_name, ".prm");
 }
 }  // namespace
 

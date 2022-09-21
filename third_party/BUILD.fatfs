@@ -1,6 +1,9 @@
 cc_library(
     name = "fatfs",
-    srcs = ["ff.c"],
+    srcs = [
+        "ff.c",
+        "ffunicode.c",
+    ],
     hdrs = [
         "diskio.h",
         "ff.h",
