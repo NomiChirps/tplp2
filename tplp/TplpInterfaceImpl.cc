@@ -102,17 +102,12 @@ int32_t TplpInterfaceImpl::GetRawLoadCellValue() {
 
 util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,
                                                      int microstep_hz_b) {
-  motor_a_->SetInterval(1'000'000 / microstep_hz_a);
-  motor_b_->SetInterval(1'000'000 / microstep_hz_b);
-  return util::OkStatus();
+  return util::UnimplementedError("the ui needs work ok?");
 }
 
 util::Status TplpInterfaceImpl::StepperMotorMove(int microsteps_a,
                                                  int microsteps_b) {
-  // FIXME: number of steps is ignored except for direction... for now?
-  motor_a_->SetStride(util::signum(microsteps_a));
-  motor_b_->SetStride(util::signum(microsteps_b));
-  return util::OkStatus();
+  return util::UnimplementedError("the ui needs work ok?");
 }
 
 util::Status TplpInterfaceImpl::StepperMotorStopAll(StopType type) {

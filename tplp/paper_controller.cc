@@ -27,9 +27,10 @@ TPLP_PARAM(int32_t, tension_tolerance, 50,
 TPLP_PARAM(int32_t, paper_timer_delay_us, 1000,
            "How often to run the PaperController interrupt, in microseconds");
 
-TPLP_PARAM(int32_t, initial_tension_loop_p, 1'000,
-           "P value of initial tensioning loop");
-TPLP_PARAM(int32_t, tension_loop_p, 50, "P value of tension control PID loop");
+TPLP_PARAM(int32_t, tension_loop_pn, 1,
+           "P value of tension control PID loop, numerator");
+TPLP_PARAM(int32_t, tension_loop_pd, 1,
+           "P value of tension control PID loop, denominator");
 // TPLP_PARAM(rational32_t, tension_loop_i, rational32_t(0),
 //            "I value of tension control PID loop");
 // TPLP_PARAM(rational32_t, tension_loop_d, rational32_t(0),
@@ -53,23 +54,10 @@ int __not_in_flash("PaperController") PaperController::GetTimerDelay() {
 }
 
 void __not_in_flash("PaperController") PaperController::IsrBody() {
-  PaperController* const self = instance;
-
-  if (self->state_ == State::TENSIONING ||
-      self->state_ == State::TENSIONED_IDLE) {
-    int32_t tension_error =
-        self->GetLoadCellValue() - PARAM_target_tension.Get();
-    // just the P term for now
-    int32_t correction;
-    if (self->state_ == State::TENSIONING) {
-      correction = PARAM_initial_tension_loop_p.Get() * tension_error;
-    } else {
-      correction = PARAM_tension_loop_p.Get() * tension_error;
-    }
-
-    self->SetMotorSpeedSrc(-correction / 2);
-    self->SetMotorSpeedDst(correction / 2);
-  }
+  BaseType_t higher_priority_task_woken;
+  xTaskGenericNotifyFromISR(instance->loop_task_, 0, 0, eNoAction, nullptr,
+                            &higher_priority_task_woken);
+  portYIELD_FROM_ISR(higher_priority_task_woken);
 }
 
 template __not_in_flash("PeriodicAlarm") void PaperController::MyTimer::ISR();
@@ -85,10 +73,14 @@ PaperController::PaperController(HX711* loadcell, StepperMotor* motor_a,
   instance = this;
 }
 
-void PaperController::Init(int task_priority, int stack_size, int alarm_num,
-                           uint8_t irq_priority) {
-  CHECK(xTaskCreate(&PaperController::TaskFn, "PaperController", stack_size,
-                    this, task_priority, &task_));
+void PaperController::Init(int cmd_task_priority, int cmd_task_stack_size,
+                           int loop_task_priority, int loop_task_stack_size,
+                           int alarm_num, uint8_t irq_priority) {
+  CHECK(xTaskCreate(&PaperController::CmdTaskFn, "PC Cmd", cmd_task_stack_size,
+                    this, cmd_task_priority, &cmd_task_));
+  CHECK(xTaskCreate(&PaperController::LoopTaskFn, "PC Loop",
+                    loop_task_stack_size, this, loop_task_priority,
+                    &loop_task_));
   MyTimer::Check();
   CHECK_EQ(alarm_num, kAlarmNum);
   CHECK(!hardware_alarm_is_claimed(alarm_num));
@@ -103,8 +95,11 @@ void PaperController::Init(int task_priority, int stack_size, int alarm_num,
       alarm_num, make_timeout_time_us(PARAM_paper_timer_delay_us.Get()));
 }
 
-void PaperController::TaskFn(void* task_param) {
-  static_cast<PaperController*>(task_param)->TaskFnBody();
+void PaperController::CmdTaskFn(void* task_param) {
+  static_cast<PaperController*>(task_param)->CmdTaskFnBody();
+}
+void PaperController::LoopTaskFn(void* task_param) {
+  static_cast<PaperController*>(task_param)->LoopTaskFnBody();
 }
 
 int32_t PaperController::GetLoadCellValue() const {
@@ -124,7 +119,7 @@ util::Status PaperController::Cmd_Tension() {
   if (state() != State::IDLE) {
     return util::FailedPreconditionError("Cannot tension unless state is IDLE");
   }
-  xTaskNotify(task_, TaskNotificationBits::CMD_TENSION, eSetBits);
+  xTaskNotify(cmd_task_, TaskNotificationBits::CMD_TENSION, eSetBits);
   return util::OkStatus();
 }
 
@@ -141,28 +136,60 @@ util::Status PaperController::Cmd_Release() {
     return util::FailedPreconditionError(
         "Cannot release unless state is TENSIONED_IDLE");
   }
-  xTaskNotify(task_, TaskNotificationBits::CMD_RELEASE, eSetBits);
+  xTaskNotify(cmd_task_, TaskNotificationBits::CMD_RELEASE, eSetBits);
   return util::OkStatus();
 }
 
-void PaperController::TaskFnBody() {
+void PaperController::UpdateTensionLoop() {
+  int32_t new_src_speed;
+  int32_t new_dst_speed;
+  // We assume that the Cmd task's priority is lower, so it can't preempt and
+  // change the state out from under us.
+  State state = state_;
+
+  if (state == State::TENSIONING || state == State::TENSIONED_IDLE) {
+    int32_t tension_error = GetLoadCellValue() - PARAM_target_tension.Get();
+    VLOG(1) << "tension_error = " << tension_error;
+    // just the P term for now
+    int32_t correction;
+    // TODO: subsume load cell scale into this division
+    correction = (PARAM_tension_loop_pn.Get() * tension_error) /
+                 PARAM_tension_loop_pd.Get();
+    new_src_speed = -correction / 2;
+    new_dst_speed = correction / 2;
+  } else {
+    // Nothing to do; don't touch the motors.
+    return;
+  }
+
+  VLOG(1) << "new_src_speed = " << new_src_speed
+          << " new_dst_speed = " << new_dst_speed;
+  // Update motor speeds
+  motor_src_->Move(constants::kMotorPolaritySrc * new_src_speed);
+  motor_dst_->Move(constants::kMotorPolarityDst * new_dst_speed);
+}
+
+void PaperController::LoopTaskFnBody() {
+  for (;;) {
+    CHECK(xTaskGenericNotifyWait(0, 0, 0, nullptr, portMAX_DELAY));
+    UpdateTensionLoop();
+  }
+}
+
+void PaperController::CmdTaskFnBody() {
   util::Status status;
   for (;;) {
     TaskNotificationBits notify;
-    CHECK(xTaskNotifyWait(0, 0xffffffff, reinterpret_cast<uint32_t*>(&notify),
-                          portMAX_DELAY));
+    CHECK(xTaskGenericNotifyWait(
+        0, 0, 0xffffffff, reinterpret_cast<uint32_t*>(&notify), portMAX_DELAY));
     if (notify & CMD_TENSION) {
       status = Tension();
       if (!status.ok()) PostError(std::move(status));
-      continue;
     }
     if (notify & CMD_RELEASE) {
       status = Release();
       if (!status.ok()) PostError(std::move(status));
-      continue;
     }
-    LOG(ERROR) << "Unhandled notification bits: 0x" << std::hex
-               << std::setfill('0') << std::setw(8) << (int)notify;
   }
 }
 
@@ -225,6 +252,7 @@ util::Status PaperController::Release() {
 }
 
 void PaperController::PostError(util::Status status) {
+  // TODO: maybe do something more here? idk
   LOG(ERROR) << "Paper controller error: " << status;
 }
 

@@ -17,7 +17,6 @@ struct IrqPriorities {
   static constexpr uint8_t kDefault = 0x80;  // == PICO_DEFAULT_IRQ_PRIORITY
   static constexpr uint8_t kLowest = 0xc0;
 
-  static constexpr uint8_t kStepperTimer = kHigher;
   static constexpr uint8_t kPaperController = kHigher;
 };
 
@@ -25,9 +24,13 @@ struct IrqPriorities {
 // Recall that for IRQs at the same priority, the lower numbered one
 // takes precedence.
 struct HardwareAlarms {
-  static constexpr uint8_t kStepperA = 0;
-  static constexpr uint8_t kStepperB = 1;
-  static constexpr uint8_t kPaperController = 2;
+  static constexpr uint8_t kPaperController = 0;
+};
+
+// Allocation of the 8 available PWM slices.
+struct PwmSlices {
+  static constexpr int kMotorA = 0;
+  static constexpr int kMotorB = 0;
 };
 
 struct TaskPriorities {
@@ -46,7 +49,8 @@ struct TaskPriorities {
   static constexpr int kStartup = 13;
 
   // Printer logic.
-  static constexpr int kPaperController = 12;
+  static constexpr int kPaperControllerLoop = 12;
+  static constexpr int kPaperControllerCmd = 11;
 
   static constexpr int kRuntimeStats = 8;  // don't care
 
@@ -66,14 +70,14 @@ struct TaskPriorities {
 };
 
 struct TaskStacks {
-  static constexpr int kTESTONLY = 1024;
-  static constexpr int kLvglTimerHandler = 2048;
+  static constexpr int kLvglTimerHandler = 1024;
   static constexpr int kHX8357 = 512;
   static constexpr int kI2cController = 1024;
   static constexpr int kRuntimeStats = 512;
   static constexpr int kStartup = 1024;
-  static constexpr int kUiWorker = 1024;
-  static constexpr int kPaperController = 1024;
+  static constexpr int kUiWorker = 512;
+  static constexpr int kPaperControllerCmd = 512;
+  static constexpr int kPaperControllerLoop = 512;
 
   // don't reduce further unless you enjoy heisenbugs
   static constexpr int kPicolog = 1024;

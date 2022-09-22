@@ -32,7 +32,8 @@ class PaperController {
   PaperController(HX711* loadcell, StepperMotor* motor_src,
                   StepperMotor* motor_dst);
   // alarm_num: rp2040 hardware alarm number, 0-3.
-  void Init(int task_priority, int stack_size, int alarm_num,
+  void Init(int cmd_task_priority, int cmd_task_stack_size,
+            int loop_task_priority, int loop_task_stack_size, int alarm_num,
             uint8_t irq_priority);
 
   inline State state() const { return state_; }
@@ -73,42 +74,19 @@ class PaperController {
   int32_t GetRawLoadCellValue() const;
 
  private:
-  static void TaskFn(void* task_param);
-  void TaskFnBody();
+  static void CmdTaskFn(void* task_param);
+  void CmdTaskFnBody();
+  static void LoopTaskFn(void* task_param);
+  void LoopTaskFnBody();
   void PostError(util::Status status);
 
-  // We don't allow setting a motor step interval longer than this.
-  // This is because of an unresolved TODO in stepper.cc which means
-  // that very long intervals cannot be interrupted.
-  static constexpr int kMaxIntervalUs = 100'000;
-  // ISR-safe.
-  inline void SetMotorSpeedSrc(int32_t microsteps_per_us) {
-    int interval_us = 1'000'000 / std::abs(microsteps_per_us);
-    if (interval_us <= kMaxIntervalUs) {
-      motor_src_->SetSpeed(
-          constants::kMotorPolaritySrc * util::signum(microsteps_per_us),
-          interval_us);
-    } else {
-      motor_src_->SetSpeed(0, 100);
-    }
-  }
-  // ISR-safe.
-  inline void SetMotorSpeedDst(int32_t microsteps_per_us) {
-    int interval_us = 1'000'000 / std::abs(microsteps_per_us);
-    if (interval_us <= kMaxIntervalUs) {
-      motor_dst_->SetSpeed(
-          constants::kMotorPolarityDst * util::signum(microsteps_per_us),
-          interval_us);
-    } else {
-      motor_src_->SetSpeed(0, 100);
-    }
-  }
+  void UpdateTensionLoop();
 
   static int __not_in_flash("PaperController") GetTimerDelay();
   static void __not_in_flash("PaperController") IsrBody();
   // must match HardwareAlarms::kPaperController
   // TODO: sort out this odd dependency by statically allocating everything
-  static constexpr int kAlarmNum = 2;
+  static constexpr int kAlarmNum = 0;
   using MyTimer = PeriodicAlarm<kAlarmNum, IsrBody, GetTimerDelay>;
   friend MyTimer;
 
@@ -122,8 +100,9 @@ class PaperController {
   util::Status Release();
 
  private:
-  TaskHandle_t task_;
-  State state_;
+  TaskHandle_t cmd_task_;
+  TaskHandle_t loop_task_;
+  volatile State state_;
 
   const int32_t sys_hz_;
   HX711* const loadcell_;

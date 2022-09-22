@@ -32,14 +32,6 @@ namespace tplp {
 StepperMotor motor_a;
 StepperMotor motor_b;
 
-// Explicit instantiation to make sure interrupt handlers don't get placed in
-// flash memory, due to GCC bug
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70435.
-template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<
-    HardwareAlarms::kStepperA, &motor_a>();
-template __not_in_flash("StepperMotor") void StepperMotor::timer_isr<
-    HardwareAlarms::kStepperB, &motor_b>();
-
 }  // namespace tplp
 
 namespace tplp {
@@ -62,6 +54,8 @@ void StartupTask(void*) {
   // FIXME: I2cController is incredibly fragile and requires its own DMA IRQ.
   DmaController* dma_i2c0 = DmaController::Init(kDma1);
   DmaController* dma_spi1 = DmaController::Init(kDma0);
+  DmaController* dma_motor_a = DmaController::Init(kDma0);
+  DmaController* dma_motor_b = DmaController::Init(kDma0);
 
   SpiController* spi1_manager =
       SpiController::Init(spi1, Frequencies::kSpi1, Pins::SPI1_SCLK,
@@ -137,25 +131,26 @@ void StartupTask(void*) {
   HX711* loadcell = HX711::Init(pio0, Pins::HX711_SCK, Pins::HX711_DOUT);
 
   // Steppies!
-  StepperMotor::Init<HardwareAlarms::kStepperA, &motor_a>(
-      pio1,
-      {.a1 = Pins::MOTOR_A_A1,
-       .a2 = Pins::MOTOR_A_A2,
-       .b1 = Pins::MOTOR_A_B1,
-       .b2 = Pins::MOTOR_A_B2},
-      Frequencies::kStepperPwm, IrqPriorities::kStepperTimer);
-  StepperMotor::Init<HardwareAlarms::kStepperB, &motor_b>(
-      pio1,
-      {.a1 = Pins::MOTOR_B_A1,
-       .a2 = Pins::MOTOR_B_A2,
-       .b1 = Pins::MOTOR_B_B1,
-       .b2 = Pins::MOTOR_B_B2},
-      Frequencies::kStepperPwm, IrqPriorities::kStepperTimer);
+  StepperMotor::Init<&motor_a>(pio1,
+                               {.a1 = Pins::MOTOR_A_A1,
+                                .a2 = Pins::MOTOR_A_A2,
+                                .b1 = Pins::MOTOR_A_B1,
+                                .b2 = Pins::MOTOR_A_B2},
+                               Frequencies::kStepperPwm, PwmSlices::kMotorA,
+                               dma_motor_a);
+  StepperMotor::Init<&motor_b>(pio1,
+                               {.a1 = Pins::MOTOR_B_A1,
+                                .a2 = Pins::MOTOR_B_A2,
+                                .b1 = Pins::MOTOR_B_B1,
+                                .b2 = Pins::MOTOR_B_B2},
+                               Frequencies::kStepperPwm, PwmSlices::kMotorB,
+                               dma_motor_b);
 
   PaperController* paper_controller = CHECK_NOTNULL(new PaperController(
       loadcell, /*motor_src=*/&motor_b, /*motor_dst=*/&motor_a));
   paper_controller->Init(
-      TaskPriorities::kPaperController, TaskStacks::kPaperController,
+      TaskPriorities::kPaperControllerCmd, TaskStacks::kPaperControllerCmd,
+      TaskPriorities::kPaperControllerLoop, TaskStacks::kPaperControllerLoop,
       HardwareAlarms::kPaperController, IrqPriorities::kPaperController);
 
   // Create GUI screens.
