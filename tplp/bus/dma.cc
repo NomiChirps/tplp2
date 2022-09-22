@@ -235,16 +235,16 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
   if (queued_transfers_count_ == completed_transfers_count_) {
     // ISR isn't running. Launch queued thing (if it hasn't been already).
     if (xQueueReceive(queue_, &active_transfer_, 0)) {
-      VLOG(1) << "Transfer(): immediate launch";
+      VLOG(2) << "Transfer(): immediate launch";
       CHECK(!dma_channel_is_busy(c0_));
       CHECK(!dma_channel_is_busy(c1_));
       ConfigureAndLaunchImmediately(c0_, cfg.c0_enable, cfg.c0_config, c1_,
                                     cfg.c1_enable, cfg.c1_config);
     } else {
-      VLOG(1) << "Transfer(): already done";
+      VLOG(2) << "Transfer(): already done";
     }
   } else {
-    VLOG(1) << "Transfer(): pending (" << PeekQueueLength() << ")";
+    VLOG(2) << "Transfer(): pending (" << PeekQueueLength() << ")";
   }
   TransferHandle handle(this, queued_transfers_count_++);
   CHECK(xSemaphoreGive(transfer_mutex_));
@@ -257,7 +257,9 @@ std::array<uint32_t, 2> DmaController::TransferHandle::Abort() {
     return {0, 0};
   }
   CHECK(started())
-      << "Aborting a queued but not started transfer is not supported";
+      << "Aborting a queued but not started transfer is not supported. id = "
+      << id_ << " completed = " << dma_->completed_transfers_count_
+      << " queue len = " << uxQueueMessagesWaiting(dma_->queue_);
   const uint32_t channels_mask = (1u << dma_->c0_) | (1u << dma_->c1_);
   volatile uint32_t* const inte =
       dma_->irq_index_ ? &dma_hw->inte1 : &dma_hw->inte0;
@@ -276,10 +278,19 @@ std::array<uint32_t, 2> DmaController::TransferHandle::Abort() {
     hw_set_bits(inte, channels_mask);
     return {0, 0};
   }
+  // Pause channels so we can read the remaining trans_count.
+  // The abort command, unfortunately, clears trans_count.
+  hw_clear_bits(&dma_channel_hw_addr(dma_->c0_)->al1_ctrl,
+                DMA_CH0_CTRL_TRIG_EN_BITS);
+  hw_clear_bits(&dma_channel_hw_addr(dma_->c1_)->al1_ctrl,
+                DMA_CH0_CTRL_TRIG_EN_BITS);
+  remaining_trans_count[0] = dma_channel_hw_addr(dma_->c0_)->transfer_count;
+  remaining_trans_count[1] = dma_channel_hw_addr(dma_->c1_)->transfer_count;
   // Abort channels simultaneously.
   dma_hw->abort = (1u << dma_->c0_) | (1u << dma_->c1_);
   // Bit will go 0 once channel has reached safe state
   // (i.e. any in-flight transfers have retired)
+  // TODO: we should wait for this before starting, not after stopping.
   while (dma_hw->ch[dma_->c0_].ctrl_trig & DMA_CH0_CTRL_TRIG_BUSY_BITS) {
     tight_loop_contents();
   }
@@ -288,8 +299,6 @@ std::array<uint32_t, 2> DmaController::TransferHandle::Abort() {
   }
   // Clear spurious completion interrupts (errata RP2040-E13)
   *ints = channels_mask;
-  remaining_trans_count[0] = dma_channel_hw_addr(dma_->c0_)->transfer_count;
-  remaining_trans_count[1] = dma_channel_hw_addr(dma_->c1_)->transfer_count;
   VLOG(1) << "Abort() remaining_trans_count = " << remaining_trans_count[0]
           << ", " << remaining_trans_count[1];
   // Skip this transfer's actions, but launch the next one if necessary
