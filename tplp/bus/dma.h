@@ -93,6 +93,10 @@ class DmaController {
     // Returns the remaining trans_count for each channel.
     std::array<uint32_t, 2> Abort();
 
+    // Returns an invalid instance of TransferHandle that will crash if any
+    // methods are called on it. Use with caution.
+    static TransferHandle Invalid() { return TransferHandle(nullptr, 0); }
+
    private:
     friend class DmaController;
     TransferHandle(DmaController* dma, uint32_t id) : dma_(dma), id_(id) {}
