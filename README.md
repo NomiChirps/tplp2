@@ -16,12 +16,10 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- hah, interesting thought... should we use some kind of online state estimation (Kalman filter???) to keep track of the relative radius of the rolls? observe that when moving the rollers at equal but opposite angular velocities, the roll with the greater radius causes the print roller to turn slightly in its direction while tension increases. when the radii are equal, tension would increase while the print roller stays motionless
-  - if we can estimate this, would it be useful? hmmmmmmmmmmmmmmmmmmmmmm
+- [ ] **P1: fix major stepper glitch when reversing direction**
 - [ ] bring parameter values back and save them in source control at some point. maybe do this automatically somehow (parse the startup log? simple, dirty, works)
 - [ ] statically allocate all the instances of my hardware classes. we aren't going to be adding a third stepper motor at runtime, you dork.
   - [x] done for StepperMotor
-- [ ] P1: Okay we REALLY need to be able to dial the motor speed ALL the way down right next to zero. the pid loop is not happy otherwise.
 - [ ] redesign manual stepper control UI to match the new API and to be easier to use
   - or just get rid of it? we don't really need it at this point
 - [ ] Milestone: Paper Tensioning
@@ -37,6 +35,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
     - and two MORE loops watch motor target positions and controls motor speeds & directions. maybe those aren't pid though - something about a minimum jerk trajectory? idk.
     - this also means we need to actually install the encoder sooner rather than later.
     - i still want a mathematically sound PID tuning UI. or i guess procedure, if i expose everything in the new params ui.
+  - hah, interesting thought... should we use some kind of online state estimation (Kalman filter???) to keep track of the relative radius of the rolls? observe that when moving the rollers at equal but opposite angular velocities, the roll with the greater radius causes the print roller to turn slightly in its direction while tension increases. when the radii are equal, tension would increase while the print roller stays motionless. ... if we can estimate this, would it even be useful? hmmmmmmmmmmmmmmmmmmmmmm
 - [ ] I2cController doesn't fail gracefully when a read times out!
 - [ ] Create a front panel UI (assignee: wembly :)
   - [ ] runtime stats / logging screen
@@ -175,6 +174,7 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [x] P1: Okay we REALLY need to be able to dial the motor speed ALL the way down right next to zero. the pid loop is not happy otherwise.
 - [x] FIXME: go through all my uses of __not_in_flash and add asserts to make sure they're actually doing that thing (addr < 0x1000000)
 - [x] stepper timer interrupt isn't doing the right thing w.r.t. rearming the alarm. fix that. maybe make a template from the impl in paper_controller.
 - [x] (!!!) steppers need to be able to go slower! a lot slower!
