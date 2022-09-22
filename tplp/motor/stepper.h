@@ -45,11 +45,17 @@ class StepperMotor {
                    int pwm_slice_num, DmaController* dma);
 
   // Starts moving in a positive or negative direction at the given rate of
-  // microsteps per second. If the motor is already moving, this can change the
-  // speed and the direction. Changes take effect immediately.
+  // microsteps per second. If the motor is already moving, this can change both
+  // the speed and the direction. Changes take effect immediately. Excessively
+  // high or low values of microstep_hz are capped to the appropriate values.
   void Move(int32_t microstep_hz);
+  // Stops the motor and holds it in the current position.
   void Stop() { Move(0); }
+  // Stops the motor and de-energizes it, releasing the position.
   void Release();
+
+  static int32_t min_microstep_hz();
+  static int32_t max_microstep_hz();
 
  private:
   static bool static_init_done_;
@@ -184,12 +190,13 @@ void StepperMotor::Init(PIO pio, const Hardware& hw, int pio_pwm_freq_hz,
   // Set up the PWM/DMA pair that will push commands to the PIO.
   {
     pwm_config c = pwm_get_default_config();
-    pwm_config_set_phase_correct(&c, false);
+    // use phase correct mode to extend the maximum period by a factor of 2,
+    // allowing microstep rates as low as 4 Hz (vs. 7-ish Hz).
+    pwm_config_set_phase_correct(&c, true);
     // pico-sdk's function doesn't allow setting div to 0, but we need to do
     // that because the hardware interprets this as 256, i.e., maximum division.
     // So just set it ourselves.
     c.div = 0;
-    pwm_config_set_clkdiv_int_frac(&c, 255, 16);
     pwm_config_set_clkdiv_mode(&c, PWM_DIV_FREE_RUNNING);
     pwm_config_set_wrap(&c, 65535);
     // Start it in the disabled state.

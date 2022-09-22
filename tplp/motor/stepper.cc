@@ -30,7 +30,9 @@ uint32_t make_command(uint8_t pwm_period, uint8_t t1, uint8_t t2_t3,
 uint16_t ComputeWrap(int32_t hz) {
   static const auto sys_hz = clock_get_hz(clk_sys);
   // 256 is the value we set as the PWM's clock divider during init.
-  uint32_t wrap = sys_hz / (std::abs(hz) * 256);
+  // Multiply by an additional 2 because in phase-correct mode the
+  // PWM counts both up and back down to 0 before each DREQ.
+  uint32_t wrap = sys_hz / (std::abs(hz) * 256 * 2);
   if (wrap > 65535) wrap = 65535;
   return wrap;
 }
@@ -51,6 +53,22 @@ uint32_t StepperMotor::commands_rev_[kCommandBufLen] = {};
 
 StepperMotor::StepperMotor()
     : current_dma_(DmaController::TransferHandle::Invalid()) {}
+
+int32_t StepperMotor::min_microstep_hz() {
+  static const auto sys_hz = clock_get_hz(clk_sys);
+  // 256 is the value we set as the PWM's clock divider during init.
+  // 65535 is the maximum value of the TOP register (aka wrap).
+  // Multiply by an additional 2 because in phase-correct mode the
+  // PWM counts up to TOP and back down to 0 before each DREQ.
+  return sys_hz / (65535 * 256 * 2);
+}
+
+int32_t StepperMotor::max_microstep_hz() {
+  static const auto sys_hz = clock_get_hz(clk_sys);
+  // 256 is the value we set as the PWM's clock divider during init.
+  // When wrap is set to zero, the PWM generates a DREQ every cycle.
+  return sys_hz / 256;
+}
 
 void StepperMotor::Move(int32_t new_microstep_hz) {
   VLOG(2) << "Move(" << new_microstep_hz << ")";
