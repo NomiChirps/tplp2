@@ -16,12 +16,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
-- [ ] **P1: fix major stepper glitch when reversing direction**
-- [ ] bring parameter values back and save them in source control at some point. maybe do this automatically somehow (parse the startup log? simple, dirty, works)
 - [ ] statically allocate all the instances of my hardware classes. we aren't going to be adding a third stepper motor at runtime, you dork.
   - [x] done for StepperMotor
-- [ ] redesign manual stepper control UI to match the new API and to be easier to use
-  - or just get rid of it? we don't really need it at this point
 - [ ] Milestone: Paper Tensioning
   - Be able to load paper and feed it forward and backward while maintaining correct tension.
   - [x] needs steppers working
@@ -71,6 +67,7 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ### Nice to have
 
+- [ ] bring parameter values back and save them in source control at some point. maybe do this automatically somehow (parse the startup log? simple, dirty, works)
 - [ ] stepper driver: should coils be set to freewheel (LL) or short-brake (HH) at the top of each command cycle? maybe experiment with it.
 - [ ] factory reset button (restoring all params to default, e.g. by deleting the config dir)
 - [ ] fatal error handler to display the stack trace on the GUI before crashing
@@ -174,6 +171,8 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
+- [ ] redesign manual stepper control UI to match the new API and to be easier to use
+- [x] **P1: fix major stepper glitch when reversing direction**
 - [x] P1: Okay we REALLY need to be able to dial the motor speed ALL the way down right next to zero. the pid loop is not happy otherwise.
 - [x] FIXME: go through all my uses of __not_in_flash and add asserts to make sure they're actually doing that thing (addr < 0x1000000)
 - [x] stepper timer interrupt isn't doing the right thing w.r.t. rearming the alarm. fix that. maybe make a template from the impl in paper_controller.
