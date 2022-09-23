@@ -39,11 +39,9 @@ class TplpInterface {
   virtual int32_t GetRawLoadCellValue();
 
   // Direct motor control for manual moves from the UI.
-  virtual util::Status StepperMotorSetSpeed(int microstep_hz_a,
+  virtual util::Status SteppersRelease();
+  virtual util::Status SteppersSetSpeed(int microstep_hz_a,
                                             int microstep_hz_b);
-  virtual util::Status StepperMotorMove(int microsteps_a, int microsteps_b);
-  enum class StopType { HOLD, SHORT_BRAKE, FREEWHEEL };
-  virtual util::Status StepperMotorStopAll(StopType type);
 
   // Paper feed control.
   virtual std::string GetPaperState();

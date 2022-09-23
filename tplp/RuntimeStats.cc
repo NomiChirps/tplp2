@@ -82,7 +82,7 @@ class StatsTask {
                     << std::setw(0) << " bytes";
         }
       }
-      vTaskDelay(MillisToTicks(30'000));
+      vTaskDelay(MillisToTicks(60'000));
     }
   }
 

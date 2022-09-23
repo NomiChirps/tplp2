@@ -100,32 +100,16 @@ int32_t TplpInterfaceImpl::GetRawLoadCellValue() {
   return paper_->GetRawLoadCellValue();
 }
 
-util::Status TplpInterfaceImpl::StepperMotorSetSpeed(int microstep_hz_a,
-                                                     int microstep_hz_b) {
-  return util::UnimplementedError("the ui needs work ok?");
+util::Status TplpInterfaceImpl::SteppersRelease() {
+  motor_a_->Release();
+  motor_b_->Release();
+  return util::OkStatus();
 }
 
-util::Status TplpInterfaceImpl::StepperMotorMove(int microsteps_a,
-                                                 int microsteps_b) {
-  return util::UnimplementedError("the ui needs work ok?");
-}
-
-util::Status TplpInterfaceImpl::StepperMotorStopAll(StopType type) {
-  switch (type) {
-    case TplpInterface::StopType::HOLD:
-      motor_a_->Stop();
-      motor_b_->Stop();
-      break;
-    case TplpInterface::StopType::SHORT_BRAKE:
-      motor_a_->Release();
-      motor_b_->Release();
-      break;
-    case TplpInterface::StopType::FREEWHEEL:
-      return util::UnimplementedError("FREEWHEEL stop not implemented");
-      break;
-    default:
-      return util::InvalidArgumentError("bad StopType");
-  }
+util::Status TplpInterfaceImpl::SteppersSetSpeed(int microstep_hz_a,
+                                                 int microstep_hz_b) {
+  motor_a_->Move(microstep_hz_a);
+  motor_b_->Move(microstep_hz_b);
   return util::OkStatus();
 }
 

@@ -17,15 +17,9 @@ void TplpInterface::ScanI2cBus(
 int32_t TplpInterface::GetLoadCellValue() { return 0; }
 int32_t TplpInterface::GetRawLoadCellValue() { return 0; }
 void TplpInterface::RunDevTest() {}
-util::Status TplpInterface::StepperMotorSetSpeed(int microstep_hz_a,
-                                                 int microstep_hz_b) {
-  return util::OkStatus();
-}
-util::Status TplpInterface::StepperMotorMove(int microsteps_a,
-                                             int microsteps_b) {
-  return util::OkStatus();
-}
-util::Status TplpInterface::StepperMotorStopAll(StopType type) {
+util::Status TplpInterface::SteppersRelease() { return util::OkStatus(); }
+util::Status TplpInterface::SteppersSetSpeed(int microstep_hz_a,
+                                             int microstep_hz_b) {
   return util::OkStatus();
 }
 std::string TplpInterface::GetPaperState() { return "<paper status>"; }

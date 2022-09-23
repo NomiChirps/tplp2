@@ -105,8 +105,13 @@ void StepperMotor::Move(int32_t new_microstep_hz) {
             << " last_dma_read_index_ = " << last_dma_read_index_
             << " read_addr = commands + "
             << (kCommandBufLen - last_dma_read_index_ - 1);
-    uint32_t* read_addr = new_microstep_hz > 0 ? commands_fwd_ : commands_rev_;
-    read_addr += kCommandBufLen - last_dma_read_index_ - 1;
+    uint32_t* read_addr;
+    last_dma_read_index_ = kCommandBufLen - last_dma_read_index_ - 1;
+    if (new_microstep_hz > 0) {
+      read_addr = commands_fwd_ + last_dma_read_index_;
+    } else {
+      read_addr = commands_rev_ + last_dma_read_index_;
+    }
     current_dma_ = dma_->Transfer(MakeDmaRequest(read_addr));
     current_dma_signum_ = util::signum(new_microstep_hz);
 

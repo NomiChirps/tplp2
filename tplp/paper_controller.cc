@@ -24,17 +24,18 @@ TPLP_PARAM(int32_t, target_tension, 200,
 TPLP_PARAM(int32_t, tension_tolerance, 50,
            "Maximum allowable variation in tension before it's assumed that "
            "something went wrong");
-TPLP_PARAM(int32_t, paper_timer_delay_us, 1000,
-           "How often to run the PaperController interrupt, in microseconds");
+TPLP_PARAM(int32_t, paper_timer_delay_ms, 100,
+           "How often to run the PaperController interrupt, in milliseconds");
 
-TPLP_PARAM(int32_t, tension_loop_pn, 1,
-           "P value of tension control PID loop, numerator");
-TPLP_PARAM(int32_t, tension_loop_pd, 1,
-           "P value of tension control PID loop, denominator");
-// TPLP_PARAM(rational32_t, tension_loop_i, rational32_t(0),
-//            "I value of tension control PID loop");
-// TPLP_PARAM(rational32_t, tension_loop_d, rational32_t(0),
-//            "D value of tension control PID loop");
+TPLP_PARAM(int32_t, tension_loop_pn, 1, "Tension control loop: P numerator");
+TPLP_PARAM(int32_t, tension_loop_pd, 2, "Tension control loop: P denominator");
+TPLP_PARAM(int32_t, tension_loop_in, 1, "Tension control loop: I numerator");
+TPLP_PARAM(int32_t, tension_loop_id, 1000,
+           "Tension control loop: I denominator");
+TPLP_PARAM(int32_t, tension_loop_dn, 0, "Tension control loop: D numerator");
+TPLP_PARAM(int32_t, tension_loop_dd, 1, "Tension control loop: D denominator");
+TPLP_PARAM(int32_t, tension_loop_i_deadband, 5,
+           "Tension control loop: integral deadband");
 
 namespace tplp {
 namespace {
@@ -50,7 +51,7 @@ static PaperController* instance = nullptr;
 }  // namespace
 
 int __not_in_flash("PaperController") PaperController::GetTimerDelay() {
-  return PARAM_paper_timer_delay_us.Get();
+  return 1000 * PARAM_paper_timer_delay_ms.Get();
 }
 
 void __not_in_flash("PaperController") PaperController::IsrBody() {
@@ -92,7 +93,7 @@ void PaperController::Init(int cmd_task_priority, int cmd_task_stack_size,
   hw_set_bits(&timer_hw->inte, 1u << alarm_num);
   // Start the timer; it will keep running forever.
   hardware_alarm_set_target(
-      alarm_num, make_timeout_time_us(PARAM_paper_timer_delay_us.Get()));
+      alarm_num, make_timeout_time_ms(PARAM_paper_timer_delay_ms.Get()));
 }
 
 void PaperController::CmdTaskFn(void* task_param) {
@@ -147,23 +148,48 @@ void PaperController::UpdateTensionLoop() {
   // change the state out from under us.
   State state = state_;
 
+  // TODO: subsume load cell scale into one of the divisions here
   if (state == State::TENSIONING || state == State::TENSIONED_IDLE) {
     int32_t tension_error = GetLoadCellValue() - PARAM_target_tension.Get();
-    VLOG(1) << "tension_error = " << tension_error;
-    // just the P term for now
-    int32_t correction;
-    // TODO: subsume load cell scale into this division
-    correction = (PARAM_tension_loop_pn.Get() * tension_error) /
-                 PARAM_tension_loop_pd.Get();
+    static int32_t integral = 0;
+    static int32_t last_tension_error = tension_error;
+    static int32_t last_nonzero_tension_error = 0;
+    if (tension_error != 0 && util::signum(last_nonzero_tension_error) !=
+                                  util::signum(tension_error)) {
+      // we just crossed zero; clear the integral to prevent windup
+      integral = 0;
+    }
+    // TODO: get actual time delta instead of assuming
+    int32_t dt = PARAM_paper_timer_delay_ms.Get();
+    if (std::abs(tension_error) > PARAM_tension_loop_i_deadband.Get()) {
+      // trapezoid rule to update integral
+      // TODO: we can drop this /2 and just put it in the parameter
+      integral += dt * (tension_error + last_tension_error) / 2;
+    }
+    int32_t proportional_term = (PARAM_tension_loop_pn.Get() * tension_error) /
+                                PARAM_tension_loop_pd.Get();
+    int32_t integral_term =
+        (PARAM_tension_loop_in.Get() * integral) / PARAM_tension_loop_id.Get();
+    int32_t derivative_term =
+        (PARAM_tension_loop_dn.Get() * (tension_error - last_tension_error)) /
+        (PARAM_tension_loop_dd.Get() * dt);
+
+    int32_t correction = proportional_term + integral_term + derivative_term;
+
+    VLOG(1) << "P=" << proportional_term << " I=" << integral_term
+            << " D=" << derivative_term << "; error = " << tension_error
+            << " correction = " << correction;
     new_src_speed = -correction / 2;
     new_dst_speed = correction / 2;
+    last_tension_error = tension_error;
+    if (tension_error) last_nonzero_tension_error = tension_error;
   } else {
     // Nothing to do; don't touch the motors.
     return;
   }
 
-  VLOG(1) << "new_src_speed = " << new_src_speed
-          << " new_dst_speed = " << new_dst_speed;
+  // VLOG(1) << "new_src_speed = " << new_src_speed
+  //         << " new_dst_speed = " << new_dst_speed;
   // Update motor speeds
   motor_src_->Move(constants::kMotorPolaritySrc * new_src_speed);
   motor_dst_->Move(constants::kMotorPolarityDst * new_dst_speed);

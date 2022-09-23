@@ -4,8 +4,8 @@
 #include "tplp/bus/i2c.h"
 #include "tplp/hx8357/hx8357.h"
 #include "tplp/motor/stepper.h"
-#include "tplp/ui/TplpInterface.h"
 #include "tplp/paper_controller.h"
+#include "tplp/ui/TplpInterface.h"
 
 namespace tplp {
 namespace ui {
@@ -28,10 +28,9 @@ class TplpInterfaceImpl : public ui::TplpInterface {
   int32_t GetLoadCellValue() override;
   int32_t GetRawLoadCellValue() override;
 
-  util::Status StepperMotorSetSpeed(int microstep_hz_a,
-                                    int microstep_hz_b) override;
-  util::Status StepperMotorMove(int microsteps_a, int microsteps_b) override;
-  util::Status StepperMotorStopAll(StopType type) override;
+  virtual util::Status SteppersRelease() override;
+  virtual util::Status SteppersSetSpeed(int microstep_hz_a,
+                                        int microstep_hz_b) override;
 
   util::Status SaveAllParameters() override;
 

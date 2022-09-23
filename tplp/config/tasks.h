@@ -30,7 +30,7 @@ struct HardwareAlarms {
 // Allocation of the 8 available PWM slices.
 struct PwmSlices {
   static constexpr int kMotorA = 0;
-  static constexpr int kMotorB = 0;
+  static constexpr int kMotorB = 1;
 };
 
 struct TaskPriorities {
