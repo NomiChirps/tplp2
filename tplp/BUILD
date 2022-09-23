@@ -12,6 +12,16 @@ pico_binary(
 )
 
 cc_library(
+    name = "pid",
+    srcs = ["pid.cc"],
+    hdrs = ["pid.h"],
+    deps = [
+        "//tplp:numbers",
+        "//tplp/config:params",
+    ],
+)
+
+cc_library(
     name = "util",
     hdrs = ["util.h"],
     visibility = ["//visibility:public"],
@@ -41,6 +51,7 @@ cc_library(
     deps = [
         ":interrupts",
         ":numbers",
+        ":pid",
         "//picolog",
         "//tplp/config:constants",
         "//tplp/config:params",

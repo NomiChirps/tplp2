@@ -50,7 +50,7 @@ class StepperMotor {
   // high or low values of microstep_hz are capped to the appropriate values.
   void Move(int32_t microstep_hz);
   // Stops the motor and holds it in the current position.
-  void Stop() { Move(0); }
+  void Stop();
   // Stops the motor and de-energizes it, releasing the position.
   void Release();
 
@@ -63,6 +63,8 @@ class StepperMotor {
   int32_t GetPosition() const;
   // Resets the stored position to the given value.
   void SetPosition(int32_t position);
+
+  int32_t speed() const { return microstep_hz_; }
 
  private:
   static bool static_init_done_;

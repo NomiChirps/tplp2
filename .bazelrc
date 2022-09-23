@@ -40,7 +40,7 @@ build:iterate -c opt
 
 # picolog config
 # Verbosity
-build --copt="-DPICOLOG_VMODULE=\"paper_controller=2\""
+build --copt="-DPICOLOG_VMODULE=\"paper_controller=2,pid=1\""
 # Compile out logs below a certain severity
 #--copt="-DPICOLOG_STRIP_LOG=0"
 

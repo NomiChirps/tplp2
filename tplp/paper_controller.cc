@@ -12,6 +12,7 @@
 #include "tplp/config/params.h"
 #include "tplp/interrupts.h"
 #include "tplp/numbers.h"
+#include "tplp/pid.h"
 
 TPLP_PARAM(int32_t, loadcell_offset, 100'000, "Load cell zeroing offset");
 TPLP_PARAM(int32_t, loadcell_scale, 200, "Load cell scaling divider");
@@ -21,21 +22,25 @@ TPLP_PARAM(int32_t, tension_timeout_ms, 2'000,
 
 TPLP_PARAM(int32_t, target_tension, 200,
            "Target loadcell value to maintain by tensioning the paper");
+// TODO: this parameter doesn't actuall do what it says
 TPLP_PARAM(int32_t, tension_tolerance, 50,
            "Maximum allowable variation in tension before it's assumed that "
            "something went wrong");
 TPLP_PARAM(int32_t, paper_timer_delay_ms, 100,
            "How often to run the PaperController interrupt, in milliseconds");
 
-TPLP_PARAM(int32_t, tension_loop_pn, 1, "Tension control loop: P numerator");
-TPLP_PARAM(int32_t, tension_loop_pd, 2, "Tension control loop: P denominator");
-TPLP_PARAM(int32_t, tension_loop_in, 1, "Tension control loop: I numerator");
-TPLP_PARAM(int32_t, tension_loop_id, 1000,
-           "Tension control loop: I denominator");
-TPLP_PARAM(int32_t, tension_loop_dn, 0, "Tension control loop: D numerator");
-TPLP_PARAM(int32_t, tension_loop_dd, 1, "Tension control loop: D denominator");
-TPLP_PARAM(int32_t, tension_loop_i_deadband, 5,
-           "Tension control loop: integral deadband");
+TPLP_PARAM(int32_t, max_stepper_speed, 500,
+           "maximum stepper speed the paper controller will use");
+
+TPLP_PARAM(int32_t, tension_loop_pn, 1, "");
+TPLP_PARAM(int32_t, tension_loop_pd, 2, "");
+TPLP_PARAM(int32_t, tension_loop_in, 0, "");
+TPLP_PARAM(int32_t, tension_loop_id, 1, "");
+TPLP_PARAM(int32_t, tension_loop_dn, 0, "");
+TPLP_PARAM(int32_t, tension_loop_dd, 1, "");
+TPLP_PARAM(int32_t, tension_loop_i_deadband, 5, "");
+TPLP_PARAM(int32_t, tension_loop_ffn, 1, "feedforward gain");
+TPLP_PARAM(int32_t, tension_loop_ffd, 1, "feedforward gain");
 
 namespace tplp {
 namespace {
@@ -143,56 +148,41 @@ util::Status PaperController::Cmd_Release() {
 
 void PaperController::UpdateTensionLoop() {
   int32_t new_src_speed;
-  int32_t new_dst_speed;
+  // int32_t new_dst_speed;
   // We assume that the Cmd task's priority is lower, so it can't preempt and
   // change the state out from under us.
   State state = state_;
 
   // TODO: subsume load cell scale into one of the divisions here
   if (state == State::TENSIONING || state == State::TENSIONED_IDLE) {
-    int32_t tension_error = GetLoadCellValue() - PARAM_target_tension.Get();
-    static int32_t integral = 0;
-    static int32_t last_tension_error = tension_error;
-    static int32_t last_nonzero_tension_error = 0;
-    if (tension_error != 0 && util::signum(last_nonzero_tension_error) !=
-                                  util::signum(tension_error)) {
-      // we just crossed zero; clear the integral to prevent windup
-      integral = 0;
-    }
+    static PID tension("tension", &PARAM_tension_loop_pn,
+                       &PARAM_tension_loop_pd, &PARAM_tension_loop_in,
+                       &PARAM_tension_loop_id, &PARAM_tension_loop_dn,
+                       &PARAM_tension_loop_dd, &PARAM_tension_loop_i_deadband);
+
     // TODO: get actual time delta instead of assuming
     int32_t dt = PARAM_paper_timer_delay_ms.Get();
-    if (std::abs(tension_error) > PARAM_tension_loop_i_deadband.Get()) {
-      // trapezoid rule to update integral
-      // TODO: we can drop this /2 and just put it in the parameter
-      integral += dt * (tension_error + last_tension_error) / 2;
-    }
-    int32_t proportional_term = (PARAM_tension_loop_pn.Get() * tension_error) /
-                                PARAM_tension_loop_pd.Get();
-    int32_t integral_term =
-        (PARAM_tension_loop_in.Get() * integral) / PARAM_tension_loop_id.Get();
-    int32_t derivative_term =
-        (PARAM_tension_loop_dn.Get() * (tension_error - last_tension_error)) /
-        (PARAM_tension_loop_dd.Get() * dt);
+    int32_t tension_op =
+        tension.Update(PARAM_target_tension.Get(), GetLoadCellValue(), dt);
 
-    int32_t correction = proportional_term + integral_term + derivative_term;
+    // To increase tension (+), set source roller to reverse feed (-).
+    // To decrease tension (-), set source roller to forward feed (+).
+    new_src_speed = -tension_op;
+    // new_dst_speed = position_dst_op;
 
-    VLOG(1) << "P=" << proportional_term << " I=" << integral_term
-            << " D=" << derivative_term << "; error = " << tension_error
-            << " correction = " << correction;
-    new_src_speed = -correction / 2;
-    new_dst_speed = correction / 2;
-    last_tension_error = tension_error;
-    if (tension_error) last_nonzero_tension_error = tension_error;
+    // apply feedforward correction
+    new_src_speed += (PARAM_tension_loop_ffn.Get() * motor_dst_->speed()) /
+                     PARAM_tension_loop_ffd.Get();
   } else {
     // Nothing to do; don't touch the motors.
     return;
   }
-
-  // VLOG(1) << "new_src_speed = " << new_src_speed
-  //         << " new_dst_speed = " << new_dst_speed;
   // Update motor speeds
-  motor_src_->Move(constants::kMotorPolaritySrc * new_src_speed);
-  motor_dst_->Move(constants::kMotorPolarityDst * new_dst_speed);
+  int32_t max_speed = PARAM_max_stepper_speed.Get();
+  motor_src_->Move(std::clamp(new_src_speed, -max_speed, max_speed));
+  // motor_dst_->Move(std::clamp(new_dst_speed, -max_speed, max_speed));
+
+  // TODO: time this function and see how it actually performs
 }
 
 void PaperController::LoopTaskFnBody() {
