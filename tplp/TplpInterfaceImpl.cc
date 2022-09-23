@@ -113,6 +113,11 @@ util::Status TplpInterfaceImpl::SteppersSetSpeed(int microstep_hz_a,
   return util::OkStatus();
 }
 
+void TplpInterfaceImpl::SteppersGetPosition(int32_t* a, int32_t* b) {
+  *a = motor_a_->GetPosition();
+  *b = motor_b_->GetPosition();
+}
+
 util::Status TplpInterfaceImpl::SaveAllParameters() {
   return ::tplp::config::SaveAllParameters();
 }

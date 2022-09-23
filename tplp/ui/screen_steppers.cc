@@ -10,12 +10,16 @@
 
 static constexpr int kMaxSpeed = 500;
 static constexpr int kExtraSliderClickArea = 50;
+static constexpr int kPositionUpdatePeriodMs = 50;
 
-lv_obj_t* motor_a_speed;
-lv_obj_t* motor_a_speed_label;
-lv_obj_t* motor_b_speed;
-lv_obj_t* motor_b_speed_label;
-lv_obj_t* chart;
+static lv_obj_t* motor_a_speed;
+static lv_obj_t* motor_a_speed_label;
+static lv_obj_t* motor_a_position;
+static lv_obj_t* motor_b_speed;
+static lv_obj_t* motor_b_speed_label;
+static lv_obj_t* motor_b_position;
+
+static lv_timer_t* update_positions_timer = nullptr;
 
 void stop_button_pressed_cb(lv_event_t* e) {
   util::Status status = global_tplp_->SteppersRelease();
@@ -41,11 +45,21 @@ void update_speeds_cb(lv_event_t* e) {
   lv_label_set_text(motor_b_speed_label, absl::StrCat(b).c_str());
 }
 
+void update_positions_cb(lv_timer_t* timer) {
+  int32_t a, b;
+  global_tplp_->SteppersGetPosition(&a, &b);
+  lv_label_set_text(motor_a_position, absl::StrCat(a).c_str());
+  lv_label_set_text(motor_b_position, absl::StrCat(b).c_str());
+}
+
+void screen_steppers_delete_cb(lv_event_t* e) {
+  lv_timer_pause(update_positions_timer);
+}
+
 lv_obj_t* ui_screen_steppers_create(lv_obj_t* parent) {
   static lv_coord_t col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1),
-                                 LV_GRID_TEMPLATE_LAST};
-  static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, 100,
-                                 100, LV_GRID_FR(1),
+                                 LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+  static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, 100, 100, LV_GRID_FR(1),
                                  LV_GRID_TEMPLATE_LAST};
 
   lv_obj_t* content = lv_obj_create(parent);
@@ -67,6 +81,11 @@ lv_obj_t* ui_screen_steppers_create(lv_obj_t* parent) {
   lv_obj_t* col1_heading = lv_label_create(content);
   lv_label_set_text(col1_heading, "Speed");
   lv_obj_set_grid_cell(col1_heading, LV_GRID_ALIGN_CENTER, 1, 1,
+                       LV_GRID_ALIGN_CENTER, 0, 1);
+
+  lv_obj_t* col2_heading = lv_label_create(content);
+  lv_label_set_text(col2_heading, "Position");
+  lv_obj_set_grid_cell(col2_heading, LV_GRID_ALIGN_CENTER, 2, 1,
                        LV_GRID_ALIGN_CENTER, 0, 1);
 
   /* Motor 1 */
@@ -91,6 +110,11 @@ lv_obj_t* ui_screen_steppers_create(lv_obj_t* parent) {
   lv_obj_align_to(motor_a_speed_label, motor_a_speed, LV_ALIGN_OUT_BOTTOM_MID,
                   0, 10);
 
+  motor_a_position = lv_label_create(content);
+  lv_label_set_text(motor_a_position, "0");
+  lv_obj_set_grid_cell(motor_a_position, LV_GRID_ALIGN_CENTER, 2, 1,
+                       LV_GRID_ALIGN_CENTER, 1, 1);
+
   /* Motor 2 */
   lv_obj_t* motor_b_label = lv_label_create(content);
   lv_label_set_text(motor_b_label, "B");
@@ -113,6 +137,11 @@ lv_obj_t* ui_screen_steppers_create(lv_obj_t* parent) {
   lv_obj_align_to(motor_b_speed_label, motor_b_speed, LV_ALIGN_OUT_BOTTOM_MID,
                   0, 10);
 
+  motor_b_position = lv_label_create(content);
+  lv_label_set_text(motor_b_position, "0");
+  lv_obj_set_grid_cell(motor_b_position, LV_GRID_ALIGN_CENTER, 2, 1,
+                       LV_GRID_ALIGN_CENTER, 2, 1);
+
   /* play/stop footer buttons */
   lv_obj_t* play_button_bar = lv_obj_create(content);
   lv_obj_remove_style_all(play_button_bar);
@@ -130,6 +159,15 @@ lv_obj_t* ui_screen_steppers_create(lv_obj_t* parent) {
   lv_obj_t* stop_btn_label = lv_img_create(stop_btn);
   lv_img_set_src(stop_btn_label, LV_SYMBOL_STOP);
   lv_obj_add_event_cb(stop_btn, stop_button_pressed_cb, LV_EVENT_CLICKED, NULL);
+
+  // Background position update
+  lv_obj_add_event_cb(content, screen_steppers_delete_cb, LV_EVENT_DELETE,
+                      nullptr);
+  if (!update_positions_timer) {
+    update_positions_timer =
+        lv_timer_create(update_positions_cb, kPositionUpdatePeriodMs, nullptr);
+  }
+  lv_timer_resume(update_positions_timer);
 
   // lv_obj_t* play_btn = lv_btn_create(play_button_bar);
   // lv_obj_set_style_bg_color(play_btn, lv_palette_main(LV_PALETTE_GREEN), 0);

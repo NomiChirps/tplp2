@@ -22,6 +22,11 @@ util::Status TplpInterface::SteppersSetSpeed(int microstep_hz_a,
                                              int microstep_hz_b) {
   return util::OkStatus();
 }
+void TplpInterface::SteppersGetPosition(int32_t* a, int32_t* b) {
+  static int32_t x = 0;
+  *a = x++;
+  *b = -x++;
+}
 std::string TplpInterface::GetPaperState() { return "<paper status>"; }
 util::Status TplpInterface::SaveAllParameters() { return util::OkStatus(); }
 util::Status TplpInterface::TensionPaper() { return util::OkStatus(); }

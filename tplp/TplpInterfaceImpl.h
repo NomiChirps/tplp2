@@ -31,6 +31,7 @@ class TplpInterfaceImpl : public ui::TplpInterface {
   virtual util::Status SteppersRelease() override;
   virtual util::Status SteppersSetSpeed(int microstep_hz_a,
                                         int microstep_hz_b) override;
+  virtual void SteppersGetPosition(int32_t* a, int32_t* b) override;
 
   util::Status SaveAllParameters() override;
 

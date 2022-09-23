@@ -42,6 +42,7 @@ class TplpInterface {
   virtual util::Status SteppersRelease();
   virtual util::Status SteppersSetSpeed(int microstep_hz_a,
                                             int microstep_hz_b);
+  virtual void SteppersGetPosition(int32_t* a, int32_t* b);
 
   // Paper feed control.
   virtual std::string GetPaperState();
