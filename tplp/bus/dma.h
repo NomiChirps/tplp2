@@ -93,6 +93,12 @@ class DmaController {
     // Returns the remaining trans_count for each channel.
     std::array<uint32_t, 2> Abort();
 
+    // Returns the current remaining trans_count value for each channel.
+    // The transfer must already have started. This is necessarily imprecise,
+    // because it queries the channels one after the other and not
+    // simultaneously.
+    std::array<uint32_t, 2> trans_count() const;
+
     // Returns an invalid instance of TransferHandle that will crash if any
     // methods are called on it. Use with caution.
     static TransferHandle Invalid() { return TransferHandle(nullptr, 0); }

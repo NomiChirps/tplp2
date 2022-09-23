@@ -251,6 +251,16 @@ DmaController::TransferHandle DmaController::Transfer(const Request& req) {
   return handle;
 }
 
+std::array<uint32_t, 2> DmaController::TransferHandle::trans_count() const {
+  if (finished()) {
+    return {0, 0};
+  }
+  CHECK(started())
+      << "Cannot get remaining trans_count for a transfer that hasn't started";
+  return {dma_channel_hw_addr(dma_->c0_)->transfer_count,
+          dma_channel_hw_addr(dma_->c1_)->transfer_count};
+}
+
 std::array<uint32_t, 2> DmaController::TransferHandle::Abort() {
   if (finished()) {
     VLOG(1) << "Abort: already finished";
