@@ -93,6 +93,7 @@ void StepperMotor::Move(int32_t new_microstep_hz) {
     const uint32_t last_dma_trans_count = current_dma_.Abort()[0];
     const uint32_t last_dma_num_commands_sent =
         kInitialTransCount - last_dma_trans_count;
+    microstep_counter_ += current_dma_signum_ * last_dma_num_commands_sent;
     last_dma_read_index_ =
         (last_dma_read_index_ + last_dma_num_commands_sent) % kCommandBufLen;
     microstep_hz_ = 0;
@@ -123,6 +124,16 @@ void StepperMotor::Move(int32_t new_microstep_hz) {
     microstep_hz_ = new_microstep_hz;
     pwm_set_enabled(pwm_slice_num_, true);
   }
+}
+
+int32_t StepperMotor::GetPosition() const {
+  return microstep_counter_ +
+         current_dma_signum_ *
+             (kInitialTransCount - current_dma_.trans_count()[0]);
+}
+
+void StepperMotor::SetPosition(int32_t position) {
+  microstep_counter_ = position - microstep_counter_;
 }
 
 void StepperMotor::Release() {

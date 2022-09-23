@@ -57,6 +57,13 @@ class StepperMotor {
   static int32_t min_microstep_hz();
   static int32_t max_microstep_hz();
 
+  // Returns the current open-loop position of the motor, not accounting for
+  // missed steps due to external factors. This may wrap around int32_max if the
+  // motor runs fast enough for long enough.
+  int32_t GetPosition() const;
+  // Resets the stored position to the given value.
+  void SetPosition(int32_t position);
+
  private:
   static bool static_init_done_;
   static void StaticInit();
@@ -116,6 +123,8 @@ class StepperMotor {
   int32_t microstep_hz_;
   // Currently running DMA transfer
   DmaController::TransferHandle current_dma_;
+  // Motor "position" as of the start of current DMA transfer.
+  int32_t microstep_counter_;
 
  private:
   // Not copyable or moveable.
