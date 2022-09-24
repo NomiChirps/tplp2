@@ -17,7 +17,21 @@ cc_library(
     hdrs = ["pid.h"],
     deps = [
         "//tplp:numbers",
+        "//tplp:util",
         "//tplp/config:params",
+    ],
+)
+
+cc_test(
+    name = "pid_test",
+    srcs = ["pid_test.cc"],
+    target_compatible_with = select({
+        "@platforms//os:none": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":pid",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -41,7 +55,9 @@ cc_library(
     name = "numbers",
     hdrs = ["numbers.h"],
     visibility = ["//visibility:public"],
-    deps = [],
+    deps = [
+        "//absl/strings",
+    ],
 )
 
 cc_library(
@@ -59,24 +75,6 @@ cc_library(
         "//tplp/motor:stepper",
         "@FreeRTOS",
         "@rules_pico//pico:hardware_timer",
-    ],
-)
-
-cc_library(
-    name = "events",
-    hdrs = ["events.h"],
-)
-
-cc_test(
-    name = "events_test",
-    srcs = ["events_test.cc"],
-    target_compatible_with = select({
-        "@platforms//os:none": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    }),
-    deps = [
-        ":events",
-        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -147,6 +145,7 @@ cc_library(
     srcs = ["rtos_util.cc"],
     hdrs = ["rtos_util.h"],
     deps = [
+        ":numbers",
         "//picolog",
         "@FreeRTOS",
     ],

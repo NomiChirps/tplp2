@@ -4,6 +4,7 @@
 #include "FreeRTOS/FreeRTOS.h"
 #include "FreeRTOS/semphr.h"
 #include "picolog/picolog.h"
+#include "tplp/numbers.h"
 
 namespace tplp {
 
@@ -48,12 +49,6 @@ class ScopedSemaphoreReleaser {
 // Waits until at least the given number of milliseconds have passed since boot.
 // Scheduler must be running.
 void EnsureTimeSinceBootMillis(int wait_until);
-
-// Integer division, rounding up.
-template <typename Int>
-inline Int intdiv_ceil(Int x, Int y) {
-  return (x / y) + (x % y != 0);
-}
 
 // Always rounds up, under the assumption that this is being used to calculate a
 // delay time.

@@ -39,7 +39,7 @@ enum tsc2007_resolution : uint8_t {
 util::Status Command(I2cTransaction& txn, tsc2007_function func,
                      tsc2007_power pwr, tsc2007_resolution res,
                      bool stop = false) {
-  uint8_t cmd = func | pwr | res;
+  uint8_t cmd = (uint8_t)func | (uint8_t)pwr | (uint8_t)res;
   return txn.Write(&cmd, 1, stop);
 }
 

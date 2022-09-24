@@ -3,16 +3,20 @@
 
 #include <functional>
 
+#include "absl/strings/str_cat.h"
 #include "picolog/picolog.h"
 #include "picolog/status.h"
 #include "picolog/statusor.h"
+#include "tplp/numbers.h"
 
 // Defines a persistent parameter. It contains a default value until
 // Load() or LoadAllParameters() is used.
 #define TPLP_PARAM(Type, name, default_value, help)    \
   extern ::tplp::config::Parameter<Type> PARAM_##name; \
   namespace tplp {}                                    \
-  tplp::config::Parameter<Type> PARAM_##name { #name, default_value, help }
+  tplp::config::Parameter<Type> PARAM_##name {         \
+#name, default_value, help                         \
+  }
 
 // Declares a persistent parameter which is defined in another module.
 #define TPLP_DECLARE_PARAM(Type, name) \
@@ -66,6 +70,7 @@ class Parameter : public ParameterBase {
   }
 
   util::Status Parse(std::string_view str) override;
+
   util::StatusOr<size_t> Serialize(char* buf, size_t n) const override;
   std::string DebugString() const override;
 
@@ -99,6 +104,56 @@ struct AllParameters {
   iterator_t begin() const;
   iterator_t end() const;
 };
+
+template <class>
+inline constexpr bool dependent_false_v = false;
+
+template <typename T>
+Parameter<T>::Parameter(const char* name, const T& default_value,
+                        const char* help)
+    : ParameterBase(name, help), value_(default_value) {}
+
+template <typename T>
+util::StatusOr<size_t> Parameter<T>::Serialize(char* buf, size_t n) const {
+  std::string str;
+  if constexpr (std::is_integral_v<T>) {
+    str = absl::StrCat(Get());
+  } else if constexpr (std::is_base_of_v<fix32_base_t, T>) {
+    str = Get().ToDecimalString();
+  } else {
+    static_assert(dependent_false_v<T>,
+                  "Serialize not implemented for this type");
+    return util::UnimplementedError("Parameter::Serialize");
+  }
+  if (str.size() > n) {
+    return util::ResourceExhaustedError("serialized value too large");
+  }
+  return str.copy(buf, n);
+}
+
+template <typename T>
+util::Status Parameter<T>::Parse(std::string_view str) {
+  T new_value;
+  if constexpr (std::is_integral_v<T>) {
+    if (!absl::SimpleAtoi(str, &new_value)) {
+      return util::InvalidArgumentError("parse error");
+    }
+  } else if constexpr (std::is_base_of_v<fix32_base_t, T>) {
+    if (!T::FromDecimalString(str, &new_value)) {
+      return util::InvalidArgumentError("parse error");
+    }
+  } else {
+    static_assert(dependent_false_v<T>, "Parse not implemented for this type");
+    return util::UnimplementedError("Parameter::Parse");
+  }
+  Set(new_value);
+  return util::OkStatus();
+}
+
+template <typename AnyPrintable>
+std::string Parameter<AnyPrintable>::DebugString() const {
+  return absl::StrCat(Get());
+}
 
 }  // namespace config
 }  // namespace tplp

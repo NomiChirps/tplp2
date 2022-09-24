@@ -16,6 +16,8 @@ ls -lh bazel-bin/tplp/firmware.uf2
 
 ## TODO / Notes
 
+- [ ] P1: motor speed pulsates while microstepping. fix this! it's important!
+- [ ] don't like the pid algorithm from wikipedia. the proportional term is weird. let's find another one
 - [ ] statically allocate all the instances of my hardware classes. we aren't going to be adding a third stepper motor at runtime, you dork.
   - [x] done for StepperMotor
 - [ ] Milestone: Paper Tensioning
@@ -171,7 +173,8 @@ See also https://github.com/majbthrd/pico-debug/blob/master/howto/openocd.md.
 
 ## todos whomst done
 
-- [ ] redesign manual stepper control UI to match the new API and to be easier to use
+- [x] P0: finish making my type-safe fixpoint thing so i can implement the PROPERLY discretized pid algorithm from wikipedia
+- [x] redesign manual stepper control UI to match the new API and to be easier to use
 - [x] **P1: fix major stepper glitch when reversing direction**
 - [x] P1: Okay we REALLY need to be able to dial the motor speed ALL the way down right next to zero. the pid loop is not happy otherwise.
 - [x] FIXME: go through all my uses of __not_in_flash and add asserts to make sure they're actually doing that thing (addr < 0x1000000)

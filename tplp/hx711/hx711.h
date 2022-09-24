@@ -22,7 +22,7 @@ class HX711 {
  public:
   static HX711* Init(pio_hw_t* pio, gpio_pin_t sck, gpio_pin_t dout);
 
-  inline volatile int32_t raw_value() const {
+  inline int32_t raw_value() const {
     return signextend<int32_t, 24>(sampled_value_);
   }
 

@@ -32,15 +32,18 @@ TPLP_PARAM(int32_t, paper_timer_delay_ms, 100,
 TPLP_PARAM(int32_t, max_stepper_speed, 500,
            "maximum stepper speed the paper controller will use");
 
-TPLP_PARAM(int32_t, tension_loop_pn, 1, "");
-TPLP_PARAM(int32_t, tension_loop_pd, 2, "");
-TPLP_PARAM(int32_t, tension_loop_in, 0, "");
-TPLP_PARAM(int32_t, tension_loop_id, 1, "");
-TPLP_PARAM(int32_t, tension_loop_dn, 0, "");
-TPLP_PARAM(int32_t, tension_loop_dd, 1, "");
-TPLP_PARAM(int32_t, tension_loop_i_deadband, 5, "");
-TPLP_PARAM(int32_t, tension_loop_ffn, 1, "feedforward gain");
-TPLP_PARAM(int32_t, tension_loop_ffd, 1, "feedforward gain");
+static constexpr int kPidFracBits = 16;
+using fixed = fix32_t<kPidFracBits>;
+TPLP_PARAM(fixed, tension_loop_p, fixed(0, 0), "");
+TPLP_PARAM(fixed, tension_loop_i, fixed(0, 0), "");
+TPLP_PARAM(fixed, tension_loop_d, fixed(0, 0), "");
+TPLP_PARAM(fixed, tension_loop_i_deadband, fixed(5, 0),
+           "+/- range from the tension setpoint inside of which the integral "
+           "is not accumulated");
+TPLP_PARAM(fixed, tension_loop_i_liveband, fixed(20, 0),
+           "+/- range from the tension setpoint outside of which the integral "
+           "is set to zero");
+TPLP_PARAM(fixed, tension_loop_ff, fixed(0, 0), "feedforward gain");
 
 namespace tplp {
 namespace {
@@ -155,10 +158,15 @@ void PaperController::UpdateTensionLoop() {
 
   // TODO: subsume load cell scale into one of the divisions here
   if (state == State::TENSIONING || state == State::TENSIONED_IDLE) {
-    static PID tension("tension", &PARAM_tension_loop_pn,
-                       &PARAM_tension_loop_pd, &PARAM_tension_loop_in,
-                       &PARAM_tension_loop_id, &PARAM_tension_loop_dn,
-                       &PARAM_tension_loop_dd, &PARAM_tension_loop_i_deadband);
+    static constexpr PIDParams<kPidFracBits> pid_params{
+        .P = &PARAM_tension_loop_p,
+        .I = &PARAM_tension_loop_i,
+        .D = &PARAM_tension_loop_d,
+        .I_deadband = &PARAM_tension_loop_i_deadband,
+        .I_liveband = &PARAM_tension_loop_i_liveband,
+    };
+    static PID<kPidFracBits, pid_params> tension("tension",
+                                                 /*initial_output=*/0);
 
     // TODO: get actual time delta instead of assuming
     int32_t dt = PARAM_paper_timer_delay_ms.Get();
@@ -171,8 +179,8 @@ void PaperController::UpdateTensionLoop() {
     // new_dst_speed = position_dst_op;
 
     // apply feedforward correction
-    new_src_speed += (PARAM_tension_loop_ffn.Get() * motor_dst_->speed()) /
-                     PARAM_tension_loop_ffd.Get();
+    new_src_speed +=
+        (PARAM_tension_loop_ff.Get() * motor_dst_->speed()).trunc();
   } else {
     // Nothing to do; don't touch the motors.
     return;
