@@ -184,17 +184,14 @@ void StepperMotor::Init(PIO pio, const Hardware& hw, int pio_pwm_freq_hz,
     sm_config_set_out_shift(&c, /*shift_right=*/true, /*autopull=*/false,
                             /*pull_threshold=*/32);
     sm_config_set_clkdiv_int_frac(&c, pio_clkdiv_int_, pio_clkdiv_frac_);
-    // Although RX FIFO isn't used, we don't want to join the FIFOs together
-    // because (a) we're using DMA to fill them and a depth of 4 is plenty,
-    // and (b) the shorter the FIFO is, the quicker it'll respond to changes
-    // in what we're sending. And anyway, we're exceedingly unlikely to take
-    // `pio_pwm_freq_hz` microsteps in a second.
+    // Doesn't matter if we join the FIFOs or not since we'll never be sending
+    // commands close to fast enough to fill it.
     pio_sm_init(pio, sm, program_offset, &c);
     pio_sm_set_consecutive_pindirs(pio, sm, hw.a1, 4, /*is_out=*/true);
 
     // Put a safe initial command into the FIFO before starting the state
     // machine.
-    *motor->txf_ = motor->shortbrake_command_;
+    pio->txf[sm] = motor->shortbrake_command_;
     pio_sm_set_enabled(pio, sm, true);
   }
 
