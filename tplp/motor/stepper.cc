@@ -144,7 +144,7 @@ void StepperMotor::Stop() {
                       (kInitialTransCount - current_dma_.trans_count()[0])) %
                  kCommandBufLen;
   if (current_dma_signum_ > 0) {
-  *txf_ = commands_fwd_[idx];
+    *txf_ = commands_fwd_[idx];
   } else if (current_dma_signum_ < 0) {
     *txf_ = commands_rev_[idx];
   }
@@ -172,18 +172,18 @@ void StepperMotor::StaticInit_Clocks(int pwm_freq_hz) {
   pio_pwm_period_ = sys_hz / (stepper_instructions_per_count * pwm_freq_hz);
   // System clock too fast?
   if (pio_pwm_period_ > 255) {
-  // Set pwm_period to max and calculate an appropriate divider.
-  pio_pwm_period_ = 255;
-  // 255 = (sys_hz / divider) / (isp * pwm_freq)
-  // 255 * isp * pwm_freq * divider = sys_hz
-  // divider = sys_hz / (255 * isp * pwm_freq)
-  int clkdiv_256 =
-      (256 * (sys_hz / 255)) / (stepper_instructions_per_count * pwm_freq_hz);
-  VLOG(1) << "sys_hz = " << sys_hz;
-  VLOG(1) << "pwm_freq_hz = " << pwm_freq_hz;
-  VLOG(1) << "clkdiv_256 = " << clkdiv_256;
-  pio_clkdiv_int_ = clkdiv_256 / 256;
-  pio_clkdiv_frac_ = clkdiv_256 % 256;
+    // Set pwm_period to max and calculate an appropriate divider.
+    pio_pwm_period_ = 255;
+    // 255 = (sys_hz / divider) / (isp * pwm_freq)
+    // 255 * isp * pwm_freq * divider = sys_hz
+    // divider = sys_hz / (255 * isp * pwm_freq)
+    int clkdiv_256 =
+        (256 * (sys_hz / 255)) / (stepper_instructions_per_count * pwm_freq_hz);
+    VLOG(1) << "sys_hz = " << sys_hz;
+    VLOG(1) << "pwm_freq_hz = " << pwm_freq_hz;
+    VLOG(1) << "clkdiv_256 = " << clkdiv_256;
+    pio_clkdiv_int_ = clkdiv_256 / 256;
+    pio_clkdiv_frac_ = clkdiv_256 % 256;
   }
 
   CHECK_GT(pio_pwm_period_, 0);
@@ -238,64 +238,64 @@ void StepperMotor::StaticInit_Commands() {
     return kSinTable[i];
   };
   for (int phase = 0; phase < 4; ++phase) {
-  // pins_t1 == 0b1111
-  uint8_t pins_t2 = 0;  // first half of period
-  uint8_t pins_t3 = 0;  // second half of period
-  bool polarity = 0;
-  // This corresponds to the full-step cycle:
-  //    0b0111
-  //    0b1101
-  //    0b1011
-  //    0b1110
-  // TODO: think about an alternate table, defaulting to freewheel instead of
-  // short-brake? does this make any sense at all? basically inverted...
-  //    0b1000
-  //    0b0010
-  //    0b0100
-  //    0b0001
-  switch (phase) {
-    case 0:
-      pins_t2 = 0b0111;
-      pins_t3 = 0b1101;
-      polarity = 0;
-      break;
-    case 1:
-      pins_t2 = 0b1101;
-      pins_t3 = 0b1011;
-      polarity = 1;
-      break;
-    case 2:
-      pins_t2 = 0b1011;
-      pins_t3 = 0b1110;
-      polarity = 0;
-      break;
-    case 3:
-      pins_t2 = 0b1110;
-      pins_t3 = 0b0111;
-      polarity = 1;
-      break;
-  }
-  // remainder of period, both low
-  uint8_t pins_t4 = pins_t2 & pins_t3;
-  // weow...
-  for (uint8_t i = 0; i < kCommandsPerPhase; ++i) {
-    // duty cycle for A and B pins
-    int da = (pio_pwm_period_ * (kSinMax - sine(i))) / kSinMax;
-    int db =
-        (pio_pwm_period_ * (kSinMax - sine(kCommandsPerPhase - i))) / kSinMax;
-    if (polarity) std::swap(da, db);
-    int t1_duration = std::min(da, db);
-    int t2_t3_duration = std::abs(da - db);
-    CHECK_GE(t1_duration, 0);
-    CHECK_LT(t1_duration, 256);
-    CHECK_GE(t2_t3_duration, 0);
-    CHECK_LT(t2_t3_duration, 256);
-    VLOG(1) << "phase=" << phase << " i=" << (int)i << " da=" << da
-            << " db=" << db << " t1_duration=" << t1_duration
-            << " t2_t3_duration=" << t2_t3_duration;
-    push(t1_duration, t2_t3_duration,
-         (i < (kCommandsPerPhase / 2)) ? pins_t2 : pins_t3, pins_t4);
-  }
+    // pins_t1 == 0b1111
+    uint8_t pins_t2 = 0;  // first half of period
+    uint8_t pins_t3 = 0;  // second half of period
+    bool polarity = 0;
+    // This corresponds to the full-step cycle:
+    //    0b0111
+    //    0b1101
+    //    0b1011
+    //    0b1110
+    // TODO: think about an alternate table, defaulting to freewheel instead of
+    // short-brake? does this make any sense at all? basically inverted...
+    //    0b1000
+    //    0b0010
+    //    0b0100
+    //    0b0001
+    switch (phase) {
+      case 0:
+        pins_t2 = 0b0111;
+        pins_t3 = 0b1101;
+        polarity = 0;
+        break;
+      case 1:
+        pins_t2 = 0b1101;
+        pins_t3 = 0b1011;
+        polarity = 1;
+        break;
+      case 2:
+        pins_t2 = 0b1011;
+        pins_t3 = 0b1110;
+        polarity = 0;
+        break;
+      case 3:
+        pins_t2 = 0b1110;
+        pins_t3 = 0b0111;
+        polarity = 1;
+        break;
+    }
+    // remainder of period, both low
+    uint8_t pins_t4 = pins_t2 & pins_t3;
+    // weow...
+    for (uint8_t i = 0; i < kCommandsPerPhase; ++i) {
+      // duty cycle for A and B pins
+      int da = (pio_pwm_period_ * (kSinMax - sine(i))) / kSinMax;
+      int db =
+          (pio_pwm_period_ * (kSinMax - sine(kCommandsPerPhase - i))) / kSinMax;
+      if (polarity) std::swap(da, db);
+      int t1_duration = std::min(da, db);
+      int t2_t3_duration = std::abs(da - db);
+      CHECK_GE(t1_duration, 0);
+      CHECK_LT(t1_duration, 256);
+      CHECK_GE(t2_t3_duration, 0);
+      CHECK_LT(t2_t3_duration, 256);
+      VLOG(1) << "phase=" << phase << " i=" << (int)i << " da=" << da
+              << " db=" << db << " t1_duration=" << t1_duration
+              << " t2_t3_duration=" << t2_t3_duration;
+      push(t1_duration, t2_t3_duration,
+           (i < (kCommandsPerPhase / 2)) ? pins_t2 : pins_t3, pins_t4);
+    }
   }
   LOG(INFO) << "StepperMotor command buffer initialized. Size = "
             << kCommandBufLen;
