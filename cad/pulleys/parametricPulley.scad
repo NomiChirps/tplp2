@@ -24,6 +24,8 @@
 number_of_teeth = 60; // [10:100]
 profile = 12; // [1:MXL, 2:40DP, 3:XL, 4:H, 5:T2.5, 6:T5, 7:T10, 8:AT5, 9:HTD_3mm, 10:HTD_5mm, 11:HTD_8mm, 12:GT2_2mm, 13:GT2_3mm, 14:GT2_5mm]
 motor_shaft_diameter = 8.2; // (in mm)
+// Added to the diameter.
+motor_shaft_clearance = 0.1;
 toothed_part_length = 6.2; // [3:30] (in mm)
 base_height = 0; // [0:30] (in mm, 6 is typical)
 base_diameter = 20;   // [10:50] (in mm)
@@ -85,7 +87,7 @@ retainer_height = (belt_retainer==0 ? 0 : retainer_height_p);
 //echo (str("Retainer height\t= ",retainer_height," mm"));
 no_of_nuts = screws_disposition;
 nut_angle = no_of_nuts != 3 ? 90 : 120;
-motor_shaft = motor_shaft_diameter + 0.2;
+motor_shaft = motor_shaft_diameter + motor_shaft_clearance;
 screw_diameters = [1, 1.6, 2, 2.5, 3, 4, 5, 6];
 nut_widths = [2.5, 3.2, 4, 5, 5.5, 7, 8, 10];
 nut_depths = [1, 1.3, 1.6, 2, 2.4, 3.2, 4.7, 5.2];
